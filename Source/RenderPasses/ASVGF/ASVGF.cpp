@@ -35,6 +35,15 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 ASVGF::ASVGF(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
+    m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGF/ASVGF_test.3d.slang", "vsMain", "psMain");
+    RasterizerState::Desc l_ASVGFFrameDesc;
+    l_ASVGFFrameDesc.setFillMode(RasterizerState::FillMode::Wireframe);
+    l_ASVGFFrameDesc.setCullMode(RasterizerState::CullMode::None);
+    m_pRasterState = RasterizerState::create(l_ASVGFFrameDesc);
+
+    m_pGraphicsState = GraphicsState::create(pDevice);
+    m_pGraphicsState->setProgram(m_pProgram);
+    m_pGraphicsState->setRasterizerState(m_pRasterState);
 }
 
 Properties ASVGF::getProperties() const
@@ -44,19 +53,35 @@ Properties ASVGF::getProperties() const
 
 RenderPassReflection ASVGF::reflect(const CompileData& compileData)
 {
-    // Define the required resources here
     RenderPassReflection reflector;
-    //reflector.addOutput("dst");
-    //reflector.addInput("src");
+    reflector.addOutput("output", "ASVGF test view");
     return reflector;
 }
 
-void ASVGF::execute(RenderContext* pRenderContext, const RenderData& renderData)
+void ASVGF::execute(RenderContext* a_pRenderContext, const RenderData& a_renderData)
 {
-    // renderData holds the requested resources
-    // auto& pTexture = renderData.getTexture("src");
+    auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("output")});
+    const float4 clearColor(0, 0, 0, 1);
+    a_pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
+    m_pGraphicsState->setFbo(pTargetFbo);
+
+    if (m_pScene)
+    {
+        auto l_RootVar = m_pVars->getRootVar();
+        l_RootVar["PerFrameCB"]["gColor"] = float4(0, 0, 1, 1);
+
+        m_pScene->rasterize(a_pRenderContext, m_pGraphicsState.get(), m_pVars.get(), m_pRasterState, m_pRasterState);
+    }
 }
 
-void ASVGF::renderUI(Gui::Widgets& widget)
+void ASVGF::renderUI(Gui::Widgets& a_widget)
 {
+}
+
+void ASVGF::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
+{
+    m_pScene = a_pScene;
+    if (m_pScene)
+        m_pProgram->addDefines(m_pScene->getSceneDefines());
+    m_pVars = GraphicsVars::create(mpDevice, m_pProgram->getReflector());
 }

@@ -34,20 +34,25 @@ using namespace Falcor;
 class ASVGF : public RenderPass
 {
 public:
-    FALCOR_PLUGIN_CLASS(ASVGF, "ASVGF", "Insert pass description here.");
+    FALCOR_PLUGIN_CLASS(ASVGF, "ASVGF", "Adaptive-SVGF.");
 
-    static ref<ASVGF> create(ref<Device> pDevice, const Properties& props) { return make_ref<ASVGF>(pDevice, props); }
+    static ref<ASVGF> create(ref<Device> a_pDevice, const Properties& a_props) { return make_ref<ASVGF>(a_pDevice, a_props); }
 
-    ASVGF(ref<Device> pDevice, const Properties& props);
+    ASVGF(ref<Device> a_pDevice, const Properties& a_props);
 
     virtual Properties getProperties() const override;
-    virtual RenderPassReflection reflect(const CompileData& compileData) override;
-    virtual void compile(RenderContext* pRenderContext, const CompileData& compileData) override {}
-    virtual void execute(RenderContext* pRenderContext, const RenderData& renderData) override;
-    virtual void renderUI(Gui::Widgets& widget) override;
-    virtual void setScene(RenderContext* pRenderContext, const ref<Scene>& pScene) override {}
-    virtual bool onMouseEvent(const MouseEvent& mouseEvent) override { return false; }
-    virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
+    virtual RenderPassReflection reflect(const CompileData& a_compileData) override;
+    virtual void compile(RenderContext* a_pRenderContext, const CompileData& a_compileData) override {}
+    virtual void execute(RenderContext* a_pRenderContext, const RenderData& a_renderData) override;
+    virtual void renderUI(Gui::Widgets& a_widget) override;
+    virtual void setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene);
+    virtual bool onMouseEvent(const MouseEvent& a_mouseEvent) override { return false; }
+    virtual bool onKeyEvent(const KeyboardEvent& a_keyEvent) override { return false; }
 
 private:
+    ref<Scene> m_pScene;
+    ref<GraphicsProgram> m_pProgram;
+    ref<GraphicsState> m_pGraphicsState;
+    ref<RasterizerState> m_pRasterState;
+    ref<GraphicsVars> m_pVars;
 };
