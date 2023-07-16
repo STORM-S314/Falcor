@@ -108,6 +108,8 @@ bool loadPrevData(float2 posH, out float4 prevIllum, out float2 prevMoments, out
         valid = valid || v[sampleIdx];
     }
 
+    ///If valid then do bilinear interpolation of the 4 corner points of the sub pixel value x,y
+    /// where x and y and the fraction values of the posPrev. i.e. 123.5, 321.6 then x,y = 0.5, 0.6
     if (valid)
     {
         float sumw = 0;
@@ -202,6 +204,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float4 posH = vsOut.posH;
     const int2 ipos = posH.xy;
 
+    ///Only the illumination at that fragment. Done by removing the emission at the fragment and then dividing by the Albedo-texture/color set
     float3 illumination = demodulate(gColor[ipos].rgb - gEmission[ipos].rgb, gAlbedo[ipos].rgb);
     // Workaround path tracer bugs. TODO: remove this when we can.
     if (isNaN(illumination.x) || isNaN(illumination.y) || isNaN(illumination.z))

@@ -94,6 +94,8 @@ SVGFPass::SVGFPass(ref<Device> pDevice, const Properties& props)
         else logWarning("Unknown property '{}' in SVGFPass properties.", key);
     }
 
+    ///Each full screen pass conducts an operation for the main equation calculation
+    ///And is called from the SVGF::execute
     mpPackLinearZAndNormal = FullScreenPass::create(mpDevice, kPackLinearZAndNormalShader);
     mpReprojection = FullScreenPass::create(mpDevice, kReprojectShader);
     mpAtrous = FullScreenPass::create(mpDevice, kAtrousShader);
@@ -132,6 +134,7 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
 
+    ///These attributes are received from the GBufferRT pass (currently using GBufferRT pass in the RenderGraphEditorUI)
     reflector.addInput(kInputBufferAlbedo, "Albedo");
     reflector.addInput(kInputBufferColor, "Color");
     reflector.addInput(kInputBufferEmission, "Emission");
@@ -141,6 +144,7 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputBufferLinearZ, "LinearZ");
     reflector.addInput(kInputBufferMotionVector, "Motion vectors");
 
+    ///creates textures used to store the previous frame's information, used only internally and not exposed to the graph editor
     reflector.addInternal(kInternalBufferPreviousLinearZAndNormal, "Previous Linear Z and Packed Normal")
         .format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource)
@@ -154,6 +158,7 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource)
         ;
 
+    ///Output image i.e. reconstructed image, (marked as output in the GraphEditor)
     reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA16Float);
 
     return reflector;
@@ -161,12 +166,14 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
 
 void SVGFPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
+    ///Creates all FBO's
     allocateFbos(compileData.defaultTexDims, pRenderContext);
     mBuffersNeedClear = true;
 }
 
 void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
+    ///Texture information received from the GBufferRT
     ref<Texture> pAlbedoTexture = renderData.getTexture(kInputBufferAlbedo);
     ref<Texture> pColorTexture = renderData.getTexture(kInputBufferColor);
     ref<Texture> pEmissionTexture = renderData.getTexture(kInputBufferEmission);
@@ -176,18 +183,22 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
     ref<Texture> pLinearZTexture = renderData.getTexture(kInputBufferLinearZ);
     ref<Texture> pMotionVectorTexture = renderData.getTexture(kInputBufferMotionVector);
 
+    ///Output texture
     ref<Texture> pOutputTexture = renderData.getTexture(kOutputBufferFilteredImage);
 
     FALCOR_ASSERT(mpFilteredIlluminationFbo &&
            mpFilteredIlluminationFbo->getWidth() == pAlbedoTexture->getWidth() &&
            mpFilteredIlluminationFbo->getHeight() == pAlbedoTexture->getHeight());
 
+    ///Clears all FBO's and textures that are storing previous frame's information
+    ///The FBO's are used for the current frame calculation and the textures store the previous frame's information
     if (mBuffersNeedClear)
     {
         clearBuffers(pRenderContext, renderData);
         mBuffersNeedClear = false;
     }
 
+    //IF the filter is enabled, can be toggled even through Mogwai
     if (mFilterEnabled)
     {
         // Grab linear z and its derivative and also pack the normal into
