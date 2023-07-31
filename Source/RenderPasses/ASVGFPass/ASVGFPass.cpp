@@ -96,15 +96,15 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     mpPrgAtrousGradient         = FullScreenPass::create(mpDevice, kAtrousGradientShader);*/
 
     ///////////////////////////////////////////
-	/*m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
+	m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
     RasterizerState::Desc l_ASVGFFrameDesc;
-    l_ASVGFFrameDesc.setFillMode(RasterizerState::FillMode::Wireframe);
+    l_ASVGFFrameDesc.setFillMode(RasterizerState::FillMode::Solid);
     l_ASVGFFrameDesc.setCullMode(RasterizerState::CullMode::None);
     m_pRasterState = RasterizerState::create(l_ASVGFFrameDesc);
 
     m_pGraphicsState = GraphicsState::create(pDevice);
     m_pGraphicsState->setProgram(m_pProgram);
-    m_pGraphicsState->setRasterizerState(m_pRasterState);*/
+    m_pGraphicsState->setRasterizerState(m_pRasterState);
 }
 
 Properties ASVGFPass::getProperties() const
@@ -259,6 +259,13 @@ void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_ren
         return;
     }
 
+    auto& cam = m_pScene->getCamera();
+    float2 jitterOffset = float2(mPrevFrameJitter.x - cam->getJitterX(), mPrevFrameJitter.y - cam->getJitterY());
+    mPrevFrameJitter.x = cam->getJitterX();
+    mPrevFrameJitter.y = cam->getJitterY();
+
+
+
     //////////////////////////////////////////
     //auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("Filtered image")});
     //const float4 clearColor(0, 0, 0, 1);
@@ -274,13 +281,14 @@ void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_ren
     //}
 }
 
-
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
 {
-    /*m_pScene = a_pScene;
+    m_pScene = a_pScene;
     if (m_pScene)
+    {
         m_pProgram->addDefines(m_pScene->getSceneDefines());
-    m_pVars = GraphicsVars::create(mpDevice, m_pProgram->getReflector());*/
+    }
+    m_pVars = GraphicsVars::create(mpDevice, m_pProgram->getReflector());
 }
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)

@@ -55,11 +55,11 @@ public:
     virtual bool onKeyEvent(const KeyboardEvent& a_keyEvent) override { return false; }
 
 private:
-    /*ref<Scene> m_pScene;
+    ref<Scene> m_pScene;
     ref<GraphicsProgram> m_pProgram;
     ref<GraphicsState> m_pGraphicsState;
     ref<RasterizerState> m_pRasterState;
-    ref<GraphicsVars> m_pVars;*/
+    ref<GraphicsVars> m_pVars;
 
     //Params
     bool mEnable = true;
@@ -72,6 +72,9 @@ private:
     int mGradientFilterRadius = 2;
     bool mNormalizeGradient = true;
     bool mShowAntilagAlpha = false;
+
+    //Params frame
+    float2 mPrevFrameJitter{0.0f, 0.0f};
 
     //Full screen passes
     ref<FullScreenPass> mpPrgTemporalAccumulation;
