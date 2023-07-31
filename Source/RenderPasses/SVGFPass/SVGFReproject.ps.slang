@@ -225,6 +225,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float alphaMoments = success ? max(gMomentsAlpha, 1.0 / historyLength) : 1.0;
 
     // compute first two moments of luminance
+    // first moment is the mean (moments.r) and 2nd is the SD (moments.g)
     float2 moments;
     moments.r = luminance(illumination);
     moments.g = moments.r * moments.r;

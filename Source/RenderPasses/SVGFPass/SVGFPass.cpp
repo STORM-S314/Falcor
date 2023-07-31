@@ -207,7 +207,7 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
 
         // Demodulate input color & albedo to get illumination and lerp in
         // reprojected filtered illumination from the previous frame.
-        // Stores the result as well as initial moments and an updated
+        // Stores the variance of each pixel as well as the moments and an updated
         // per-pixel history length in mpCurReprojFbo.
         ref<Texture> pPrevLinearZAndNormalTexture =
             renderData.getTexture(kInternalBufferPreviousLinearZAndNormal);
@@ -218,6 +218,7 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
         // Do a first cross-bilateral filtering of the illumination and
         // estimate its variance, storing the result into a float4 in
         // mpPingPongFbo[0].  Takes mpCurReprojFbo as input.
+        //Calculates the moments / variance spatially if the history frames < 4 by doing a 3 X 3 filter over the current pixel
         computeFilteredMoments(pRenderContext);
 
         // Filter illumination from mpCurReprojFbo[0], storing the result
@@ -345,7 +346,7 @@ void SVGFPass::computeFilteredMoments(RenderContext* pRenderContext)
 
     perImageCB["gIllumination"]     = mpCurReprojFbo->getColorTexture(0);
     perImageCB["gHistoryLength"]    = mpCurReprojFbo->getColorTexture(2);
-    perImageCB["gLinearZAndNormal"]          = mpLinearZAndNormalFbo->getColorTexture(0);
+    perImageCB["gLinearZAndNormal"] = mpLinearZAndNormalFbo->getColorTexture(0);
     perImageCB["gMoments"]          = mpCurReprojFbo->getColorTexture(1);
 
     perImageCB["gPhiColor"]  = mPhiColor;

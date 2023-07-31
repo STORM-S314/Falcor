@@ -29,21 +29,20 @@
 /*
     Reimplementation of A-SVGF as per the paper https://cg.ivd.kit.edu/atf.php by Christoph Schied
 */
-
 #pragma once
 #include "Falcor.h"
 #include "RenderGraph/RenderPass.h"
 
 using namespace Falcor;
 
-class ASVGF : public RenderPass
+class ASVGFPass : public RenderPass
 {
 public:
-    FALCOR_PLUGIN_CLASS(ASVGF, "ASVGF", "Adaptive-SVGF.");
+    FALCOR_PLUGIN_CLASS(ASVGFPass, "ASVGFPass", "Adaptive-SVGF.");
 
-    static ref<ASVGF> create(ref<Device> a_pDevice, const Properties& a_props) { return make_ref<ASVGF>(a_pDevice, a_props); }
+    static ref<ASVGFPass> create(ref<Device> a_pDevice, const Properties& a_props) { return make_ref<ASVGFPass>(a_pDevice, a_props); }
 
-    ASVGF(ref<Device> a_pDevice, const Properties& a_props);
+    ASVGFPass(ref<Device> a_pDevice, const Properties& a_props);
 
     virtual Properties getProperties() const override;
     virtual RenderPassReflection reflect(const CompileData& a_compileData) override;

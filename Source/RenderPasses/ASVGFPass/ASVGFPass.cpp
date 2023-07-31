@@ -25,23 +25,22 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
-
-
+ 
 /*
     Reimplementation of A-SVGF as per the paper https://cg.ivd.kit.edu/atf.php by Christoph Schied
 */
 
-#include "ASVGF.h"
+#include "ASVGFPass.h"
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
 {
-    registry.registerClass<RenderPass, ASVGF>();
+    registry.registerClass<RenderPass, ASVGFPass>();
 }
 
-ASVGF::ASVGF(ref<Device> pDevice, const Properties& props)
+ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
-    m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGF/ASVGF_test.3d.slang", "vsMain", "psMain");
+	m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
     RasterizerState::Desc l_ASVGFFrameDesc;
     l_ASVGFFrameDesc.setFillMode(RasterizerState::FillMode::Wireframe);
     l_ASVGFFrameDesc.setCullMode(RasterizerState::CullMode::None);
@@ -52,19 +51,19 @@ ASVGF::ASVGF(ref<Device> pDevice, const Properties& props)
     m_pGraphicsState->setRasterizerState(m_pRasterState);
 }
 
-Properties ASVGF::getProperties() const
+Properties ASVGFPass::getProperties() const
 {
     return {};
 }
 
-RenderPassReflection ASVGF::reflect(const CompileData& compileData)
+RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
     reflector.addOutput("output", "ASVGF test view");
     return reflector;
 }
 
-void ASVGF::execute(RenderContext* a_pRenderContext, const RenderData& a_renderData)
+void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_renderData)
 {
     auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("output")});
     const float4 clearColor(0, 0, 0, 1);
@@ -80,11 +79,11 @@ void ASVGF::execute(RenderContext* a_pRenderContext, const RenderData& a_renderD
     }
 }
 
-void ASVGF::renderUI(Gui::Widgets& a_widget)
+void ASVGFPass::renderUI(Gui::Widgets& widget)
 {
 }
 
-void ASVGF::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
+void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
 {
     m_pScene = a_pScene;
     if (m_pScene)

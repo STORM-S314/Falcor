@@ -54,7 +54,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         float3 sumIllumination   = float3(0.0, 0.0, 0.0);
         float2 sumMoments  = float2(0.0, 0.0);
 
-        const float4 illuminationCenter = gIllumination[ipos];
+        const float4 illuminationCenter = gIllumination[ipos]; //we received this from the last pass i.e. 'computeReprojection'
         const float lIlluminationCenter = luminance(illuminationCenter.rgb);
 
         const float2 zCenter = gLinearZAndNormal[ipos].xy;
@@ -77,8 +77,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             {
                 const int2 p     = ipos + int2(xx, yy);
                 const bool inside = all(p >= int2(0,0)) && all(p < screenSize);
-                const bool samePixel = (xx ==0 && yy == 0);
-                const float kernel = 1.0;
+                //const bool samePixel = (xx ==0 && yy == 0);
+                //const float kernel = 1.0;
 
                 if (inside)
                 {
