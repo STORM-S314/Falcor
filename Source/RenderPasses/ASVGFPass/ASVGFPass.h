@@ -32,6 +32,7 @@
 #pragma once
 #include "Falcor.h"
 #include "RenderGraph/RenderPass.h"
+#include "Core/Pass/FullScreenPass.h"
 
 using namespace Falcor;
 
@@ -70,6 +71,17 @@ private:
     int mDiffAtrousIterations = 5;
     int mGradientFilterRadius = 2;
     bool mNormalizeGradient = true;
-
     bool mShowAntilagAlpha = false;
+
+    //Full screen passes
+    ref<FullScreenPass> mpPrgTemporalAccumulation;
+    ref<FullScreenPass> mpPrgEstimateVariance;
+    ref<FullScreenPass> mpPrgAtrous;
+    ref<FullScreenPass> mpPrgCreateGradientSamples;
+    ref<FullScreenPass> mpPrgAtrousGradient;
+
+    //FBOs
+    ref<Fbo> mpFBOAccum, mpFBOAccumPrev, mpFBOPing, mpFBOPong, mpColorHistory;
+    ref<Fbo> mpColorHistoryUnfiltered, mpAntilagAlpha;
+    ref<Fbo> mpDiffPing, mpDiffPong;
 };

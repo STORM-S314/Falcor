@@ -37,6 +37,13 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
     registry.registerClass<RenderPass, ASVGFPass>();
 }
 
+// Shader source files
+const char kTemporalAccumulationShader[]    = "RenderPasses/ASVGFPass/TemporalAccumulation.ps.slang";
+const char kEstimateVarianceShader[]        = "RenderPasses/ASVGFPass/EstimateVariance.ps.slang";
+const char kAtrousShader[]                  = "RenderPasses/ASVGFPass/Atrous.ps.slang";
+const char kCreateGradientSamplesShader[]   = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
+const char kAtrousGradientShader[]          = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
+
 // Names of valid entries in the parameter dictionary.
 const char kEnable[]                = "Enable";
 const char kModulateAlbedo[]        = "ModulateAlbedo";
@@ -54,31 +61,26 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
 {
     for (const auto& [key, value] : props)
     {
-        if (key == kEnable)
-            mEnable = value;
-        else if (key == kModulateAlbedo)
-            mModulateAlbedo = value;
-        else if (key == kNumIterations)
-            mNumIterations = value;
-        else if (key == kHistoryTap)
-            mHistoryTap = value;
-        else if (key == kFilterKernel)
-            mFilterKernel = value;
-        else if (key == kTemporalAlpha)
-            mTemporalAlpha = value;
-        else if (key == kDiffAtrousIterations)
-            mDiffAtrousIterations = value;
-        else if (key == kGradientFilterRadius)
-            mGradientFilterRadius = value;
-        else if (key == kNormalizeGradient)
-            mNormalizeGradient = value;
-        else if (key == kShowAntilagAlpha)
-            mShowAntilagAlpha = value;
-        else
-            logWarning("Unknown property '{}' in ASVGFPass properties.", key);
+        if (key == kEnable)                     mEnable = value;
+        else if (key == kModulateAlbedo)        mModulateAlbedo = value;
+        else if (key == kNumIterations)         mNumIterations = value;
+        else if (key == kHistoryTap)            mHistoryTap = value;
+        else if (key == kFilterKernel)          mFilterKernel = value;
+        else if (key == kTemporalAlpha)         mTemporalAlpha = value;
+        else if (key == kDiffAtrousIterations)  mDiffAtrousIterations = value;
+        else if (key == kGradientFilterRadius)  mGradientFilterRadius = value;
+        else if (key == kNormalizeGradient)     mNormalizeGradient = value;
+        else if (key == kShowAntilagAlpha)      mShowAntilagAlpha = value;
+        else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
+    mpPrgTemporalAccumulation   = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
+    mpPrgEstimateVariance       = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
+    mpPrgAtrous                 = FullScreenPass::create(mpDevice, kAtrousShader);
+    mpPrgCreateGradientSamples  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
+    mpPrgAtrousGradient         = FullScreenPass::create(mpDevice, kAtrousGradientShader);
 
+    ///////////////////////////////////////////
 	m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
     RasterizerState::Desc l_ASVGFFrameDesc;
     l_ASVGFFrameDesc.setFillMode(RasterizerState::FillMode::Wireframe);
