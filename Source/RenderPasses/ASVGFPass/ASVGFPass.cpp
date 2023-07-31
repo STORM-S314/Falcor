@@ -64,6 +64,9 @@ const char kGradientFilterRadius[]  = "GradientFilterRadius";
 const char kNormalizeGradient[]     = "NormalizeGradient";
 const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
 
+//Input buffer names
+const char kInputBufferColor[] = "Color";
+
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
 
@@ -93,7 +96,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     mpPrgAtrousGradient         = FullScreenPass::create(mpDevice, kAtrousGradientShader);*/
 
     ///////////////////////////////////////////
-	m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
+	/*m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
     RasterizerState::Desc l_ASVGFFrameDesc;
     l_ASVGFFrameDesc.setFillMode(RasterizerState::FillMode::Wireframe);
     l_ASVGFFrameDesc.setCullMode(RasterizerState::CullMode::None);
@@ -101,7 +104,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
 
     m_pGraphicsState = GraphicsState::create(pDevice);
     m_pGraphicsState->setProgram(m_pProgram);
-    m_pGraphicsState->setRasterizerState(m_pRasterState);
+    m_pGraphicsState->setRasterizerState(m_pRasterState);*/
 }
 
 Properties ASVGFPass::getProperties() const
@@ -230,7 +233,7 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
 
-
+    reflector.addInput(kInputBufferColor, "Color");
 
 
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
@@ -241,34 +244,43 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 
 void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_renderData)
 {
+    ref<Texture> pColorTexture = a_renderData.getTexture(kInputBufferColor);
     ref<Texture> pOutputTexture = a_renderData.getTexture(kOutputBufferFilteredImage);
+
+
     int w = pOutputTexture->getWidth(), h = pOutputTexture->getHeight();
 
     createDiffFBO();
 
-
-    ////////////////////////////////////////
-    auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("Filtered image")});
-    const float4 clearColor(0, 0, 0, 1);
-    a_pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
-    m_pGraphicsState->setFbo(pTargetFbo);
-
-    if (m_pScene)
+    if (!mEnable)
     {
-        auto l_RootVar = m_pVars->getRootVar();
-        l_RootVar["PerFrameCB"]["gColor"] = float4(0, 0, 1, 1);
+        a_pRenderContext->blit(pColorTexture->getSRV(), pOutputTexture->getRTV());
 
-        m_pScene->rasterize(a_pRenderContext, m_pGraphicsState.get(), m_pVars.get(), m_pRasterState, m_pRasterState);
+        return;
     }
+
+    //////////////////////////////////////////
+    //auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("Filtered image")});
+    //const float4 clearColor(0, 0, 0, 1);
+    //a_pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
+    //m_pGraphicsState->setFbo(pTargetFbo);
+
+    //if (m_pScene)
+    //{
+    //    auto l_RootVar = m_pVars->getRootVar();
+    //    l_RootVar["PerFrameCB"]["gColor"] = float4(0, 0, 1, 1);
+
+    //    m_pScene->rasterize(a_pRenderContext, m_pGraphicsState.get(), m_pVars.get(), m_pRasterState, m_pRasterState);
+    //}
 }
 
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
 {
-    m_pScene = a_pScene;
+    /*m_pScene = a_pScene;
     if (m_pScene)
         m_pProgram->addDefines(m_pScene->getSceneDefines());
-    m_pVars = GraphicsVars::create(mpDevice, m_pProgram->getReflector());
+    m_pVars = GraphicsVars::create(mpDevice, m_pProgram->getReflector());*/
 }
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
