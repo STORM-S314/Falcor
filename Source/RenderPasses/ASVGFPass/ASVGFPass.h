@@ -47,7 +47,7 @@ public:
 
     virtual Properties getProperties() const override;
     virtual RenderPassReflection reflect(const CompileData& a_compileData) override;
-    virtual void compile(RenderContext* a_pRenderContext, const CompileData& a_compileData) override {}
+    virtual void compile(RenderContext* a_pRenderContext, const CompileData& a_compileData) override;
     virtual void execute(RenderContext* a_pRenderContext, const RenderData& a_renderData) override;
     virtual void renderUI(Gui::Widgets& a_widget) override;
     virtual void setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene);
@@ -84,4 +84,8 @@ private:
     ref<Fbo> mpFBOAccum, mpFBOAccumPrev, mpFBOPing, mpFBOPong, mpColorHistory;
     ref<Fbo> mpColorHistoryUnfiltered, mpAntilagAlpha;
     ref<Fbo> mpDiffPing, mpDiffPong;
+
+    //
+    void clearBuffers(RenderContext* pRenderContext, const RenderData& renderData);
+    void allocateFbos(uint2 dim, RenderContext* pRenderContext);
 };

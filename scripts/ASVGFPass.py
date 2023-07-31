@@ -5,7 +5,7 @@ def render_graph_ASVGF():
     #loadRenderPassLibrary('WireframePass.dll')
     ASVGF = createPass('ASVGFPass')
     g.addPass(ASVGF, 'ASVGFPass')
-    g.markOutput('ASVGFPass.output')
+    g.markOutput('ASVGFPass.Filtered image')
     return g
 
 ASVGFPass = render_graph_ASVGF()

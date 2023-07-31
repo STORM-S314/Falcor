@@ -56,6 +56,9 @@ const char kGradientFilterRadius[]  = "GradientFilterRadius";
 const char kNormalizeGradient[]     = "NormalizeGradient";
 const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
 
+// Output buffer name
+const char kOutputBufferFilteredImage[] = "Filtered image";
+
 ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
@@ -74,11 +77,12 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
-    mpPrgTemporalAccumulation   = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
+   //TODO:: convert shaders from glsl to slang
+   /* mpPrgTemporalAccumulation   = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
     mpPrgEstimateVariance       = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
     mpPrgAtrous                 = FullScreenPass::create(mpDevice, kAtrousShader);
     mpPrgCreateGradientSamples  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
-    mpPrgAtrousGradient         = FullScreenPass::create(mpDevice, kAtrousGradientShader);
+    mpPrgAtrousGradient         = FullScreenPass::create(mpDevice, kAtrousGradientShader);*/
 
     ///////////////////////////////////////////
 	m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
@@ -108,15 +112,39 @@ Properties ASVGFPass::getProperties() const
     return props;
 }
 
+void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
+{
+    /// Creates all FBO's
+    allocateFbos(compileData.defaultTexDims, pRenderContext);
+}
+
+void ASVGFPass::allocateFbos(uint2 dim, RenderContext* pRenderContext)
+{
+    
+}
+
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
-    reflector.addOutput("output", "ASVGF test view");
+
+
+
+
+    /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
+    reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA16Float);
+
     return reflector;
 }
 
 void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_renderData)
 {
+    ref<Texture> pOutputTexture = a_renderData.getTexture(kOutputBufferFilteredImage);
+    int w = pOutputTexture->getWidth(), h = pOutputTexture->getHeight();
+
+
+
+
+    ////////////////////////////////////////
     auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("output")});
     const float4 clearColor(0, 0, 0, 1);
     a_pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
@@ -166,4 +194,27 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     //mpGui->addCheckBox("Show Antilag Alpha", &mShowAntilagAlpha, mGuiGroupName);
     //mpGui->addIntVar("# Diff Iterations", &mDiffAtrousIterations, mGuiGroupName, 0, 16, 1);
     //mpGui->addIntVar("Gradient Filter Radius", &mGradientFilterRadius, mGuiGroupName, 0, 16, 1);
+}
+
+void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& renderData)
+{
+    pRenderContext->clearFbo(mpFBOAccum.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpFBOAccumPrev.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpFBOPing.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpFBOPong.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpColorHistory.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+
+    
+    /*mpFBOAccum->clearColorTarget(0, vec4(0));
+    mpFBOAccum->clearColorTarget(1, vec4(0));
+    mpFBOAccum->clearColorTarget(2, vec4(0));
+
+    mpFBOAccumPrev->clearColorTarget(0, vec4(0));
+    mpFBOAccumPrev->clearColorTarget(1, vec4(0));
+    mpFBOAccumPrev->clearColorTarget(2, vec4(0));
+
+    mpFBOPing->clearColorTarget(0, vec4(0));
+    mpFBOPong->clearColorTarget(0, vec4(0));
+
+    mpColorHistory->clearColorTarget(0, vec4(0));*/
 }
