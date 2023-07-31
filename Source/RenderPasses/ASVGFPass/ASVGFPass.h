@@ -59,4 +59,17 @@ private:
     ref<GraphicsState> m_pGraphicsState;
     ref<RasterizerState> m_pRasterState;
     ref<GraphicsVars> m_pVars;
+
+    //Params
+    bool mEnable = true;
+    bool mModulateAlbedo = true;
+    int mNumIterations = 5;
+    int mHistoryTap = 0;
+    uint32_t mFilterKernel = 1;
+    float mTemporalAlpha = 0.1f;
+    int mDiffAtrousIterations = 5;
+    int mGradientFilterRadius = 2;
+    bool mNormalizeGradient = true;
+
+    bool mShowAntilagAlpha = false;
 };

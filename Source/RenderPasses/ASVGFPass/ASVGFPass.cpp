@@ -37,9 +37,48 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
     registry.registerClass<RenderPass, ASVGFPass>();
 }
 
+// Names of valid entries in the parameter dictionary.
+const char kEnable[]                = "Enable";
+const char kModulateAlbedo[]        = "ModulateAlbedo";
+const char kNumIterations[]         = "NumIterations";
+const char kHistoryTap[]            = "HistoryTap";
+const char kFilterKernel[]          = "FilterKernel";
+const char kTemporalAlpha[]         = "TemporalAlpha";
+const char kDiffAtrousIterations[]  = "DiffAtrousIterations";
+const char kGradientFilterRadius[]  = "GradientFilterRadius";
+const char kNormalizeGradient[]     = "NormalizeGradient";
+const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
+
 ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
+    for (const auto& [key, value] : props)
+    {
+        if (key == kEnable)
+            mEnable = value;
+        else if (key == kModulateAlbedo)
+            mModulateAlbedo = value;
+        else if (key == kNumIterations)
+            mNumIterations = value;
+        else if (key == kHistoryTap)
+            mHistoryTap = value;
+        else if (key == kFilterKernel)
+            mFilterKernel = value;
+        else if (key == kTemporalAlpha)
+            mTemporalAlpha = value;
+        else if (key == kDiffAtrousIterations)
+            mDiffAtrousIterations = value;
+        else if (key == kGradientFilterRadius)
+            mGradientFilterRadius = value;
+        else if (key == kNormalizeGradient)
+            mNormalizeGradient = value;
+        else if (key == kShowAntilagAlpha)
+            mShowAntilagAlpha = value;
+        else
+            logWarning("Unknown property '{}' in ASVGFPass properties.", key);
+    }
+
+
 	m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
     RasterizerState::Desc l_ASVGFFrameDesc;
     l_ASVGFFrameDesc.setFillMode(RasterizerState::FillMode::Wireframe);
@@ -53,7 +92,18 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
 
 Properties ASVGFPass::getProperties() const
 {
-    return {};
+    Properties props;
+    props[kEnable] = mEnable;
+    props[kModulateAlbedo] = mModulateAlbedo;
+    props[kNumIterations] = mNumIterations;
+    props[kHistoryTap] = mHistoryTap;
+    props[kFilterKernel] = mFilterKernel;
+    props[kTemporalAlpha] = mTemporalAlpha;
+    props[kDiffAtrousIterations] = mDiffAtrousIterations;
+    props[kGradientFilterRadius] = mGradientFilterRadius;
+    props[kNormalizeGradient] = mNormalizeGradient;
+    props[kShowAntilagAlpha] = mShowAntilagAlpha;
+    return props;
 }
 
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
@@ -79,9 +129,6 @@ void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_ren
     }
 }
 
-void ASVGFPass::renderUI(Gui::Widgets& widget)
-{
-}
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
 {
@@ -89,4 +136,32 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     if (m_pScene)
         m_pProgram->addDefines(m_pScene->getSceneDefines());
     m_pVars = GraphicsVars::create(mpDevice, m_pProgram->getReflector());
+}
+
+void ASVGFPass::renderUI(Gui::Widgets& widget)
+{
+    widget.checkbox("Enable", mEnable);
+    widget.checkbox("Modulate Albedo", mModulateAlbedo);
+    widget.var("Temporal Alpha", mTemporalAlpha);
+    widget.var("# Iterations", mNumIterations, 0, 16, 1);
+    widget.var("History Tap", mHistoryTap, -1, 16, 1);
+
+    Falcor::Gui::DropdownList filterKernels{
+        {0, "A-Trous"}, {1, "Box 3x3"}, {2, "Box 5x5"}, {3, "Sparse"}, {4, "Box3x3 / Sparse"}, {5, "Box5x5 / Sparse"},
+    };
+    widget.dropdown( "Kernel", filterKernels, mFilterKernel);
+
+    widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
+    widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
+    widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
+    
+    //mpGui->addCheckBox("Enable", &mEnable, mGuiGroupName);
+    //mpGui->addCheckBox("Modulate Albedo", &mModulateAlbedo, mGuiGroupName);
+    //mpGui->addFloatVar("Temporal Alpha", &mTemporalAlpha, mGuiGroupName);
+    //mpGui->addIntVar("# Iterations", &mNumIterations, mGuiGroupName, 0, 16, 1);
+    //mpGui->addIntVar("History Tap", &mHistoryTap, mGuiGroupName, -1, 16, 1);
+    //mpGui->addDropdown("Kernel", filterKernels, &mFilterKernel, mGuiGroupName);
+    //mpGui->addCheckBox("Show Antilag Alpha", &mShowAntilagAlpha, mGuiGroupName);
+    //mpGui->addIntVar("# Diff Iterations", &mDiffAtrousIterations, mGuiGroupName, 0, 16, 1);
+    //mpGui->addIntVar("Gradient Filter Radius", &mGradientFilterRadius, mGuiGroupName, 0, 16, 1);
 }
