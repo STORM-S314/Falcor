@@ -88,4 +88,6 @@ private:
     //
     void clearBuffers(RenderContext* pRenderContext, const RenderData& renderData);
     void allocateFbos(uint2 dim, RenderContext* pRenderContext);
+    void createDiffFBO();
+    int gradient_res(int x);
 };

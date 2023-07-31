@@ -32,6 +32,14 @@
 
 #include "ASVGFPass.h"
 
+extern int gradientDownsample = 1;
+
+int ASVGFPass::gradient_res(int x)
+{
+    return (x + gradientDownsample - 1) / gradientDownsample;
+}
+
+
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
 {
     registry.registerClass<RenderPass, ASVGFPass>();
@@ -120,7 +128,102 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
 
 void ASVGFPass::allocateFbos(uint2 dim, RenderContext* pRenderContext)
 {
-    
+    int w = dim.x;
+    int h = dim.y;
+
+    Fbo::Desc formatDesc;
+    formatDesc.setSampleCount(0);
+    formatDesc.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // illumination
+    formatDesc.setColorTarget(1, Falcor::ResourceFormat::RG32Float);   // moments
+    formatDesc.setColorTarget(2, Falcor::ResourceFormat::R16Float);    // history length
+
+    Fbo::Desc formatAtrousDesc;
+    formatAtrousDesc.setSampleCount(0);
+    formatAtrousDesc.setColorTarget(0, Falcor::ResourceFormat::R16Float);
+
+    mpFBOAccum = Fbo::create2D(mpDevice, w, h, formatDesc);
+    mpFBOAccumPrev = Fbo::create2D(mpDevice, w, h, formatDesc);
+
+    mpFBOPing = Fbo::create2D(mpDevice, w, h, formatAtrousDesc);
+    mpFBOPong = Fbo::create2D(mpDevice, w, h, formatAtrousDesc);
+
+    mpColorHistory = Fbo::create2D(mpDevice, w, h, formatDesc);
+
+    Fbo::Desc formatColorHistory;
+    formatColorHistory.setSampleCount(0);
+    formatColorHistory.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
+
+    mpColorHistoryUnfiltered = Fbo::create2D(mpDevice, w, h, formatColorHistory);
+
+    Fbo::Desc formatAntilagAlpha;
+    formatAntilagAlpha.setSampleCount(0);
+    formatAntilagAlpha.setColorTarget(0, Falcor::ResourceFormat::RGBA8Unorm);
+
+    mpAntilagAlpha = Fbo::create2D(mpDevice, w, h, formatAntilagAlpha);
+
+    ///////////////////////////////////
+    /*int w = imgSize.x;
+    int h = imgSize.y;
+    Falcor::ResourceFormat format[3] = {
+        Falcor::ResourceFormat::RGBA16Float,
+        Falcor::ResourceFormat::RG32Float,
+        Falcor::ResourceFormat::R16Float,
+    };
+
+    Falcor::ResourceFormat format_atrous[1] = {
+        Falcor::ResourceFormat::RGBA16Float,
+    };
+
+    mpFBOAccum = createSharedFBO(w, h, format, 1, 3);
+    mpFBOAccumPrev = createSharedFBO(w, h, format, 1, 3);
+
+    mpFBOPing = createSharedFBO(w, h, format_atrous, 1, ARRAYSIZE(format_atrous));
+    mpFBOPong = createSharedFBO(w, h, format_atrous, 1, ARRAYSIZE(format_atrous));
+
+    mpColorHistory = createSharedFBO(w, h, format, 1, 1);
+
+    Falcor::ResourceFormat format_color_history[2] = {
+        Falcor::ResourceFormat::RGBA32Float,
+    };
+
+    mpColorHistoryUnfiltered = createSharedFBO(w, h, format_color_history, 1, 1);
+
+    Falcor::ResourceFormat format_antilag_alpha[1] = {Falcor::ResourceFormat::RGBA8Unorm};
+
+    mpAntilagAlpha = createSharedFBO(w, h, format_antilag_alpha, 1, 1);*/
+}
+
+void ASVGFPass::createDiffFBO()
+{
+    int w = mpFBOAccum->getWidth(), h = mpFBOAccum->getHeight();
+    if (mpDiffPing && mpDiffPing->getWidth() == gradient_res(w) && mpDiffPing->getHeight() == gradient_res(h))
+    {
+        return;
+    }
+
+    Fbo::Desc formatDiffFBO;
+    formatDiffFBO.setSampleCount(0);
+    formatDiffFBO.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
+    formatDiffFBO.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float);
+
+    mpDiffPing = Fbo::create2D(mpDevice, gradient_res(w), gradient_res(h), formatDiffFBO);
+    mpDiffPong = Fbo::create2D(mpDevice, gradient_res(w), gradient_res(h), formatDiffFBO);
+
+    ////////////////////////////
+    /*int w = mpFBOAccum->getWidth(), h = mpFBOAccum->getHeight();
+
+    if (mpDiffPing && mpDiffPing->getWidth() == gradient_res(w) && mpDiffPing->getHeight() == gradient_res(h))
+    {
+        return;
+    }
+
+    Falcor::ResourceFormat format_diff_fbo[2] = {
+        Falcor::ResourceFormat::RGBA32Float,
+        Falcor::ResourceFormat::RGBA32Float,
+    };
+
+    mpDiffPing = createSharedFBO(gradient_res(w), gradient_res(h), format_diff_fbo, 1, ARRAYSIZE(format_diff_fbo));
+    mpDiffPong = createSharedFBO(gradient_res(w), gradient_res(h), format_diff_fbo, 1, ARRAYSIZE(format_diff_fbo));*/
 }
 
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
@@ -141,11 +244,11 @@ void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_ren
     ref<Texture> pOutputTexture = a_renderData.getTexture(kOutputBufferFilteredImage);
     int w = pOutputTexture->getWidth(), h = pOutputTexture->getHeight();
 
-
+    createDiffFBO();
 
 
     ////////////////////////////////////////
-    auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("output")});
+    auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("Filtered image")});
     const float4 clearColor(0, 0, 0, 1);
     a_pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
     m_pGraphicsState->setFbo(pTargetFbo);
