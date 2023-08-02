@@ -93,4 +93,6 @@ private:
     void allocateFbos(uint2 dim, RenderContext* pRenderContext);
     void createDiffFBO();
     int gradient_res(int x);
+
+    void createGradientSamples(RenderContext* pRenderContext, const RenderData& renderData, ref<Texture> pColorTexture, ref<Texture> pPrevColorTexture, ref<Texture> pTextureGradient, ref<Texture> pLinearZTexture, ref<Texture> pVertexBuffer);
 };

@@ -39,7 +39,6 @@ int ASVGFPass::gradient_res(int x)
     return (x + gradientDownsample - 1) / gradientDownsample;
 }
 
-
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
 {
     registry.registerClass<RenderPass, ASVGFPass>();
@@ -66,9 +65,16 @@ const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
 
 //Input buffer names
 const char kInputBufferColor[] = "Color";
+const char kInputBufferLinearZ[] = "LinearZ";
+const char kInputTexGradient[] = "TexGrads";
+const char kInputVertexBuffer[] = "VBuff";
+
+// Internal buffer names
+const char kInternalPrevColor[] = "PrevFrameColor";
 
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
+
 
 ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
@@ -88,12 +94,12 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
-   //TODO:: convert shaders from glsl to slang
-   /* mpPrgTemporalAccumulation   = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
-    mpPrgEstimateVariance       = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
-    mpPrgAtrous                 = FullScreenPass::create(mpDevice, kAtrousShader);
+    //TODO:: convert shaders from glsl to slang
+    //mpPrgTemporalAccumulation   = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
+    //mpPrgEstimateVariance       = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
+    //mpPrgAtrous                 = FullScreenPass::create(mpDevice, kAtrousShader);
     mpPrgCreateGradientSamples  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
-    mpPrgAtrousGradient         = FullScreenPass::create(mpDevice, kAtrousGradientShader);*/
+    //mpPrgAtrousGradient         = FullScreenPass::create(mpDevice, kAtrousGradientShader);*/
 
     ///////////////////////////////////////////
 	m_pProgram = GraphicsProgram::createFromFile(pDevice, "RenderPasses/ASVGFPass/ASVGF_test.3d.slang", "vsMain", "psMain");
@@ -233,8 +239,16 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
 
+    //Input
     reflector.addInput(kInputBufferColor, "Color");
+    reflector.addInput(kInputTexGradient, "TexGrads");
+    reflector.addInput(kInputBufferLinearZ, "LinearZ");
+    reflector.addInput(kInputVertexBuffer, "VBuff");
 
+    //Internal buffers
+    reflector.addInternal(kInternalPrevColor, "Previous Frame Color")
+        .format(ResourceFormat::RGBA32Float)
+        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
     reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA16Float);
@@ -245,7 +259,11 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_renderData)
 {
     ref<Texture> pColorTexture = a_renderData.getTexture(kInputBufferColor);
+    ref<Texture> pPrevColorTexture = a_renderData.getTexture(kInternalPrevColor);
     ref<Texture> pOutputTexture = a_renderData.getTexture(kOutputBufferFilteredImage);
+    ref<Texture> pLinearZTexture = a_renderData.getTexture(kInputBufferLinearZ);
+    ref<Texture> pTextureGradient = a_renderData.getTexture(kInputTexGradient);
+    ref<Texture> pVertexBufferTexture = a_renderData.getTexture(kInputVertexBuffer);
 
 
     int w = pOutputTexture->getWidth(), h = pOutputTexture->getHeight();
@@ -259,12 +277,22 @@ void ASVGFPass::execute(RenderContext* a_pRenderContext, const RenderData& a_ren
         return;
     }
 
-    auto& cam = m_pScene->getCamera();
+    /*auto& cam = m_pScene->getCamera();
     float2 jitterOffset = float2(mPrevFrameJitter.x - cam->getJitterX(), mPrevFrameJitter.y - cam->getJitterY());
     mPrevFrameJitter.x = cam->getJitterX();
-    mPrevFrameJitter.y = cam->getJitterY();
+    mPrevFrameJitter.y = cam->getJitterY();*/
 
+    GraphicsState::Viewport vp1(0, 0, float(gradient_res(pOutputTexture->getWidth())), float(gradient_res(pOutputTexture->getHeight())), 0, 1);
+    m_pGraphicsState->setViewport(0, vp1);
 
+    createGradientSamples(a_pRenderContext, a_renderData, pColorTexture, pPrevColorTexture, pTextureGradient, pLinearZTexture, pVertexBufferTexture);
+
+    GraphicsState::Viewport vp2(
+        0, 0, float(pOutputTexture->getWidth()), float(pOutputTexture->getHeight()), 0, 1);
+    m_pGraphicsState->setViewport(0, vp2);
+
+    a_pRenderContext->blit(pColorTexture->getSRV(), pPrevColorTexture->getRTV());
+    a_pRenderContext->blit(mpDiffPong->getColorTexture(1)->getSRV(), pOutputTexture->getRTV());
 
     //////////////////////////////////////////
     //auto pTargetFbo = Fbo::create(mpDevice, {a_renderData.getTexture("Filtered image")});
@@ -340,4 +368,20 @@ void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& re
     mpFBOPong->clearColorTarget(0, vec4(0));
 
     mpColorHistory->clearColorTarget(0, vec4(0));*/
+}
+
+
+void ASVGFPass::createGradientSamples(RenderContext* pRenderContext, const RenderData& renderData, ref<Texture> pColorTexture, ref<Texture> pPrevColorTexture, ref<Texture> pTextureGradient, ref<Texture> pLinearZTexture, ref<Texture> pVertexBuffer
+)
+{
+    auto perImageCB = mpPrgCreateGradientSamples->getRootVar()["PerImageCB"];
+
+    perImageCB["tex_color_unfiltered"] = pColorTexture;
+    perImageCB["tex_color_unfiltered_prev"] = renderData.getTexture(kInternalPrevColor);
+    perImageCB["tex_gradient_samples"] = pTextureGradient;
+    perImageCB["gradientDownsample"] = gradientDownsample;
+    perImageCB["tex_z"] = pLinearZTexture;
+    perImageCB["tex_vbuf"] = pVertexBuffer;
+
+    mpPrgCreateGradientSamples->execute(pRenderContext, mpDiffPong);
 }
