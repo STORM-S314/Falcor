@@ -28,6 +28,7 @@
 #pragma once
 #include "Falcor.h"
 #include "RenderGraph/RenderPass.h"
+#include "Core/Pass/FullScreenPass.h"
 
 using namespace Falcor;
 
@@ -42,7 +43,7 @@ public:
 
     virtual Properties getProperties() const override;
     virtual RenderPassReflection reflect(const CompileData& compileData) override;
-    virtual void compile(RenderContext* pRenderContext, const CompileData& compileData) override {}
+    virtual void compile(RenderContext* pRenderContext, const CompileData& compileData) override;
     virtual void execute(RenderContext* pRenderContext, const RenderData& renderData) override;
     virtual void renderUI(Gui::Widgets& widget) override;
     virtual void setScene(RenderContext* pRenderContext, const ref<Scene>& pScene) override {}
@@ -59,4 +60,8 @@ private:
     /// Create gradient visibility buffer of normal screen size of type Unknown
     /// Create prev depth buffer of normal screen size of type RG16Float
     /// Create prev normal buffer of normal screen size of type RG16Float
+
+    ref<FullScreenPass> mpPrgRandomNumberGenerator;
+    ref<Fbo> mpRandomNumberFBO;
+    uint32_t i = 0;
 };

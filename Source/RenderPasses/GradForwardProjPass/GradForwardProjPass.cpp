@@ -26,6 +26,7 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 #include "GradForwardProjPass.h"
+#include "Utils/Logger.h"
 
 // Input buffer names
 const char kInputCurrentMVec[] = "MotionVectors";
@@ -36,6 +37,10 @@ const char kInputNormalBuffer[] = "NormalBuffer";
 //Output buffer names
 const char kOutputCurrentGradientSamples[] = "GradientSamples";
 const char kOutputVisibilityBuffer[] = "VisibilityBuffer";
+const char kOutputRandomNumberBuffer[] = "RandomNumberBuffer";
+
+//shader locations
+const char kRandomNumberGeneratorShader[] = "RenderPasses/GradForwardProjPass/RandomNumGenerator.ps.slang";
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
 {
@@ -45,11 +50,24 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 GradForwardProjPass::GradForwardProjPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
+    mpPrgRandomNumberGenerator = FullScreenPass::create(mpDevice, kRandomNumberGeneratorShader);
 }
 
 Properties GradForwardProjPass::getProperties() const
 {
     return {};
+}
+
+void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
+{
+    int w = compileData.defaultTexDims.x;
+    int h = compileData.defaultTexDims.y;
+    
+    Fbo::Desc formatDesc;
+    formatDesc.setSampleCount(0);
+    formatDesc.setColorTarget(0, Falcor::ResourceFormat::RGBA32Uint);
+
+    mpRandomNumberFBO = Fbo::create2D(mpDevice, w, h, formatDesc);
 }
 
 RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData)
@@ -63,15 +81,23 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
     reflector.addInput(kInputCurrentMVec, "MotionVectors");
 
     //Output
-
+    reflector.addOutput(kOutputRandomNumberBuffer, "RandomNumberBuffer");
 
     return reflector;
 }
 
 void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
+    ref<Texture> pRandomNumberTexture = renderData.getTexture(kOutputRandomNumberBuffer);
+
     // renderData holds the requested resources
     // auto& pTexture = renderData.getTexture("src");
+
+    auto perImageCB = mpPrgRandomNumberGenerator->getRootVar()["PerImageCB"];
+    perImageCB["seed"] = ++i;
+    mpPrgRandomNumberGenerator->execute(pRenderContext, mpRandomNumberFBO);
+
+    pRenderContext->blit(mpRandomNumberFBO->getColorTexture(0)->getSRV(), pRandomNumberTexture->getRTV());
 }
 
 void GradForwardProjPass::renderUI(Gui::Widgets& widget)
