@@ -51,6 +51,10 @@ public:
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
 
 private:
+    ref<GraphicsState> m_pGraphicsState;
+
+    int gradientDownsample = 1;
+    int gradient_res(int x);
 
     //Create FBOs
     /// Create prev random number FBO of normal screen size of type uint
@@ -61,7 +65,15 @@ private:
     /// Create prev depth buffer of normal screen size of type RG16Float
     /// Create prev normal buffer of normal screen size of type RG16Float
 
+    //Redner passes
+    ref<FullScreenPass> mpPackLinearZAndNormal;
     ref<FullScreenPass> mpPrgRandomNumberGenerator;
-    ref<Fbo> mpRandomNumberFBO;
+    ref<FullScreenPass> mpPrgGradientForwardProjection;
+
+    //FBOs
+    ref<Fbo> mpRandomNumberFBO[2];
+    ref<Fbo> mpGradientSamples;
+    ref<Fbo> mpPackLinearZAndNormalFBO;
+
     uint32_t i = 0;
 };

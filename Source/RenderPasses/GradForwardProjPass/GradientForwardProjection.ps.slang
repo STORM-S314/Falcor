@@ -27,8 +27,32 @@
  **************************************************************************/
 
 cbuffer PerImageCB {
-	uint gSeed;
+	Texture2D   gPrevRandomNumberTexture;
+	Texture2D   gCurrentRandomNumberTexture : SV_TARGET1;
+	Texture2D 	gMotionVectors;
+	Texture2D 	gLinearZAndNormalTexture;
+    Texture2D 	gPrevLinearZAndNormalTexture;
+    Texture2D 	gVisibilityBuffer;
+    Texture2D 	gPrevVisibilityBuffer;
+	uint 		gSeed;
 };
+
+void encrypt_tea(inout uint2 arg)
+{
+        const uint key[] = {0xa341316c, 0xc8013ea4, 0xad90777d, 0x7e95761e};
+        uint v0 = arg[0], v1 = arg[1];
+        uint sum = 0;
+        uint delta = 0x9e3779b9;
+
+        for(int i = 0; i < 16; i++) { // XXX rounds reduced, carefully check if good
+        //for(int i = 0; i < 32; i++) {
+                sum += delta;
+                v0 += ((v1 << 4) + key[0]) ^ (v1 + sum) ^ ((v1 >> 5) + key[1]);
+                v1 += ((v0 << 4) + key[2]) ^ (v0 + sum) ^ ((v0 >> 5) + key[3]);
+        }
+        arg[0] = v0;
+        arg[1] = v1;
+}
 
 uint main() : SV_TARGET0
 {

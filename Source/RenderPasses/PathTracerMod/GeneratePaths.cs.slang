@@ -78,7 +78,7 @@ struct PathGenerator
     NRDBuffers outputNRD;                           ///< Output NRD data.
 
     RWTexture2D<float4> outputColor;                ///< Output color buffer if kSamplesPerPixel == 1.
-    Texture2D<uint4> randomNumbers;                
+    Texture2D<uint> randomNumbers;                
 
     // Render settings that depend on the scene.
     // TODO: Move into scene defines.

@@ -25,12 +25,19 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
+import Utils.Math.MathHelpers;
 
-cbuffer PerImageCB {
-	uint gSeed;
+cbuffer PerImageCB
+{
+    Texture2D gLinearZ;
+    Texture2D gNormal;
 };
 
-uint main() : SV_TARGET0
+float4 main(float2 a_TextureCoordinate : TEXCOORD) : SV_TARGET0
 {
-    return uint(gSeed);
+    const int2 ipos = int2(a_TextureCoordinate.xy);
+
+    const float2 nPacked = ndir_to_oct_snorm(gNormal[ipos].xyz);
+    return float4(gLinearZ[ipos].xy, nPacked.x, nPacked.y);
 }
+

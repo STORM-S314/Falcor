@@ -84,7 +84,7 @@ struct PathTracer
     NRDBuffers outputNRD;                           ///< Output NRD data.
 
     RWTexture2D<float4> outputColor;                ///< Output color buffer if kSamplesPerPixel == 1.
-    Texture2D<uint4> randomNumbers;
+    Texture2D<uint> randomNumbers;
 
     /*******************************************************************
                                 Static members
@@ -288,7 +288,7 @@ struct PathTracer
 
         // Create sample generator.
         const uint maxSpp = kSamplesPerPixel > 0 ? kSamplesPerPixel : kMaxSamplesPerPixel;
-        path.sg = SampleGenerator(pixel, randomNumbers[pixel].x * maxSpp + path.getSampleIdx());
+        path.sg = SampleGenerator(pixel, randomNumbers[pixel] * maxSpp + path.getSampleIdx());
 
         // Load the primary hit info from the V-buffer.
         const HitInfo hit = HitInfo(vbuffer[pixel]);

@@ -28,19 +28,30 @@
 #include "GradForwardProjPass.h"
 #include "Utils/Logger.h"
 
+// Internal buffer names
+const char kInternalPrevNormalAndZBuffer[] = "PrevNormalAndZBuffer";
+const char kInternalPrevVisibilityBuffer[] = "PrevVisibilityBuffer";
+
 // Input buffer names
 const char kInputCurrentMVec[] = "MotionVectors";
 const char kInputVisibilityBuffer[] = "VisibilityBuffer";
-const char kInputDepthBuffer[] = "DepthBuffer";
-const char kInputNormalBuffer[] = "NormalBuffer";
+const char kInputBufferWorldNormal[] = "WorldNormal";
+const char kInputBufferLinearZ[] = "LinearZ";
 
 //Output buffer names
-const char kOutputCurrentGradientSamples[] = "GradientSamples";
 const char kOutputVisibilityBuffer[] = "VisibilityBuffer";
 const char kOutputRandomNumberBuffer[] = "RandomNumberBuffer";
+const char kOutputGradientSamples[] = "GradientSamplesBuffer";
 
 //shader locations
+const char kPackLinearZAndNormalShader[] = "RenderPasses/GradForwardProjPass/PackLinearZAndNormal.ps.slang";
 const char kRandomNumberGeneratorShader[] = "RenderPasses/GradForwardProjPass/RandomNumGenerator.ps.slang";
+const char kGradientForwardProjectionShader[] = "RenderPasses/GradForwardProjPass/GradientForwardProjection.ps.slang";
+
+int GradForwardProjPass::gradient_res(int x)
+{
+    return (x + gradientDownsample - 1) / gradientDownsample;
+}
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
 {
@@ -50,7 +61,11 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 GradForwardProjPass::GradForwardProjPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
+    m_pGraphicsState = GraphicsState::create(pDevice);
+
+    mpPackLinearZAndNormal = FullScreenPass::create(mpDevice, kPackLinearZAndNormalShader);
     mpPrgRandomNumberGenerator = FullScreenPass::create(mpDevice, kRandomNumberGeneratorShader);
+    mpPrgGradientForwardProjection = FullScreenPass::create(mpDevice, kGradientForwardProjectionShader);
 }
 
 Properties GradForwardProjPass::getProperties() const
@@ -63,41 +78,102 @@ void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileDa
     int w = compileData.defaultTexDims.x;
     int h = compileData.defaultTexDims.y;
     
-    Fbo::Desc formatDesc;
-    formatDesc.setSampleCount(0);
-    formatDesc.setColorTarget(0, Falcor::ResourceFormat::RGBA32Uint);
+    Fbo::Desc formatDescRndNum;
+    formatDescRndNum.setSampleCount(0);
+    formatDescRndNum.setColorTarget(0, Falcor::ResourceFormat::R32Uint);
 
-    mpRandomNumberFBO = Fbo::create2D(mpDevice, w, h, formatDesc);
+    mpRandomNumberFBO[0] = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
+    mpRandomNumberFBO[1] = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
+
+    Fbo::Desc formatDescGradientForwardProj;
+    formatDescGradientForwardProj.setSampleCount(0);
+    formatDescGradientForwardProj.setColorTarget(0, Falcor::ResourceFormat::R32Uint);
+    mpGradientSamples = Fbo::create2D(mpDevice, gradient_res(w), gradient_res(h), formatDescGradientForwardProj);
+
+    // Screen-size RGBA32F buffer for linear Z, derivative, and packed normal
+    Fbo::Desc formatDescLinearZAndNormal;
+    formatDescLinearZAndNormal.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
+    mpPackLinearZAndNormalFBO = Fbo::create2D(mpDevice, w, h, formatDescLinearZAndNormal);
 }
 
 RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData)
 {
     // Define the required resources here
     RenderPassReflection reflector;
-    //reflector.addOutput("dst");
-    //reflector.addInput("src");
 
     //Input
     reflector.addInput(kInputCurrentMVec, "MotionVectors");
+    reflector.addInput(kInputBufferLinearZ, "LinearZ");
+    reflector.addInput(kInputBufferWorldNormal, "WorldNormalBuffer");
+    reflector.addInput(kInputVisibilityBuffer, "VisibilityBuffer");
+
+    //Internal
+    reflector.addInternal(kInternalPrevNormalAndZBuffer, "Prev Normal And Z Buffer").format(ResourceFormat::RGBA32Float)
+        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+    reflector.addInternal(kInternalPrevVisibilityBuffer, "Prev Visibility Buffer").format(ResourceFormat::RGBA32Float)
+        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     //Output
     reflector.addOutput(kOutputRandomNumberBuffer, "RandomNumberBuffer");
+    reflector.addOutput(kOutputGradientSamples, "GradientSamples");
+    reflector.addOutput(kOutputVisibilityBuffer, "GradientVisibilityBuffer");
 
     return reflector;
 }
 
 void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
-    ref<Texture> pRandomNumberTexture = renderData.getTexture(kOutputRandomNumberBuffer);
+    ref<Texture> pInputCurrentMotionTexture = renderData.getTexture(kInputCurrentMVec);
+    ref<Texture> pInputWorldNormalTexture = renderData.getTexture(kInputBufferWorldNormal);
+    ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputBufferLinearZ);
+    ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputVisibilityBuffer);
+    
+    ref<Texture> pInternalPrevNormalAndZTexture = renderData.getTexture(kInternalPrevNormalAndZBuffer);
+    ref<Texture> pInternalPrevVisibilityBuffer = renderData.getTexture(kInternalPrevVisibilityBuffer);
+    ref<Texture> pOutputRandomNumberTexture = renderData.getTexture(kOutputRandomNumberBuffer);
+    ref<Texture> pOutputGradientSamplesTexture = renderData.getTexture(kOutputGradientSamples);
+    ref<Texture> pOutputVisibilityBufferTexture = renderData.getTexture(kOutputVisibilityBuffer);
+    
+    //Pack Linear Z and Normal
+    auto perImageLinearZAndNormalCB = mpPackLinearZAndNormal->getRootVar()["PerImageCB"];
+    perImageLinearZAndNormalCB["gLinearZ"] = pInputLinearZTexture;
+    perImageLinearZAndNormalCB["gNormal"] = pInputWorldNormalTexture;
+    mpPackLinearZAndNormal->execute(pRenderContext, mpPackLinearZAndNormalFBO);
 
-    // renderData holds the requested resources
-    // auto& pTexture = renderData.getTexture("src");
+    //Random number generator pass
+    auto perImageRandomNumGeneratorCB = mpPrgRandomNumberGenerator->getRootVar()["PerImageCB"];
+    perImageRandomNumGeneratorCB["gSeed"] = ++i;
+    mpPrgRandomNumberGenerator->execute(pRenderContext, mpRandomNumberFBO[1]);
 
-    auto perImageCB = mpPrgRandomNumberGenerator->getRootVar()["PerImageCB"];
-    perImageCB["seed"] = ++i;
-    mpPrgRandomNumberGenerator->execute(pRenderContext, mpRandomNumberFBO);
+    //Gradient forward projection generation pass
+    GraphicsState::Viewport vp1(0, 0, float(gradient_res(pOutputRandomNumberTexture->getWidth())), float(gradient_res(pOutputRandomNumberTexture->getHeight())), 0, 1);
+    m_pGraphicsState->setViewport(0, vp1);
 
-    pRenderContext->blit(mpRandomNumberFBO->getColorTexture(0)->getSRV(), pRandomNumberTexture->getRTV());
+    auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
+    perImageGradForwardProjCB["gPrevRandomNumberTexture"] = mpRandomNumberFBO[0]->getColorTexture(0);
+    perImageGradForwardProjCB["gCurrentRandomNumberTexture"] = mpRandomNumberFBO[1]->getColorTexture(0);
+    perImageGradForwardProjCB["gMotionVectors"] = pInputCurrentMotionTexture;
+    perImageGradForwardProjCB["gLinearZAndNormalTexture"] = mpPackLinearZAndNormalFBO->getColorTexture(0);
+    perImageGradForwardProjCB["gPrevLinearZAndNormalTexture"] = pInternalPrevNormalAndZTexture;
+    perImageGradForwardProjCB["gVisibilityBuffer"] = pInputVisibilityBuffer;
+    perImageGradForwardProjCB["gPrevVisibilityBuffer"] = pInternalPrevVisibilityBuffer;
+    
+    perImageGradForwardProjCB["gSeed"] = ++i;
+
+    mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientSamples);
+    GraphicsState::Viewport vp2(0, 0, float(pOutputRandomNumberTexture->getWidth()), float(pOutputRandomNumberTexture->getHeight()), 0, 1);
+    m_pGraphicsState->setViewport(0, vp2);
+
+    //Blit outputs
+    pRenderContext->blit(mpGradientSamples->getColorTexture(0)->getSRV(), pOutputGradientSamplesTexture->getRTV());
+    pRenderContext->blit(mpRandomNumberFBO[1]->getColorTexture(0)->getSRV(), pOutputRandomNumberTexture->getRTV());
+    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pOutputVisibilityBufferTexture->getRTV());
+    
+    //Swap buffers for next frame
+    pRenderContext->blit(mpPackLinearZAndNormalFBO->getColorTexture(0)->getSRV(), pInternalPrevNormalAndZTexture->getRTV());
+    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisibilityBuffer->getRTV());
+    
+    std::swap(mpRandomNumberFBO[0], mpRandomNumberFBO[1]);
 }
 
 void GradForwardProjPass::renderUI(Gui::Widgets& widget)
