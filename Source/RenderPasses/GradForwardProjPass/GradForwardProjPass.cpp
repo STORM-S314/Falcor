@@ -46,7 +46,7 @@ const char kOutputGradientSamples[] = "GradientSamplesBuffer";
 //shader locations
 const char kPackLinearZAndNormalShader[] = "RenderPasses/GradForwardProjPass/PackLinearZAndNormal.ps.slang";
 const char kRandomNumberGeneratorShader[] = "RenderPasses/GradForwardProjPass/RandomNumGenerator.ps.slang";
-const char kGradientForwardProjectionShader[] = "RenderPasses/GradForwardProjPass/GradientForwardProjection.ps.slang";
+const char kGradientForwardProjectionShader[] = "RenderPasses/GradForwardProjPass/GradientForwardProjection.cs.slang";
 
 int GradForwardProjPass::gradient_res(int x)
 {
@@ -122,6 +122,7 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
     return reflector;
 }
 
+//TODO:: Resize buffers that depend upon gradient resolution and screen size
 void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
     ref<Texture> pInputCurrentMotionTexture = renderData.getTexture(kInputCurrentMVec);
@@ -174,6 +175,9 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     pRenderContext->blit(mpPackLinearZAndNormalFBO->getColorTexture(0)->getSRV(), pInternalPrevNormalAndZTexture->getRTV());
     pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisibilityBuffer->getRTV());
     std::swap(mpRandomNumberFBO[0], mpRandomNumberFBO[1]);
+
+    //Clear buffers
+    pRenderContext->clearUAV(mpGradientSamplesTexture->getUAV().get(), uint4(0, 0, 0, 0));
 }
 
 void GradForwardProjPass::renderUI(Gui::Widgets& widget)

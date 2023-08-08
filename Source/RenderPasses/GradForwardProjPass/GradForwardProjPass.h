@@ -53,7 +53,7 @@ public:
 private:
     ref<GraphicsState> m_pGraphicsState;
 
-    int gradientDownsample = 1;
+    int gradientDownsample = 3;
     int gradient_res(int x);
 
     //Render passes
