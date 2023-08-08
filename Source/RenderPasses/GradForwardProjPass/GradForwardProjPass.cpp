@@ -31,12 +31,14 @@
 // Internal buffer names
 const char kInternalPrevNormalAndZBuffer[] = "PrevNormalAndZBuffer";
 const char kInternalPrevVisibilityBuffer[] = "PrevVisibilityBuffer";
+const char kInternalPrevWPositionBuffer[] = "PrevWPositionBuffer";
 
 // Input buffer names
 const char kInputCurrentMVec[] = "MotionVectors";
 const char kInputVisibilityBuffer[] = "VisibilityBuffer";
 const char kInputBufferWorldNormal[] = "WorldNormal";
 const char kInputBufferLinearZ[] = "LinearZ";
+const char kInputWPositionBuffer[] = "WPos";
 
 //Output buffer names
 const char kOutputVisibilityBuffer[] = "VisibilityBuffer";
@@ -107,12 +109,15 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
     reflector.addInput(kInputBufferLinearZ, "LinearZ");
     reflector.addInput(kInputBufferWorldNormal, "WorldNormalBuffer");
     reflector.addInput(kInputVisibilityBuffer, "VisibilityBuffer");
+    reflector.addInput(kInputWPositionBuffer, "WPositionBuffer");
 
     //Internal
-    reflector.addInternal(kInternalPrevNormalAndZBuffer, "Prev Normal And Z Buffer").format(ResourceFormat::RGBA32Float)
+    reflector.addInternal(kInternalPrevNormalAndZBuffer, "Prev Normal And Z Buffer").format(ResourceFormat::RGBA32Uint)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
     reflector.addInternal(kInternalPrevVisibilityBuffer, "Prev Visibility Buffer").format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+    reflector.addInternal(kInternalPrevWPositionBuffer, "Prev W Position Buffer")
+        .format(ResourceFormat::RGBA32Float).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     //Output
     reflector.addOutput(kOutputRandomNumberBuffer, "RandomNumberBuffer");
@@ -125,13 +130,21 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
 //TODO:: Resize buffers that depend upon gradient resolution and screen size
 void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
+    if (!m_pScene)
+    {
+        return;
+    }
+
     ref<Texture> pInputCurrentMotionTexture = renderData.getTexture(kInputCurrentMVec);
     ref<Texture> pInputWorldNormalTexture = renderData.getTexture(kInputBufferWorldNormal);
     ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputBufferLinearZ);
     ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputVisibilityBuffer);
+    ref<Texture> pInputWPosBuffer = renderData.getTexture(kInputWPositionBuffer);
     
     ref<Texture> pInternalPrevNormalAndZTexture = renderData.getTexture(kInternalPrevNormalAndZBuffer);
     ref<Texture> pInternalPrevVisibilityBuffer = renderData.getTexture(kInternalPrevVisibilityBuffer);
+    ref<Texture> pInternalPrevWPositionBuffer = renderData.getTexture(kInternalPrevWPositionBuffer);
+    
     ref<Texture> pOutputRandomNumberTexture = renderData.getTexture(kOutputRandomNumberBuffer);
     ref<Texture> pOutputGradientSamplesTexture = renderData.getTexture(kOutputGradientSamples);
     ref<Texture> pOutputVisibilityBufferTexture = renderData.getTexture(kOutputVisibilityBuffer);
@@ -160,6 +173,8 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     perImageGradForwardProjCB["gVisibilityBuffer"] = pInputVisibilityBuffer;
     perImageGradForwardProjCB["gPrevVisibilityBuffer"] = pInternalPrevVisibilityBuffer;
     perImageGradForwardProjCB["gGradientSamplesTexture"] = mpGradientSamplesTexture;
+    perImageGradForwardProjCB["gPrevWPosTexture"] = pInternalPrevWPositionBuffer;
+    perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrixNoJitter();
     perImageGradForwardProjCB["gTextureWidth"] = pOutputRandomNumberTexture->getWidth();
     perImageGradForwardProjCB["gTextureHeight"] = pOutputRandomNumberTexture->getHeight();
     perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;
@@ -174,6 +189,7 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     //Swap buffers for next frame
     pRenderContext->blit(mpPackLinearZAndNormalFBO->getColorTexture(0)->getSRV(), pInternalPrevNormalAndZTexture->getRTV());
     pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisibilityBuffer->getRTV());
+    pRenderContext->blit(pInputWPosBuffer->getSRV(), pInternalPrevWPositionBuffer->getRTV());
     std::swap(mpRandomNumberFBO[0], mpRandomNumberFBO[1]);
 
     //Clear buffers
@@ -182,4 +198,22 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
 
 void GradForwardProjPass::renderUI(Gui::Widgets& widget)
 {
+}
+
+void GradForwardProjPass::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)
+{
+    m_pScene = pScene;
+    logWarning("GRADFORWARDPROJ::SETTING THE SCENE !!!!!!!");
+    if (!m_pScene)
+    {
+        logWarning("GRADFORWARDPROJ::SCENE IS NULL");
+    }
+    else if (!m_pScene->getCamera())
+    {
+        logWarning("GRADFORWARDPROJ::CAMERA IS NULL");    
+    }
+    else
+    {
+        float4x4 l_ProjMat =  m_pScene->getCamera()->getViewProjMatrixNoJitter();
+    }
 }

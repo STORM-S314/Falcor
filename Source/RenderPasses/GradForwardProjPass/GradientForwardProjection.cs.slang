@@ -28,13 +28,15 @@
 
 cbuffer PerImageCB {
 	Texture2D           gPrevRandomNumberTexture;
-	Texture2D           gCurrentRandomNumberTexture : SV_TARGET1;
+	Texture2D           gCurrentRandomNumberTexture;
 	Texture2D 	        gMotionVectors;
 	Texture2D 	        gLinearZAndNormalTexture;
     Texture2D 	        gPrevLinearZAndNormalTexture;
-    Texture2D 	        gVisibilityBuffer : SV_TARGET2;
+    Texture2D 	        gVisibilityBuffer;
     Texture2D 	        gPrevVisibilityBuffer;
-    RWTexture2D<uint>  	gGradientSamplesTexture : SV_TARGET3;
+    RWTexture2D<uint>  	gGradientSamplesTexture;
+    Texture2D 	        gPrevWPosTexture;
+    float4x4            gViewProjMat;
 	uint 		        gFrameNumber;
     uint                gTextureWidth;
     uint                gTextureHeight;
