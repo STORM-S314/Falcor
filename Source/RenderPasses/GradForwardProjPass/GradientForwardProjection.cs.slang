@@ -27,14 +27,18 @@
  **************************************************************************/
 
 cbuffer PerImageCB {
-	Texture2D   gPrevRandomNumberTexture;
-	Texture2D   gCurrentRandomNumberTexture : SV_TARGET1;
-	Texture2D 	gMotionVectors;
-	Texture2D 	gLinearZAndNormalTexture;
-    Texture2D 	gPrevLinearZAndNormalTexture;
-    Texture2D 	gVisibilityBuffer;
-    Texture2D 	gPrevVisibilityBuffer;
-	uint 		gSeed;
+	Texture2D           gPrevRandomNumberTexture;
+	Texture2D           gCurrentRandomNumberTexture : SV_TARGET1;
+	Texture2D 	        gMotionVectors;
+	Texture2D 	        gLinearZAndNormalTexture;
+    Texture2D 	        gPrevLinearZAndNormalTexture;
+    Texture2D 	        gVisibilityBuffer : SV_TARGET2;
+    Texture2D 	        gPrevVisibilityBuffer;
+    RWTexture2D<uint>  	gGradientSamplesTexture : SV_TARGET3;
+	uint 		        gFrameNumber;
+    uint                gTextureWidth;
+    uint                gTextureHeight;
+    uint                gGradientDownsample;
 };
 
 void encrypt_tea(inout uint2 arg)
@@ -54,7 +58,25 @@ void encrypt_tea(inout uint2 arg)
         arg[1] = v1;
 }
 
-uint main() : SV_TARGET0
+void main(float2 a_TextureCoordinate : TEXCOORD)
 {
-    return uint(gSeed);
+    //Get a random index from the previous frame within the stratum (gGradientDownsample X gGradientDownsample) that is selected to be forward projected to the next frame
+	// here arg is the position within the stratum
+    uint2 ipos = int2(a_TextureCoordinate);
+    int2 idx_prev;
+	{
+		uint2 arg = uint2(ipos.x + ipos.y * gTextureWidth, gFrameNumber);
+		encrypt_tea(arg);
+		arg %= gGradientDownsample;
+		idx_prev = int2(ipos * gGradientDownsample + arg);
+	}
+
+    uint outputValue = 1;
+	InterlockedCompareExchange(gGradientSamplesTexture[ipos], 0u, 1u, outputValue);
+
+    if(outputValue == 0u)
+    {
+        
+    }
+
 }

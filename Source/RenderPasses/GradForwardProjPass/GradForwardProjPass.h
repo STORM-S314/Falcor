@@ -56,24 +56,17 @@ private:
     int gradientDownsample = 1;
     int gradient_res(int x);
 
-    //Create FBOs
-    /// Create prev random number FBO of normal screen size of type uint
-    /// Create gradient random number FBO of normal screen size of type uint
-    /// Create gradient sample FBO of downsampled size of type uint
-    /// Create prev visibility buffer of normal screen size of type Unknown
-    /// Create gradient visibility buffer of normal screen size of type Unknown
-    /// Create prev depth buffer of normal screen size of type RG16Float
-    /// Create prev normal buffer of normal screen size of type RG16Float
-
-    //Redner passes
+    //Render passes
     ref<FullScreenPass> mpPackLinearZAndNormal;
     ref<FullScreenPass> mpPrgRandomNumberGenerator;
-    ref<FullScreenPass> mpPrgGradientForwardProjection;
+    ref<ComputePass> mpPrgGradientForwardProjection;
 
     //FBOs
     ref<Fbo> mpRandomNumberFBO[2];
-    ref<Fbo> mpGradientSamples;
     ref<Fbo> mpPackLinearZAndNormalFBO;
 
-    uint32_t i = 0;
+    //Textures
+    ref<Texture> mpGradientSamplesTexture;
+
+    uint32_t frameNumber = 0;
 };
