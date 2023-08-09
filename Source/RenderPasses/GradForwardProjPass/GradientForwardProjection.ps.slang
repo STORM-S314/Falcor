@@ -71,12 +71,11 @@ void encrypt_tea(inout uint2 arg)
     arg[1] = v1;
 }
 
-[numthreads(16, 16, 1)]
-void main(uint3 dispatchThreadId : SV_DispatchThreadID)
+void main(float2 texC : TEXCOORD)
 {
     //Get a random index from the previous frame within the stratum (gGradientDownsample X gGradientDownsample) that is selected to be forward projected to the next frame
 	// here arg is the position within the stratum
-    uint2 ipos = uint2(dispatchThreadId.xy);
+    uint2 ipos = uint2(texC.xy);
     int2 idx_prev;
 	{
 		uint2 arg = uint2(ipos.x + ipos.y * gTextureWidth, gFrameNumber);

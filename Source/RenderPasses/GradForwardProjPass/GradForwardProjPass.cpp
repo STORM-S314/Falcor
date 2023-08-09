@@ -49,7 +49,7 @@ const char kOutputGradientSamples[] = "GradientSamplesBuffer";
 //shader locations
 const char kPackLinearZAndNormalShader[] = "RenderPasses/GradForwardProjPass/PackLinearZAndNormal.ps.slang";
 const char kRandomNumberGeneratorShader[] = "RenderPasses/GradForwardProjPass/RandomNumGenerator.ps.slang";
-const char kGradientForwardProjectionShader[] = "RenderPasses/GradForwardProjPass/GradientForwardProjection.cs.slang";
+const char kGradientForwardProjectionShader[] = "RenderPasses/GradForwardProjPass/GradientForwardProjection.ps.slang";
 
 int GradForwardProjPass::gradient_res(int x)
 {
@@ -68,7 +68,7 @@ GradForwardProjPass::GradForwardProjPass(ref<Device> pDevice, const Properties& 
 
     mpPackLinearZAndNormal = FullScreenPass::create(mpDevice, kPackLinearZAndNormalShader);
     mpPrgRandomNumberGenerator = FullScreenPass::create(mpDevice, kRandomNumberGeneratorShader);
-    mpPrgGradientForwardProjection = ComputePass::create(mpDevice, kGradientForwardProjectionShader, "main");
+    mpPrgGradientForwardProjection = FullScreenPass::create(mpDevice, kGradientForwardProjectionShader);
 }
 
 Properties GradForwardProjPass::getProperties() const
@@ -103,6 +103,8 @@ void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileDa
     formatDescRndNum.setColorTarget(0, Falcor::ResourceFormat::R32Uint);
     mpRandomNumberGenerationFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
     mpPrevRandomNumberTextureFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
+
+    mpGradientForwardProjOutputFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
 }
 
 RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData)
@@ -174,6 +176,9 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     float gradResWidth = gradient_res(pOutputRandomNumberTexture->getWidth());
     float gradResHeight = gradient_res(pOutputRandomNumberTexture->getHeight());
 
+    GraphicsState::Viewport vp1(0, 0, gradResWidth, gradResHeight, 0, 1);
+    m_pGraphicsState->setViewport(0, vp1);
+
     auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
     perImageGradForwardProjCB["gPrevRandomNumberTexture"] = mpPrevRandomNumberTextureFBO->getColorTexture(0);
     perImageGradForwardProjCB["gCurrentRandomNumberTexture"] = mpRandomNumberTexture;
@@ -190,7 +195,10 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     perImageGradForwardProjCB["gTextureHeight"] = pOutputRandomNumberTexture->getHeight();
     perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;
     perImageGradForwardProjCB["gFrameNumber"] = frameNumber;
-    mpPrgGradientForwardProjection->execute(pRenderContext, (uint32_t)gradResWidth, (uint32_t)gradResHeight);
+    mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientForwardProjOutputFBO);
+
+    GraphicsState::Viewport vp2(0, 0, mpRandomNumberTexture->getWidth(), mpRandomNumberTexture->getHeight(), 0, 1);
+    m_pGraphicsState->setViewport(0, vp2);
 
     //Blit outputs
     pRenderContext->blit(mpGradientSamplesTexture->getSRV(), pOutputGradientSamplesTexture->getRTV());

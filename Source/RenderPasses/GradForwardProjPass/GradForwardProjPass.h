@@ -60,12 +60,13 @@ private:
     //Render passes
     ref<FullScreenPass> mpPackLinearZAndNormal;
     ref<FullScreenPass> mpPrgRandomNumberGenerator;
-    ref<ComputePass> mpPrgGradientForwardProjection;
+    ref<FullScreenPass> mpPrgGradientForwardProjection;
 
     //FBOs
     ref<Fbo> mpPackLinearZAndNormalFBO;
     ref<Fbo> mpRandomNumberGenerationFBO;
     ref<Fbo> mpPrevRandomNumberTextureFBO;
+    ref<Fbo> mpGradientForwardProjOutputFBO;
 
     //Textures
     ref<Texture> mpGradientSamplesTexture;
