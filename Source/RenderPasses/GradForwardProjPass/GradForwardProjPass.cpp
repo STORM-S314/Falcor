@@ -216,17 +216,4 @@ void GradForwardProjPass::renderUI(Gui::Widgets& widget)
 void GradForwardProjPass::setScene(RenderContext* pRenderContext, const ref<Scene>& pScene)
 {
     m_pScene = pScene;
-    logWarning("GRADFORWARDPROJ::SETTING THE SCENE !!!!!!!");
-    if (!m_pScene)
-    {
-        logWarning("GRADFORWARDPROJ::SCENE IS NULL");
-    }
-    else if (!m_pScene->getCamera())
-    {
-        logWarning("GRADFORWARDPROJ::CAMERA IS NULL");    
-    }
-    else
-    {
-        float4x4 l_ProjMat =  m_pScene->getCamera()->getViewProjMatrixNoJitter();
-    }
 }

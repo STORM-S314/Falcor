@@ -120,7 +120,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     
     if(outputValue == 0u)
     {
-         //gCurrentRandomNumberTexture[idx_curr] = gPrevRandomNumberTexture[idx_prev].x;
-         //gVisibilityBuffer[idx_curr] = gPrevVisibilityBuffer[idx_prev].xyzw;
+         gCurrentRandomNumberTexture[idx_curr] = gPrevRandomNumberTexture[idx_prev].x;
+         gVisibilityBuffer[idx_curr] = gPrevVisibilityBuffer[idx_prev].xyzw;
     }
 }

@@ -56,20 +56,15 @@ PS_OUT main(FullScreenPassOut vsOut)
     
 	const float4 posH = vsOut.posH;
     const int2 ipos_grad = posH.xy;
-	//ivec2 ipos_grad = ivec2(gl_FragCoord);
 
-	//uint u = texelFetch(tex_gradient_samples, ipos_grad, 0).r;
 	uint u = tex_gradient_samples[ipos_grad].x;
-
 
 	//The position of the texel in the tile
 	int2 tile_pos = int2((u & TILE_OFFSET_MASK), (u >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
     
 	int2 ipos = ipos_grad * gradientDownsample + tile_pos;
-	//float l_curr = luminance(texelFetch(tex_color_unfiltered,      ipos,      0).rgb);
 	float l_curr = luminance(tex_color_unfiltered[ipos].rgb);
 
-	
 	if(u >= (1u << 31)) {
 		uint idx_prev = (u >> (2 * TILE_OFFSET_SHIFT)) & ((1 << (31 - 2 * TILE_OFFSET_SHIFT)) - 1);
 
