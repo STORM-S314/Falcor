@@ -63,11 +63,14 @@ private:
     ref<ComputePass> mpPrgGradientForwardProjection;
 
     //FBOs
-    ref<Fbo> mpRandomNumberFBO[2];
     ref<Fbo> mpPackLinearZAndNormalFBO;
+    ref<Fbo> mpRandomNumberGenerationFBO;
+    ref<Fbo> mpPrevRandomNumberTextureFBO;
 
     //Textures
     ref<Texture> mpGradientSamplesTexture;
+    ref<Texture> mpVisibilityBufferTexture;
+    ref<Texture> mpRandomNumberTexture;
 
     uint32_t frameNumber = 0;
 };
