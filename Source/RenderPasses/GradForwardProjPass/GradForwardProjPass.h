@@ -65,13 +65,13 @@ private:
     //FBOs
     ref<Fbo> mpPackLinearZAndNormalFBO;
     ref<Fbo> mpRandomNumberGenerationFBO;
-    ref<Fbo> mpPrevRandomNumberTextureFBO;
     ref<Fbo> mpGradientForwardProjOutputFBO;
 
     //Textures
     ref<Texture> mpGradientSamplesTexture;
     ref<Texture> mpVisibilityBufferTexture;
     ref<Texture> mpRandomNumberTexture;
+    ref<Texture> mpPrevRandomNumberTexture;
 
     uint32_t frameNumber = 0;
 };

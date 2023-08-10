@@ -89,6 +89,10 @@ void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileDa
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
+    mpPrevRandomNumberTexture = Texture::create2D(mpDevice, w, h, ResourceFormat::R32Uint, 1, 1, nullptr,
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+    );
+
     mpVisibilityBufferTexture = Texture::create2D(mpDevice, w, h, ResourceFormat::RGBA32Uint, 1, 1, nullptr,
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
@@ -102,7 +106,6 @@ void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileDa
     Fbo::Desc formatDescRndNum;
     formatDescRndNum.setColorTarget(0, Falcor::ResourceFormat::R32Uint);
     mpRandomNumberGenerationFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
-    mpPrevRandomNumberTextureFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
 
     mpGradientForwardProjOutputFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
 }
@@ -172,15 +175,18 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     mpPrgRandomNumberGenerator->execute(pRenderContext, mpRandomNumberGenerationFBO);
     pRenderContext->blit(mpRandomNumberGenerationFBO->getColorTexture(0)->getSRV(), mpRandomNumberTexture->getRTV());
     
+    float screenWidth = pOutputRandomNumberTexture->getWidth();
+    float screenHeight = pOutputRandomNumberTexture->getHeight();
+
     //Gradient forward projection generation pass
-    float gradResWidth = gradient_res(pOutputRandomNumberTexture->getWidth());
-    float gradResHeight = gradient_res(pOutputRandomNumberTexture->getHeight());
+    float gradResWidth = gradient_res(screenWidth);
+    float gradResHeight = gradient_res(screenHeight);
 
     GraphicsState::Viewport vp1(0, 0, gradResWidth, gradResHeight, 0, 1);
     m_pGraphicsState->setViewport(0, vp1);
 
     auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
-    perImageGradForwardProjCB["gPrevRandomNumberTexture"] = mpPrevRandomNumberTextureFBO->getColorTexture(0);
+    perImageGradForwardProjCB["gPrevRandomNumberTexture"] = mpPrevRandomNumberTexture;
     perImageGradForwardProjCB["gCurrentRandomNumberTexture"] = mpRandomNumberTexture;
     perImageGradForwardProjCB["gMotionVectors"] = pInputCurrentMotionTexture;
     perImageGradForwardProjCB["gLinearZAndNormalTexture"] = mpPackLinearZAndNormalFBO->getColorTexture(0);
@@ -191,13 +197,13 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     perImageGradForwardProjCB["gPrevWPosTexture"] = pInternalPrevWPositionBuffer;
     perImageGradForwardProjCB["gPositionNormalFwidth"] = pInputPosNormalFWidthBuffer;
     perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrixNoJitter();
-    perImageGradForwardProjCB["gTextureWidth"] = pOutputRandomNumberTexture->getWidth();
-    perImageGradForwardProjCB["gTextureHeight"] = pOutputRandomNumberTexture->getHeight();
+    perImageGradForwardProjCB["gTextureWidth"] = screenWidth;
+    perImageGradForwardProjCB["gTextureHeight"] = screenHeight;
     perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;
     perImageGradForwardProjCB["gFrameNumber"] = frameNumber;
     mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientForwardProjOutputFBO);
 
-    GraphicsState::Viewport vp2(0, 0, mpRandomNumberTexture->getWidth(), mpRandomNumberTexture->getHeight(), 0, 1);
+    GraphicsState::Viewport vp2(0, 0, screenWidth, screenHeight, 0, 1);
     m_pGraphicsState->setViewport(0, vp2);
 
     //Blit outputs
@@ -209,7 +215,7 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     pRenderContext->blit(mpPackLinearZAndNormalFBO->getColorTexture(0)->getSRV(), pInternalPrevNormalAndZTexture->getRTV());
     pRenderContext->blit(mpVisibilityBufferTexture->getSRV(), pInternalPrevVisibilityBuffer->getRTV());
     pRenderContext->blit(pInputWPosBuffer->getSRV(), pInternalPrevWPositionBuffer->getRTV());
-    pRenderContext->blit(mpRandomNumberTexture->getSRV(), mpPrevRandomNumberTextureFBO->getColorTexture(0)->getRTV());
+    pRenderContext->blit(mpRandomNumberTexture->getSRV(), mpPrevRandomNumberTexture->getRTV());
 
     //Clear buffers
     pRenderContext->clearUAV(mpGradientSamplesTexture->getUAV().get(), uint4(0, 0, 0, 0));
