@@ -53,13 +53,11 @@ public:
     virtual void setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene);
     virtual bool onMouseEvent(const MouseEvent& a_mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& a_keyEvent) override { return false; }
+    int gradient_res(int x);
 
 private:
-    ref<Scene> m_pScene;
-    ref<GraphicsProgram> m_pProgram;
-    ref<GraphicsState> m_pGraphicsState;
-    ref<RasterizerState> m_pRasterState;
-    ref<GraphicsVars> m_pVars;
+    ref<GraphicsState> pGraphicsState;
+    ref<Scene> pScene;
 
     //Params
     bool mEnable = true;
@@ -72,27 +70,13 @@ private:
     int mGradientFilterRadius = 2;
     bool mNormalizeGradient = true;
     bool mShowAntilagAlpha = false;
+    int gradientDownsample = 1;
 
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};
 
     //Full screen passes
-    ref<FullScreenPass> mpPrgTemporalAccumulation;
-    ref<FullScreenPass> mpPrgEstimateVariance;
-    ref<FullScreenPass> mpPrgAtrous;
-    ref<FullScreenPass> mpPrgCreateGradientSamples;
-    ref<FullScreenPass> mpPrgAtrousGradient;
 
     //FBOs
-    ref<Fbo> mpFBOAccum, mpFBOAccumPrev, mpFBOPing, mpFBOPong, mpColorHistory;
-    ref<Fbo> mpColorHistoryUnfiltered, mpAntilagAlpha;
-    ref<Fbo> mpDiffPing, mpDiffPong;
 
-    //
-    void clearBuffers(RenderContext* pRenderContext, const RenderData& renderData);
-    void allocateFbos(uint2 dim, RenderContext* pRenderContext);
-    void createDiffFBO();
-    int gradient_res(int x);
-
-    void createGradientSamples(RenderContext* pRenderContext, const RenderData& renderData, ref<Texture> pColorTexture, ref<Texture> pPrevColorTexture, ref<Texture> pTextureGradient, ref<Texture> pLinearZTexture, ref<Texture> pVertexBuffer);
 };

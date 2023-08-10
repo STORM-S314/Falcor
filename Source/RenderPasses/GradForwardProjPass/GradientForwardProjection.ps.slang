@@ -31,7 +31,6 @@ import Utils.Math.MathHelpers;
 cbuffer PerImageCB {
 	Texture2D                   gPrevRandomNumberTexture;
 	RWTexture2D<uint>           gCurrentRandomNumberTexture;
-	Texture2D 	                gMotionVectors;
 	Texture2D 	                gLinearZAndNormalTexture;
     Texture2D 	                gPrevLinearZAndNormalTexture;
     RWTexture2D<uint4>          gVisibilityBuffer;
@@ -103,10 +102,16 @@ void main(float2 texC : TEXCOORD)
     if (any(idx_curr < int2(1,1)) || any(idx_curr > imageDim - int2(1,1))) return;
     
     // check if deviation of depths is acceptable
-    if (abs(gPrevLinearZAndNormalTexture[idx_curr].x - gLinearZAndNormalTexture[idx_curr].x) / (gLinearZAndNormalTexture[idx_curr].y + 1e-2f) > 10.f) return;
-    
+    float currentDepth = gLinearZAndNormalTexture[idx_curr].x;
+    float prevDepth = gPrevLinearZAndNormalTexture[idx_prev].x;
+    float fwidthZ = gLinearZAndNormalTexture[idx_curr].y;
+    if (abs(prevDepth - currentDepth) / (fwidthZ + 1e-2f) > 10.f) return;
+
     // check normals for compatibility
-    if (distance(oct_to_ndir_snorm(gLinearZAndNormalTexture[idx_curr].zw).xyz, oct_to_ndir_snorm(gLinearZAndNormalTexture[idx_curr].zw).xyz) / (gPositionNormalFwidth[idx_curr].y + 1e-2) > 16.0) return;
+    float3 currentNormal = oct_to_ndir_snorm(gLinearZAndNormalTexture[idx_curr].zw).xyz;
+    float3 prevNormal = oct_to_ndir_snorm(gPrevLinearZAndNormalTexture[idx_prev].zw).xyz;
+    float posNormalFWidth = gPositionNormalFwidth[idx_curr].y;
+    if (distance(currentNormal, prevNormal) / (posNormalFWidth + 1e-2) > 16.0) return;
     
     int2 tile_pos_curr = idx_curr / gGradientDownsample;
 	uint gradient_idx_curr = get_gradient_idx_from_tile_pos(idx_curr % gGradientDownsample);

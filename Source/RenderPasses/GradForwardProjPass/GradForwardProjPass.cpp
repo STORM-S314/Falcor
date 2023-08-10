@@ -34,7 +34,6 @@ const char kInternalPrevVisibilityBuffer[] = "PrevVisibilityBuffer";
 const char kInternalPrevWPositionBuffer[] = "PrevWPositionBuffer";
 
 // Input buffer names
-const char kInputCurrentMVec[] = "MotionVectors";
 const char kInputVisibilityBuffer[] = "VisibilityBuffer";
 const char kInputBufferWorldNormal[] = "WorldNormal";
 const char kInputBufferLinearZ[] = "LinearZ";
@@ -116,7 +115,6 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
     RenderPassReflection reflector;
 
     //Input
-    reflector.addInput(kInputCurrentMVec, "MotionVectors");
     reflector.addInput(kInputBufferLinearZ, "LinearZ");
     reflector.addInput(kInputBufferWorldNormal, "WorldNormalBuffer");
     reflector.addInput(kInputVisibilityBuffer, "VisibilityBuffer");
@@ -147,7 +145,6 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
         return;
     }
 
-    ref<Texture> pInputCurrentMotionTexture = renderData.getTexture(kInputCurrentMVec);
     ref<Texture> pInputWorldNormalTexture = renderData.getTexture(kInputBufferWorldNormal);
     ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputBufferLinearZ);
     ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputVisibilityBuffer);
@@ -188,7 +185,6 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
     perImageGradForwardProjCB["gPrevRandomNumberTexture"] = mpPrevRandomNumberTexture;
     perImageGradForwardProjCB["gCurrentRandomNumberTexture"] = mpRandomNumberTexture;
-    perImageGradForwardProjCB["gMotionVectors"] = pInputCurrentMotionTexture;
     perImageGradForwardProjCB["gLinearZAndNormalTexture"] = mpPackLinearZAndNormalFBO->getColorTexture(0);
     perImageGradForwardProjCB["gPrevLinearZAndNormalTexture"] = pInternalPrevNormalAndZTexture;
     perImageGradForwardProjCB["gVisibilityBuffer"] = mpVisibilityBufferTexture;
