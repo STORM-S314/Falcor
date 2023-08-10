@@ -77,36 +77,36 @@ Properties GradForwardProjPass::getProperties() const
 
 void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
-    int w = compileData.defaultTexDims.x;
-    int h = compileData.defaultTexDims.y;
+    int screenWidth = compileData.defaultTexDims.x;
+    int screenHeight = compileData.defaultTexDims.y;
     
-    mpGradientSamplesTexture = Texture::create2D(mpDevice, gradient_res(w), gradient_res(h), ResourceFormat::R32Uint, 1, 1, nullptr,
+    mpGradientSamplesTexture = Texture::create2D(mpDevice, gradient_res(screenWidth), gradient_res(screenHeight), ResourceFormat::R32Uint, 1, 1, nullptr,
         ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
-    mpRandomNumberTexture = Texture::create2D(mpDevice, w, h, ResourceFormat::R32Uint, 1, 1, nullptr,
+    mpRandomNumberTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::R32Uint, 1, 1, nullptr,
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
-    mpPrevRandomNumberTexture = Texture::create2D(mpDevice, w, h, ResourceFormat::R32Uint, 1, 1, nullptr,
+    mpPrevRandomNumberTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::R32Uint, 1, 1, nullptr,
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
-    mpVisibilityBufferTexture = Texture::create2D(mpDevice, w, h, ResourceFormat::RGBA32Uint, 1, 1, nullptr,
+    mpVisibilityBufferTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::RGBA32Uint, 1, 1, nullptr,
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
     // Screen-size RGBA32F buffer for linear Z, derivative, and packed normal
     Fbo::Desc formatDescLinearZAndNormal;
     formatDescLinearZAndNormal.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
-    mpPackLinearZAndNormalFBO = Fbo::create2D(mpDevice, w, h, formatDescLinearZAndNormal);
+    mpPackLinearZAndNormalFBO = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescLinearZAndNormal);
 
     //Create random number generation pass output
     Fbo::Desc formatDescRndNum;
     formatDescRndNum.setColorTarget(0, Falcor::ResourceFormat::R32Uint);
-    mpRandomNumberGenerationFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
+    mpRandomNumberGenerationFBO = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescRndNum);
 
-    mpGradientForwardProjOutputFBO = Fbo::create2D(mpDevice, w, h, formatDescRndNum);
+    mpGradientForwardProjOutputFBO = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescRndNum);
 }
 
 RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData)
@@ -192,7 +192,7 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     perImageGradForwardProjCB["gGradientSamplesTexture"] = mpGradientSamplesTexture;
     perImageGradForwardProjCB["gPrevWPosTexture"] = pInternalPrevWPositionBuffer;
     perImageGradForwardProjCB["gPositionNormalFwidth"] = pInputPosNormalFWidthBuffer;
-    perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrixNoJitter();
+    perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrix();
     perImageGradForwardProjCB["gTextureWidth"] = screenWidth;
     perImageGradForwardProjCB["gTextureHeight"] = screenHeight;
     perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;

@@ -28,16 +28,6 @@
 #define TILE_OFFSET_SHIFT 3u
 #define TILE_OFFSET_MASK ((1 << TILE_OFFSET_SHIFT) - 1)
 
-struct FullScreenPassOut
-{
-    float2 texC       : TEXCOORD;
-#ifndef _VIEWPORT_MASK
-    float4 posH       : SV_POSITION;
-#else
-    float4 posH       : POSITION;
-#endif
-};
-
 int2 getTextureDims(Texture2D tex, uint mip)
 {
     uint w, h;

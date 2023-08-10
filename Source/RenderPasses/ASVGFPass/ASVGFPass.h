@@ -70,13 +70,15 @@ private:
     int mGradientFilterRadius = 2;
     bool mNormalizeGradient = true;
     bool mShowAntilagAlpha = false;
-    int gradientDownsample = 1;
+    int gradientDownsample = 3;
 
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};
 
     //Full screen passes
+    ref<FullScreenPass> mpPrgGradientForwardProjection;
 
     //FBOs
+    ref<Fbo> mpGradientResultBuffer;
 
 };

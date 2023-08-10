@@ -64,12 +64,16 @@ const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
 
 //Input buffer names
 const char kInputColorTexture[] = "Color";
+const char kInputAlbedoTexture[] = "Albedo";
+const char kInputEmissionTexture[] = "Emission";
 const char kInputLinearZTexture[] = "LinearZ";
 const char kInputVisibilityBufferTexture[] = "VisibilityBuffer";
 const char kInputGradientSamplesTexture[] = "GradientSamples";
 
 // Internal buffer names
-const char kInternalPrevColor[] = "PrevColor";
+const char kInternalPrevColorTexture[] = "PrevColor";
+const char kInternalPrevAlbedoTexture[] = "PrevAlbedo";
+const char kInternalPrevEmissionTexture[] = "PrevEmission";
 
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
@@ -94,6 +98,8 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     }
 
     pGraphicsState = GraphicsState::create(pDevice);
+
+    mpPrgGradientForwardProjection = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
 }
 
 Properties ASVGFPass::getProperties() const
@@ -114,6 +120,14 @@ Properties ASVGFPass::getProperties() const
 
 void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
+    int screenWidth = compileData.defaultTexDims.x;
+    int screenHeight = compileData.defaultTexDims.y;
+
+    Fbo::Desc formatDescGradientResult;
+    formatDescGradientResult.setSampleCount(0);
+    formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0/0.0, 0.0 
+    formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
+    mpGradientResultBuffer = Fbo::create2D(mpDevice, gradient_res(screenWidth), gradient_res(screenHeight), formatDescGradientResult);;
 }
 
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
@@ -122,12 +136,19 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 
     //Input
     reflector.addInput(kInputColorTexture, "Color");
+    reflector.addInput(kInputAlbedoTexture, "Albedo");
+    reflector.addInput(kInputEmissionTexture, "Emission");
     reflector.addInput(kInputLinearZTexture, "LinearZ");
     reflector.addInput(kInputVisibilityBufferTexture, "VisibilityBuffer");
 
     //Internal buffers
-    reflector.addInternal(kInternalPrevColor, "Previous Frame Color")
-        .format(ResourceFormat::RGBA32Float)
+    reflector.addInternal(kInternalPrevColorTexture, "Previous Color").format(ResourceFormat::RGBA32Float)
+        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+
+    reflector.addInternal(kInternalPrevAlbedoTexture, "Previous Albedo").format(ResourceFormat::RGBA32Float).
+        bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+
+    reflector.addInternal(kInternalPrevEmissionTexture, "Previous Emission").format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
@@ -144,10 +165,16 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     }
 
     ref<Texture> pInputColorTexture = renderData.getTexture(kInputColorTexture);
+    ref<Texture> pInputAlbedoTexture = renderData.getTexture(kInputAlbedoTexture);
+    ref<Texture> pInputEmissionTexture = renderData.getTexture(kInputEmissionTexture);
     ref<Texture> pInputGradSamplesTexture = renderData.getTexture(kInputGradientSamplesTexture);
     ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputLinearZTexture);
+    ref<Texture> pInputGradientSamples = renderData.getTexture(kInputGradientSamplesTexture);
+    ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputVisibilityBufferTexture);
     
-    ref<Texture> pInternalPrevColorTexture = renderData.getTexture(kInternalPrevColor);
+    ref<Texture> pInternalPrevColorTexture = renderData.getTexture(kInternalPrevColorTexture);
+    ref<Texture> pInternalPrevAlbedoTexture = renderData.getTexture(kInternalPrevAlbedoTexture);
+    ref<Texture> pInternalPrevEmissionTexture = renderData.getTexture(kInternalPrevEmissionTexture);
 
     int screenWidth = pInputColorTexture->getWidth();
     int screenHeight = pInputColorTexture->getHeight();
@@ -163,13 +190,30 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pGraphicsState->setViewport(0, vp1);
 
     //Gradient creation pass
-
+    auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
+    perImageGradForwardProjCB["gColorTexture"] = pInputColorTexture;
+    perImageGradForwardProjCB["gPrevColorTexture"] = pInternalPrevColorTexture;
+    perImageGradForwardProjCB["gAlbedoTexture"] = pInputAlbedoTexture;
+    perImageGradForwardProjCB["gPrevAlbedoTexture"] = pInternalPrevAlbedoTexture;
+    perImageGradForwardProjCB["gEmissionTexture"] = pInputEmissionTexture;
+    perImageGradForwardProjCB["gPrevEmissionTexture"] = pInternalPrevEmissionTexture;
+    perImageGradForwardProjCB["gGradientSamples"] = pInputGradientSamples;
+    perImageGradForwardProjCB["gVisibilityBuffer"] = pInputVisibilityBuffer;
+    perImageGradForwardProjCB["gLinearZTexture"] = pInputLinearZTexture;
+    perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;
+    perImageGradForwardProjCB["gScreenWidth"] = screenWidth;
+    
+    mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultBuffer);
 
     GraphicsState::Viewport vp2(0, 0, screenWidth, screenHeight, 0, 1);
     pGraphicsState->setViewport(0, vp2);
 
+    //Blit outputs
+
     // Swap buffers for next frame}
     pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
+    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
+    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
     mPrevFrameJitter = cameraJitter;
 }
 

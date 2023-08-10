@@ -27,88 +27,101 @@
 //import Utils.Math.MathHelpers;
 //import Utils.Color.ColorHelpers;
 
+import ColorSpace;
+
 #define TILE_OFFSET_SHIFT 3u
 #define TILE_OFFSET_MASK ((1 << TILE_OFFSET_SHIFT) - 1)
 
-import ColorSpace;
-import ASVGFShared;
-
-
 cbuffer PerImageCB
 {
-	Texture2D tex_color_unfiltered;
-	Texture2D tex_gradient_samples;
-	Texture2D tex_color_unfiltered_prev;
-	Texture2D tex_z;
-	Texture2D tex_vbuf;
-	int gradientDownsample;
+	Texture2D   gColorTexture;
+	Texture2D   gPrevColorTexture;
+	Texture2D   gAlbedoTexture;
+	Texture2D   gPrevAlbedoTexture;
+    Texture2D   gEmissionTexture;
+	Texture2D   gPrevEmissionTexture;
+	Texture2D   gGradientSamples;
+    Texture2D   gVisibilityBuffer;
+	Texture2D   gLinearZTexture;
+	int         gGradientDownsample;
+    int         gScreenWidth;
 };
 
 struct PS_OUT
 {
-    float4 frag_color1  : SV_TARGET0;
-	float4 frag_color2  : SV_TARGET1;
+    float4 fragGradientLuminance  : SV_TARGET0;
+	float4 fragGradientVariance  : SV_TARGET1;
 };
 
-PS_OUT main(FullScreenPassOut vsOut)
+
+float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
+{
+    return (a_Color - a_Emission) / max(float3(0.001, 0.001, 0.001), a_Albedo);
+}
+
+PS_OUT main(float2 texCoord : TEXCOORD)
 {
 	PS_OUT psOut;
     
-	const float4 posH = vsOut.posH;
-    const int2 ipos_grad = posH.xy;
-
-	uint u = tex_gradient_samples[ipos_grad].x;
-
-	//The position of the texel in the tile
-	int2 tile_pos = int2((u & TILE_OFFSET_MASK), (u >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
+    const int2 posGrad = texCoord;
+	uint gradientSample = gGradientSamples[posGrad].x;
     
-	int2 ipos = ipos_grad * gradientDownsample + tile_pos;
-	float l_curr = luminance(tex_color_unfiltered[ipos].rgb);
+	//The position of the texel in the tile
+	int2 posInTile = int2((gradientSample & TILE_OFFSET_MASK), (gradientSample >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
+    
+	int2 currentPos = posGrad * gGradientDownsample + posInTile;
 
-	if(u >= (1u << 31)) {
-		uint idx_prev = (u >> (2 * TILE_OFFSET_SHIFT)) & ((1 << (31 - 2 * TILE_OFFSET_SHIFT)) - 1);
+    float3 currentIllumination = getIllumination(gColorTexture[currentPos].rgb, gEmissionTexture[currentPos].rgb, gAlbedoTexture[currentPos].rgb);
+	float currentLuminance = luminance(currentIllumination);
+    
+	if(gradientSample >= (1u << 31)) {
+	    uint idxPrev = (gradientSample >> (2 * TILE_OFFSET_SHIFT)) & ((1 << (31 - 2 * TILE_OFFSET_SHIFT)) - 1);
+    
+		int2 prevPos = int2(idxPrev % gScreenWidth, idxPrev / gScreenWidth);
 
-		int w = getTextureDims(tex_color_unfiltered, 0).r;
-		int2 ipos_prev = int2(idx_prev % w, idx_prev / w);
-
-		float l_prev = luminance(tex_color_unfiltered_prev[ipos_prev].rgb);
-
-		psOut.frag_color1.r = max(l_curr, l_prev);
-		psOut.frag_color1.g = (l_curr - l_prev);
-		psOut.frag_color1.b = 1.0;
-		psOut.frag_color1.a = 0.0;
+        float3 prevIllumination = getIllumination(gPrevColorTexture[prevPos].rgb, gPrevEmissionTexture[prevPos].rgb, gPrevAlbedoTexture[prevPos].rgb);
+		float prevLuminance = luminance(prevIllumination);
+    
+		psOut.fragGradientLuminance.r = max(currentLuminance, prevLuminance);
+		psOut.fragGradientLuminance.g = (currentLuminance - prevLuminance);
+		psOut.fragGradientLuminance.b = 1.0;
+		psOut.fragGradientLuminance.a = 0.0;
 	}
 	else {
-		psOut.frag_color1.rgba = float4(0);
+		psOut.fragGradientLuminance.rgba = float4(0);
 	}
+    
+	float2 moments = float2(currentLuminance, currentLuminance * currentLuminance);
+	float sumWeight = 1.0;
+	float2 currentDepth = gLinearZTexture[currentPos].rg;
+	uint meshID  = asuint(gVisibilityBuffer[currentPos].r);
+    for(int yy = 0; yy < gGradientDownsample; yy++) {
+		for(int xx = 0; xx < gGradientDownsample; xx++) {
+			int2 indexPos = posGrad * gGradientDownsample + int2(xx, yy);
+			if(!all(currentPos == indexPos)) {
+				float3 indexColor = gColorTexture[indexPos].rgb;
+                float3 indexEmission = gEmissionTexture[indexPos].rgb;
+                float3 indexAlbedo = gAlbedoTexture[indexPos].rgb;
 
-	float2 moments = float2(l_curr, l_curr * l_curr);
-	float sum_w = 1.0;
-	float2 z_curr = tex_z[ipos].rg;
-	uint mesh_id  = asuint(tex_vbuf[ipos].r);
-    for(int yy = 0; yy < gradientDownsample; yy++) {
-		for(int xx = 0; xx < gradientDownsample; xx++) {
-			int2 p = ipos_grad * gradientDownsample + int2(xx, yy);
-			if(!all(ipos == p)) {
-				float3 rgb = tex_color_unfiltered[p].rgb;
-				uint mesh_id_p = asuint(tex_vbuf[p].r);
+				uint indexMeshID = asuint(gVisibilityBuffer[indexPos].r);
 
-				float l = luminance(rgb);
-
-				float w = mesh_id_p == mesh_id ? 1.0 : 0.0;
-
-				moments += float2(l, l * l) * w;
-				sum_w += w;
+                float3 indexIllumination = getIllumination(indexColor, indexEmission, indexAlbedo);
+				float indexLuminance = luminance(indexIllumination);
+    
+				float indexWeight = indexMeshID == meshID ? 1.0 : 0.0;
+    
+				moments += float2(indexLuminance, indexLuminance * indexLuminance) * indexWeight;
+				sumWeight += indexWeight;
 			}
 		}
 	}
-	moments /= sum_w;
-
+	moments /= sumWeight;
+    
 	float variance = max(0.0, moments[1] - moments[0] * moments[0]);
-
-	psOut.frag_color2.r  = moments[0];
-	psOut.frag_color2.g  = variance;
-	psOut.frag_color2.ba = z_curr;
+    
+	psOut.fragGradientVariance.r  = moments[0];
+	psOut.fragGradientVariance.g  = variance;
+	psOut.fragGradientVariance.ba = currentDepth;
 	
 	return psOut;
 }
