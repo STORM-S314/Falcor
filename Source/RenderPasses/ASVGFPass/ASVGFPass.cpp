@@ -100,6 +100,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     pGraphicsState = GraphicsState::create(pDevice);
 
     mpPrgGradientForwardProjection = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
+    mpPrgAtrousGradientCalculation = FullScreenPass::create(mpDevice, kAtrousGradientShader);
 }
 
 Properties ASVGFPass::getProperties() const
@@ -122,12 +123,15 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
 {
     int screenWidth = compileData.defaultTexDims.x;
     int screenHeight = compileData.defaultTexDims.y;
+    int gradResWidth = gradient_res(screenWidth);
+    int gradResHeight = gradient_res(screenHeight);
 
     Fbo::Desc formatDescGradientResult;
     formatDescGradientResult.setSampleCount(0);
     formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0/0.0, 0.0 
     formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
-    mpGradientResultBuffer = Fbo::create2D(mpDevice, gradient_res(screenWidth), gradient_res(screenHeight), formatDescGradientResult);;
+    mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
+    mpGradientResultPingPongBuffer[1] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
 }
 
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
@@ -152,7 +156,7 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
-    reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA16Float);
+    reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA32Float);
 
     return reflector;
 }
@@ -175,6 +179,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInternalPrevColorTexture = renderData.getTexture(kInternalPrevColorTexture);
     ref<Texture> pInternalPrevAlbedoTexture = renderData.getTexture(kInternalPrevAlbedoTexture);
     ref<Texture> pInternalPrevEmissionTexture = renderData.getTexture(kInternalPrevEmissionTexture);
+
+    ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
 
     int screenWidth = pInputColorTexture->getWidth();
     int screenHeight = pInputColorTexture->getHeight();
@@ -203,12 +209,30 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;
     perImageGradForwardProjCB["gScreenWidth"] = screenWidth;
     
-    mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultBuffer);
+    mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0]);
+
+    //A-trous gradient
+    for (int indexAtrous = 0; indexAtrous < mNumIterations; indexAtrous++)
+    {
+        auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
+        perImageATrousGradientCB["gGradientLuminance"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
+        perImageATrousGradientCB["gGradientVariance"] = mpGradientResultPingPongBuffer[0]->getColorTexture(1);
+        perImageATrousGradientCB["gStepSize"] = 1 << indexAtrous;
+        perImageATrousGradientCB["gGradientDownsample"] = gradientDownsample;
+
+        mpPrgAtrousGradientCalculation->execute(pRenderContext, mpGradientResultPingPongBuffer[1]);
+        std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
+    }
 
     GraphicsState::Viewport vp2(0, 0, screenWidth, screenHeight, 0, 1);
     pGraphicsState->setViewport(0, vp2);
 
+
+
+
+
     //Blit outputs
+    //pRenderContext->blit(mpGradientResultBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
 
     // Swap buffers for next frame}
     pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());

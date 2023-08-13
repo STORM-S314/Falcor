@@ -6,6 +6,7 @@ target_sources(ASVGFPass PRIVATE
 	CreateGradientSamples.ps.slang
     ASVGFPass.cpp
     ASVGFPass.h
+	AtrousGradient.ps.slang
 )
 
 target_source_group(ASVGFPass "RenderPasses")
