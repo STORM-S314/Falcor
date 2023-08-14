@@ -78,8 +78,12 @@ private:
     //Full screen passes
     ref<FullScreenPass> mpPrgGradientForwardProjection;
     ref<FullScreenPass> mpPrgAtrousGradientCalculation;
+    ref<FullScreenPass> mpPrgTemporalAccumulation;
 
     //FBOs
     ref<Fbo> mpGradientResultPingPongBuffer[2];
-
+    ref<Fbo> mpAtrousFullScreenResultPingPong[2];
+    ref<Fbo> mpColorHistoryBuffer;
+    ref<Fbo> mpAccumulationBuffer;
+    ref<Fbo> mpPrevAccumulationBuffer;
 };

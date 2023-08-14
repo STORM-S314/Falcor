@@ -25,7 +25,7 @@
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
 
- cbuffer PerImageCB
+cbuffer PerImageCB
 {
 	Texture2D gGradientLuminance;
     Texture2D gGradientVariance;
@@ -124,11 +124,9 @@ PS_OUT main(float2 texCoord : TEXCOORD)
     sumVariance    = centerGradient2.g;
     sumWeight      = 1.0;
 
-    if(centerDepth.x <= 0) { /* only filter foreground pixels */
-        return psOut;
+    if(centerDepth.x > 0) { /* only filter foreground pixels */
+        box3();
 	}
-
-    box3();
 
     sumColor     /= sumWeight;
 	sumLuminance /= sumWeight;
