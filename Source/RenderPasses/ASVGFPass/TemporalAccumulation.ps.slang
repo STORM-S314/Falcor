@@ -65,7 +65,7 @@ float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
     return (a_Color - a_Emission) / max(float3(0.001, 0.001, 0.001), a_Albedo);
 }
 
-PS_OUT main(float2 texCoord : TEXCOORD)
+PS_OUT main(float2 texCoord : TEXCOORD)  : SV_TARGET0 
 {
     PS_OUT psOut;
 

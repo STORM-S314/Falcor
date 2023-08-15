@@ -155,8 +155,8 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
     //Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
     formatAtrousFullScreenResult.setSampleCount(0);
-    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA16Float);    
-    mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
+    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA16Float);    //Color.rgb, variance
+    mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
 }
 
