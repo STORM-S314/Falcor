@@ -115,10 +115,11 @@ PS_OUT main(float2 texCoord : TEXCOORD)
 
         if(isAccept)
         {
-            weightedColorPrev   += bilinearWeights[sampleIdx] * gPrevAccumColorTexture[loc];
-            weightedMomentsPrev += bilinearWeights[sampleIdx] * gPrevAccumMomentsTexture[loc].xy;
-            histLen             += bilinearWeights[sampleIdx] * gPrevHistLenTexture[loc].x;
-            weightedSum         += bilinearWeights[sampleIdx];
+            float currentBilinearWeight = bilinearWeights[sampleIdx];
+            weightedColorPrev   += currentBilinearWeight * gPrevAccumColorTexture[loc];
+            weightedMomentsPrev += currentBilinearWeight * gPrevAccumMomentsTexture[loc].xy;
+            histLen             += currentBilinearWeight * gPrevHistLenTexture[loc].x;
+            weightedSum         += currentBilinearWeight;
         }
     }
 

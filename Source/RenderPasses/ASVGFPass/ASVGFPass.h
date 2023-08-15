@@ -79,6 +79,7 @@ private:
     ref<FullScreenPass> mpPrgGradientForwardProjection;
     ref<FullScreenPass> mpPrgAtrousGradientCalculation;
     ref<FullScreenPass> mpPrgTemporalAccumulation;
+    ref<FullScreenPass> mpPrgEstimateVariance;
 
     //FBOs
     ref<Fbo> mpGradientResultPingPongBuffer[2];

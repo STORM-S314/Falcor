@@ -45,7 +45,7 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 
 // Shader source files
 const char kTemporalAccumulationShader[]    = "RenderPasses/ASVGFPass/TemporalAccumulation.ps.slang";
-const char kEstimateVarianceShader[]        = "RenderPasses/ASVGFPass/EstimateVariance.ps.slang";
+const char kEstimateVarianceShader[]        = "RenderPasses/ASVGFPass/VarianceEstimation.ps.slang";
 const char kAtrousShader[]                  = "RenderPasses/ASVGFPass/Atrous.ps.slang";
 const char kCreateGradientSamplesShader[]   = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
 const char kAtrousGradientShader[]          = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
@@ -108,6 +108,8 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
     mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader);
     mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
+    mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
+    
 }
 
 Properties ASVGFPass::getProperties() const
@@ -298,8 +300,20 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageAccumulationCB["gTemporalAlpha"]                = mTemporalAlpha;
     perImageAccumulationCB["gGradientFilterRadius"]         = mGradientFilterRadius;
     
-
     mpPrgGradientForwardProjection->execute(pRenderContext, mpAccumulationBuffer);
+
+    // Estimate variance
+    auto perImageEstimateVarianceCB = mpPrgEstimateVariance->getRootVar()["PerImageCB"];
+
+    perImageEstimateVarianceCB["gCurrentAccumColor"]    = mpAccumulationBuffer->getColorTexture(0);
+    perImageEstimateVarianceCB["gCurrentAccumMoments"]  = mpAccumulationBuffer->getColorTexture(1);
+    perImageEstimateVarianceCB["gCurrentAccumHistLen"]  = mpAccumulationBuffer->getColorTexture(2);
+    perImageEstimateVarianceCB["gColor"]                = pInputColorTexture;
+    perImageEstimateVarianceCB["gLinearZTexture"]       = pInputLinearZTexture;
+    perImageEstimateVarianceCB["gNormalsTexture"]       = pInputNormalVectors;
+    perImageEstimateVarianceCB["gVisibilityBuffer"]     = pInputVisibilityBuffer;
+
+    mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
 
     //Blit outputs
     pRenderContext->blit(pInputColorTexture->getSRV(), pOutputFilteredImage->getRTV());
