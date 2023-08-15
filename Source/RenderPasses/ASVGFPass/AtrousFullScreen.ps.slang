@@ -24,18 +24,109 @@
 #	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
+import ColorSpace;
 
 cbuffer PerImageCB
 {
 	Texture2D   gColorAndVariance;
     Texture2D   gLinearZTexture;
     Texture2D   gNormalsTexture;
+    Texture2D   gAlbedoTexture;
 	int 		gIteration;
 	int 		gStepSize;
 	int 		gIsModulateAlbedo;
 };
 
+const float gaussian_kernel[3][3] = {
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
+	{ 1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0  },
+	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
+};
+
+static int2 ipos                = int2(0, 0);
+static float centerLuminance    = 0.0;
+static float sigmaLuminance     = 0.0;
+static float2 centerZ           = float2(0.0);
+static float3 centerNormal      = float3(0.0);
+
+static float3 sumColor          = float3(0.0);
+static float sumVariance        = 0.0;
+static float sumWeight          = 1.0;
+
+float compute_sigma_luminance(float center, int2 ipos)
+{
+	const int r = 1;
+
+	float sum = center * gaussian_kernel[0][0];
+
+	for(int yy = -r; yy <= r; yy++) {
+		for(int xx = -r; xx <= r; xx++) {
+			if(xx != 0 || yy != 0) {
+				int2 p = ipos + int2(xx, yy);
+				float v = gColorAndVariance[p].a;
+				float w = gaussian_kernel[xx + 1][yy + 1];
+				sum += v * w;
+			}
+		}
+	}
+
+	return sqrt(max(sum, 0.0));
+}
+
+void tap(int2 offset, float kernel_weight)
+{
+	int2 p = ipos + offset; 
+
+	float4 color_p      = gColorAndVariance[p]; 
+	float3 normal_p     = gNormalsTexture[p].xyz; 
+	float z_p           = gLinearZTexture[p].x;
+	float l_p           = luminance(color_p.rgb); 
+
+	float w_l = abs(l_p - centerLuminance) / (sigmaLuminance + 1e-10); 
+	float w_z = 3.0 * abs(z_p - centerZ.x) / (centerZ.y * length(float2(offset) * gStepSize) + 1e-2); 
+	float w_n = pow(max(0, dot(normal_p, centerNormal)), 128.0); 
+
+	float w = exp(-w_l * w_l - w_z) * kernel_weight * w_n; 
+
+	sumColor    += color_p.rgb * w; 
+	sumVariance += w * w * color_p.a; 
+	sumWeight   += w; 
+}
+
+void box3()
+{
+	const int r = 1;
+	for(int yy = -r; yy <= r; yy++) {
+		for(int xx = -r; xx <= r; xx++) {
+			if(xx != 0 || yy != 0) {
+				tap(int2(xx, yy) * gStepSize, 1.0);
+			}
+		}
+	}
+}
+
 float4 main(float2 texCoord : TEXCOORD) : SV_TARGET0
 {
-    return float4(0.0);
+    int2 ipos = int2(texCoord.xy);
+
+    centerLuminance = luminance(gColorAndVariance[ipos].rgb);
+    sigmaLuminance  = compute_sigma_luminance(gColorAndVariance[ipos].a, ipos);
+    centerZ         = gLinearZTexture[ipos].xy;
+    centerNormal    = gNormalsTexture[ipos].xyz;
+    sumColor        = gColorAndVariance[ipos].rgb;
+    sumVariance     = gColorAndVariance[ipos].a;
+
+	if(gLinearZTexture[ipos].x > 0) { /* only filter foreground pixels */
+	    box3();
+    }
+
+	sumColor    /= sumWeight;
+	sumVariance /= sumWeight * sumWeight;
+
+	float4 fragColor  = float4(sumColor, sumVariance);
+
+	if(gIsModulateAlbedo > 0) {
+		fragColor.rgb *= gAlbedoTexture[ipos].rgb;
+	}
+    return fragColor;
 }

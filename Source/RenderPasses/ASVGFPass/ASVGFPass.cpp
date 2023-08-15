@@ -146,7 +146,7 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
     //Accumulation
     Fbo::Desc formatDescAccumulationResult;
     formatDescAccumulationResult.setSampleCount(0);
-    formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA16Float);    // Accumulation color                                          
+    formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    // Accumulation color                                          
     formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);      // Accumulation moments
     formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);       // Accumulation length
     mpAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
@@ -155,7 +155,7 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
     //Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
     formatAtrousFullScreenResult.setSampleCount(0);
-    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA16Float);    //Color.rgb, variance
+    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    //Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
 }
@@ -332,6 +332,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
         perImageAtrousFullScreenCB["gLinearZTexture"]   = pInputLinearZTexture;
         perImageAtrousFullScreenCB["gNormalsTexture"]   = pInputNormalVectors;
+        perImageAtrousFullScreenCB["gAlbedoTexture"]    = pInputAlbedoTexture;
         perImageAtrousFullScreenCB["gIteration"]        = i;
         perImageAtrousFullScreenCB["gStepSize"]         = 1 << i;
         perImageAtrousFullScreenCB["gIsModulateAlbedo"] = int(i == (mNumIterations - 1));
