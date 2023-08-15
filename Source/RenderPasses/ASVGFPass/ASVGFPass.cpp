@@ -46,7 +46,7 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 // Shader source files
 const char kTemporalAccumulationShader[]    = "RenderPasses/ASVGFPass/TemporalAccumulation.ps.slang";
 const char kEstimateVarianceShader[]        = "RenderPasses/ASVGFPass/VarianceEstimation.ps.slang";
-const char kAtrousShader[]                  = "RenderPasses/ASVGFPass/Atrous.ps.slang";
+const char kAtrousShader[]                  = "RenderPasses/ASVGFPass/AtrousFullScreen.ps.slang";
 const char kCreateGradientSamplesShader[]   = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
 const char kAtrousGradientShader[]          = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
 
@@ -109,7 +109,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader);
     mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
     mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
-    
+    mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader);
 }
 
 Properties ASVGFPass::getProperties() const
@@ -222,7 +222,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInternalPrevEmissionTexture   = renderData.getTexture(kInternalPrevEmissionTexture);
     ref<Texture> pInternalPrevLinearZTexture    = renderData.getTexture(kInternalPrevLinearZTexture);
     ref<Texture> pInternalPrevNormalsTexture    = renderData.getTexture(kInternalPrevNormalsTexture);
-    ref<Texture> pInternalVisBufferTexture      = renderData.getTexture(kInternalPrevVisibilityBuffer);
+    ref<Texture> pInternalPrevVisBufferTexture = renderData.getTexture(kInternalPrevVisibilityBuffer);
     
 
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
@@ -288,7 +288,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageAccumulationCB["gPrevNormalsTexture"]           = pInternalPrevNormalsTexture;
     perImageAccumulationCB["gPosNormalFWidth"]              = pInputPosNormalFWidth;
     perImageAccumulationCB["gVisibilityBuffer"]             = pInputVisibilityBuffer;
-    perImageAccumulationCB["gPrevVisibilityBuffer"]         = pInternalVisBufferTexture;
+    perImageAccumulationCB["gPrevVisibilityBuffer"]         = pInternalPrevVisBufferTexture;
     perImageAccumulationCB["gAlbedoTexture"]                = pInputAlbedoTexture;
     perImageAccumulationCB["gPrevAlbedoTexture"]            = pInternalPrevAlbedoTexture;
     perImageAccumulationCB["gEmissionTexture"]              = pInputEmissionTexture;
@@ -315,16 +315,42 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
 
+    if (mNumIterations == 0)
+    {
+        pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
+    }
+
+    // Atrous full screen
+    for (int i = 0; i < mNumIterations; i++)
+    {
+        if (i - 1 == mHistoryTap)
+        {
+            pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
+        }
+
+        auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
+        perImageAtrousFullScreenCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+        perImageAtrousFullScreenCB["gLinearZTexture"]   = pInputLinearZTexture;
+        perImageAtrousFullScreenCB["gNormalsTexture"]   = pInputNormalVectors;
+        perImageAtrousFullScreenCB["gIteration"]        = i;
+        perImageAtrousFullScreenCB["gStepSize"]         = 1 << i;
+        perImageAtrousFullScreenCB["gIsModulateAlbedo"] = int(i == (mNumIterations - 1));
+
+        mpPrgAtrousFullScreen->execute(pRenderContext, mpAtrousFullScreenResultPingPong[1]);
+
+        std::swap(mpAtrousFullScreenResultPingPong[0], mpAtrousFullScreenResultPingPong[1]);
+    }
+
     //Blit outputs
-    pRenderContext->blit(pInputColorTexture->getSRV(), pOutputFilteredImage->getRTV());
+    pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
 
     // Swap buffers for next frame}
-    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
-    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
-    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
-    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
-    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
-    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalVisBufferTexture->getRTV());
+    pRenderContext->blit(pInputColorTexture->getSRV(),      pInternalPrevColorTexture->getRTV());
+    pRenderContext->blit(pInputAlbedoTexture->getSRV(),     pInternalPrevAlbedoTexture->getRTV());
+    pRenderContext->blit(pInputEmissionTexture->getSRV(),   pInternalPrevEmissionTexture->getRTV());
+    pRenderContext->blit(pInputLinearZTexture->getSRV(),    pInternalPrevLinearZTexture->getRTV());
+    pRenderContext->blit(pInputNormalVectors->getSRV(),     pInternalPrevNormalsTexture->getRTV());
+    pRenderContext->blit(pInputVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     mPrevFrameJitter = cameraJitter;
 }

@@ -9,6 +9,7 @@ target_sources(ASVGFPass PRIVATE
 	AtrousGradient.ps.slang
 	TemporalAccumulation.ps.slang
 	VarianceEstimation.ps.slang
+	AtrousFullScreen.ps.slang
 )
 
 target_source_group(ASVGFPass "RenderPasses")
