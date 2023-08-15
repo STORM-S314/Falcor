@@ -83,7 +83,6 @@ private:
     //FBOs
     ref<Fbo> mpGradientResultPingPongBuffer[2];
     ref<Fbo> mpAtrousFullScreenResultPingPong[2];
-    ref<Fbo> mpColorHistoryBuffer;
     ref<Fbo> mpAccumulationBuffer;
     ref<Fbo> mpPrevAccumulationBuffer;
 };

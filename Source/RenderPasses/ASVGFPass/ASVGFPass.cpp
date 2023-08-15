@@ -71,6 +71,7 @@ const char kInputNormalsTexture[]           = "Normals";
 const char kInputVisibilityBufferTexture[]  = "VisibilityBuffer";
 const char kInputGradientSamplesTexture[]   = "GradientSamples";
 const char kInputMotionVectors[]            = "MotionVectors";
+const char kInputPosNormalFWidth[]          = "PosNormalFWidth";
 
 // Internal buffer names
 const char kInternalPrevColorTexture[]      = "PrevColor";
@@ -155,9 +156,6 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA16Float);    
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
-
-    //Color history
-    mpColorHistoryBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
 }
 
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
@@ -172,6 +170,7 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputNormalsTexture, "Normals");
     reflector.addInput(kInputVisibilityBufferTexture, "VisibilityBuffer");
     reflector.addInput(kInputMotionVectors, "MotionVectors");
+    reflector.addInput(kInputPosNormalFWidth, "PosNormalFWidth");
     
     //Internal buffers
     reflector.addInternal(kInternalPrevColorTexture, "Previous Color").format(ResourceFormat::RGBA32Float)
@@ -214,7 +213,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInputVisibilityBuffer         = renderData.getTexture(kInputVisibilityBufferTexture);
     ref<Texture> pInputMotionVectors            = renderData.getTexture(kInputMotionVectors);
     ref<Texture> pInputNormalVectors            = renderData.getTexture(kInputNormalsTexture);
-    
+    ref<Texture> pInputPosNormalFWidth          = renderData.getTexture(kInputPosNormalFWidth);
     
     ref<Texture> pInternalPrevColorTexture      = renderData.getTexture(kInternalPrevColorTexture);
     ref<Texture> pInternalPrevAlbedoTexture     = renderData.getTexture(kInternalPrevAlbedoTexture);
@@ -276,17 +275,29 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     //Temporal Accumulation
     auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
-    perImageAccumulationCB["gColor"] = pInputColorTexture;
-    perImageAccumulationCB["gPrevColor"] = mpColorHistoryBuffer->getColorTexture(0);
-    perImageAccumulationCB["gMotionVectorsTexture"] = pInputMotionVectors;
-    perImageAccumulationCB["gLinearZTexture"] = pInputLinearZTexture;
-    perImageAccumulationCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
-    perImageAccumulationCB["gNormalsTexture"] = pInputNormalVectors;
-    perImageAccumulationCB["gPrevNormalsTexture"] = pInternalPrevNormalsTexture;
-    perImageAccumulationCB["gVisibilityBuffer"] = pInputVisibilityBuffer;
-    perImageAccumulationCB["gPrevVisibilityBuffer"] = pInternalVisBufferTexture;
-    perImageAccumulationCB["gScreenDimension"] = float2(screenWidth, screenHeight);
-    perImageAccumulationCB["gJitterOffset"] = jitterOffset;
+    perImageAccumulationCB["gColor"]                        = pInputColorTexture;
+    perImageAccumulationCB["gMotionVectorsTexture"]         = pInputMotionVectors;
+    perImageAccumulationCB["gPrevAccumColorTexture"]        = mpPrevAccumulationBuffer->getColorTexture(0);
+    perImageAccumulationCB["gPrevAccumMomentsTexture"]      = mpPrevAccumulationBuffer->getColorTexture(1);
+    perImageAccumulationCB["gPrevHistLenTexture"]           = mpPrevAccumulationBuffer->getColorTexture(2);
+    perImageAccumulationCB["gLinearZTexture"]               = pInputLinearZTexture;
+    perImageAccumulationCB["gPrevLinearZTexture"]           = pInternalPrevLinearZTexture;
+    perImageAccumulationCB["gNormalsTexture"]               = pInputNormalVectors;
+    perImageAccumulationCB["gPrevNormalsTexture"]           = pInternalPrevNormalsTexture;
+    perImageAccumulationCB["gPosNormalFWidth"]              = pInputPosNormalFWidth;
+    perImageAccumulationCB["gVisibilityBuffer"]             = pInputVisibilityBuffer;
+    perImageAccumulationCB["gPrevVisibilityBuffer"]         = pInternalVisBufferTexture;
+    perImageAccumulationCB["gAlbedoTexture"]                = pInputAlbedoTexture;
+    perImageAccumulationCB["gPrevAlbedoTexture"]            = pInternalPrevAlbedoTexture;
+    perImageAccumulationCB["gEmissionTexture"]              = pInputEmissionTexture;
+    perImageAccumulationCB["gPrevEmissionTexture"]          = pInternalPrevEmissionTexture;
+    perImageAccumulationCB["gGradientDifferenceTexture"]    = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
+    perImageAccumulationCB["gGradientDownsample"]           = gradientDownsample;
+    perImageAccumulationCB["gScreenDimension"]              = float2(screenWidth, screenHeight);
+    perImageAccumulationCB["gJitterOffset"]                 = jitterOffset;
+    perImageAccumulationCB["gTemporalAlpha"]                = mTemporalAlpha;
+    perImageAccumulationCB["gGradientFilterRadius"]         = mGradientFilterRadius;
+    
 
     mpPrgGradientForwardProjection->execute(pRenderContext, mpAccumulationBuffer);
 
