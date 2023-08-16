@@ -25,53 +25,16 @@
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 
-#define TILE_OFFSET_SHIFT 3u
-#define TILE_OFFSET_MASK ((1 << TILE_OFFSET_SHIFT) - 1)
+#ifndef TILE_OFFSET_SHIFT
+    #define TILE_OFFSET_SHIFT 3u
+#endif
 
-int2 getTextureDims(Texture2D tex, uint mip)
+#ifndef TILE_OFFSET_MASK 
+    #define TILE_OFFSET_MASK ((1 << TILE_OFFSET_SHIFT) - 1)
+#endif
+
+struct FullScreenPassVsOut
 {
-    uint w, h;
-    tex.GetDimensions(w, h);
-    return int2(w,h);
-}
-
-bool test_reprojected_normal(float3 n1, float3 n2)
-{
-	return dot(n1, n2) > 0.95;
-}
-
-bool test_inside_screen(int2 p, int2 res)
-{
-	return all(p >= int2(0,0))
-		&& all(p < res);
-}
-
-bool test_reprojected_depth(float z1, float z2, float dz)
-{
-	float z_diff = abs(z1 - z2);
-	return z_diff < 2.0 * (dz + 1e-3);
-}
-
-int2 get_gradient_tile_pos(uint idx, int gradientDownsample)
-{
-	/* didn't store a gradient sample in the previous frame, this creates
-	   a new sample in the center of the tile */
-	if(idx < (1u<<31))
-		return int2(gradientDownsample / 2);
-
-	return int2((idx & TILE_OFFSET_MASK), (idx >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
-}
-
-uint get_gradient_idx_from_tile_pos(int2 pos)
-{
-	return (1 << 31) | (pos.x) | (pos.y << TILE_OFFSET_SHIFT);
-}
-
-bool is_gradient_sample(Texture2D tex_gradient, int2 ipos, int gradientDownsample)
-{
-	int2 ipos_grad = ipos / gradientDownsample;
-	uint u = tex_gradient[ipos_grad].r;
-
-	int2 tile_pos = int2((u & TILE_OFFSET_MASK), (u >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
-	return (u >= (1u << 31) && all(ipos_grad * gradientDownsample + tile_pos == ipos));
-}
+    float2 texC       : TEXCOORD;
+    float4 posH       : SV_POSITION;
+};

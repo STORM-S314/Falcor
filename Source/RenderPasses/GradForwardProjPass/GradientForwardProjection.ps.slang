@@ -27,6 +27,7 @@
  **************************************************************************/
 
 import Utils.Math.MathHelpers;
+#include "GradForwardProjCommon.slang"
 
 cbuffer PerImageCB {
 	Texture2D                   gPrevRandomNumberTexture;
@@ -44,9 +45,6 @@ cbuffer PerImageCB {
     uint                        gTextureHeight;
     uint                        gGradientDownsample;
 };
-
-#define TILE_OFFSET_SHIFT 3u
-#define TILE_OFFSET_MASK ((1 << TILE_OFFSET_SHIFT) - 1)
 
 uint get_gradient_idx_from_tile_pos(int2 pos)
 {
@@ -70,11 +68,11 @@ void encrypt_tea(inout uint2 arg)
     arg[1] = v1;
 }
 
-void main(float2 texC : TEXCOORD)
+void main(FullScreenPassVsOut vsOut)
 {
     //Get a random index from the previous frame within the stratum (gGradientDownsample X gGradientDownsample) that is selected to be forward projected to the next frame
 	// here arg is the position within the stratum
-    uint2 ipos = uint2(texC.xy);
+    uint2 ipos = uint2(vsOut.posH.xy);
     int2 idx_prev;
 	{
 		uint2 arg = uint2(ipos.x + ipos.y * gTextureWidth, gFrameNumber);

@@ -34,6 +34,8 @@
 #include "RenderGraph/RenderPass.h"
 #include "Core/Pass/FullScreenPass.h"
 
+#define IS_DEBUG_PASS 0
+
 using namespace Falcor;
 
 class ASVGFPass : public RenderPass
@@ -54,6 +56,10 @@ public:
     virtual bool onMouseEvent(const MouseEvent& a_mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& a_keyEvent) override { return false; }
     int gradient_res(int x);
+
+    #if IS_DEBUG_PASS
+    void debugPass(RenderContext* pRenderContext, const RenderData& );
+    #endif IS_DEBUG_PASS
 
 private:
     ref<GraphicsState> pGraphicsState;
@@ -85,4 +91,10 @@ private:
     ref<Fbo> mpAtrousFullScreenResultPingPong[2];
     ref<Fbo> mpAccumulationBuffer;
     ref<Fbo> mpPrevAccumulationBuffer;
+
+    //Debug
+    #if IS_DEBUG_PASS
+    ref<FullScreenPass> mpPrgDebugFullScreen;
+    ref<Fbo> mpDebugBuffer;
+    #endif IS_DEBUG_PASS
 };

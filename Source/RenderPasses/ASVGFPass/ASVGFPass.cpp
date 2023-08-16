@@ -50,6 +50,10 @@ const char kAtrousShader[]                  = "RenderPasses/ASVGFPass/AtrousFull
 const char kCreateGradientSamplesShader[]   = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
 const char kAtrousGradientShader[]          = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
 
+#if IS_DEBUG_PASS
+const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
+#endif IS_DEBUG_PASS
+
 // Names of valid entries in the parameter dictionary.
 const char kEnable[]                = "Enable";
 const char kModulateAlbedo[]        = "ModulateAlbedo";
@@ -104,15 +108,6 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     }
 
     pGraphicsState = GraphicsState::create(pDevice);
-
-    /*mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
-    mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader);
-    mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
-    mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
-    mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader);*/
-
-    
-
 }
 
 Properties ASVGFPass::getProperties() const
@@ -160,6 +155,13 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    //Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
+
+
+    #if IS_DEBUG_PASS
+    Fbo::Desc formatDebugFullScreenResult;
+    formatDebugFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
+    mpDebugBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDebugFullScreenResult); 
+    #endif IS_DEBUG_PASS
 }
 
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
@@ -238,6 +240,22 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     auto& currentCamera = *pScene->getCamera();
     float2 cameraJitter = float2(currentCamera.getJitterX(), currentCamera.getJitterY());
     float2 jitterOffset = (cameraJitter - mPrevFrameJitter);
+
+    #if IS_DEBUG_PASS
+    debugPass(pRenderContext, renderData);
+    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+
+    // Swap buffers for next frame}
+    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
+    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
+    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
+    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
+    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
+    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
+    mPrevFrameJitter = cameraJitter;
+    return;
+    #endif
+
 
     //Set viewport to gradient grid size
     GraphicsState::Viewport vp1(0, 0, gradResWidth, gradResHeight, 0, 1);
@@ -367,6 +385,10 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     mpPrgTemporalAccumulation = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);
     mpPrgEstimateVariance = FullScreenPass::create(mpDevice, kEstimateVarianceShader, sceneDefines);
     mpPrgAtrousFullScreen = FullScreenPass::create(mpDevice, kAtrousShader, sceneDefines);
+
+    #if IS_DEBUG_PASS
+    mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
+    #endif IS_DEBUG_PASS
 }
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
@@ -388,3 +410,34 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
 
     widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
 }
+
+#if IS_DEBUG_PASS
+void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& renderData)
+{
+    ref<Texture> pInputColorTexture = renderData.getTexture(kInputColorTexture);
+    ref<Texture> pInputAlbedoTexture = renderData.getTexture(kInputAlbedoTexture);
+    ref<Texture> pInputEmissionTexture = renderData.getTexture(kInputEmissionTexture);
+    ref<Texture> pInputGradSamplesTexture = renderData.getTexture(kInputGradientSamplesTexture);
+    ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputLinearZTexture);
+    ref<Texture> pInputGradientSamples = renderData.getTexture(kInputGradientSamplesTexture);
+    ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputVisibilityBufferTexture);
+    ref<Texture> pInputMotionVectors = renderData.getTexture(kInputMotionVectors);
+    ref<Texture> pInputNormalVectors = renderData.getTexture(kInputNormalsTexture);
+    ref<Texture> pInputPosNormalFWidth = renderData.getTexture(kInputPosNormalFWidth);
+
+    ref<Texture> pInternalPrevColorTexture = renderData.getTexture(kInternalPrevColorTexture);
+    ref<Texture> pInternalPrevAlbedoTexture = renderData.getTexture(kInternalPrevAlbedoTexture);
+    ref<Texture> pInternalPrevEmissionTexture = renderData.getTexture(kInternalPrevEmissionTexture);
+    ref<Texture> pInternalPrevLinearZTexture = renderData.getTexture(kInternalPrevLinearZTexture);
+    ref<Texture> pInternalPrevNormalsTexture = renderData.getTexture(kInternalPrevNormalsTexture);
+    ref<Texture> pInternalPrevVisBufferTexture = renderData.getTexture(kInternalPrevVisibilityBuffer);
+
+    auto perImageDebugFullScreenCB = mpPrgDebugFullScreen->getRootVar()["PerImageCB"];
+    perImageDebugFullScreenCB["gColor"] = pInputColorTexture;
+    perImageDebugFullScreenCB["gLinearZTexture"] = pInputLinearZTexture;
+    perImageDebugFullScreenCB["gNormalsTexture"] = pInputNormalVectors;
+    perImageDebugFullScreenCB["gVisibilityBuffer"] = pInputVisibilityBuffer;
+    perImageDebugFullScreenCB["gPrevVisibilityBuffer"] = pInternalPrevVisBufferTexture;
+    mpPrgDebugFullScreen->execute(pRenderContext, mpDebugBuffer);
+}
+#endif IS_DEBUG_PASS

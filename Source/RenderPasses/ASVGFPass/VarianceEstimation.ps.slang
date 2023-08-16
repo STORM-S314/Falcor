@@ -25,6 +25,7 @@
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
 import ColorSpace;
+#include "ASVGFCommon.slang"
 
 cbuffer PerImageCB
 {
@@ -37,9 +38,9 @@ cbuffer PerImageCB
     Texture2D                   gVisibilityBuffer;
 };
 
-float4 main(float2 texCoord : TEXCOORD) : SV_TARGET0
+float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
-    int2 iPos = int2(texCoord);
+    int2 iPos = int2(vsOut.posH.xy);
 	float4 psOut;
 
     float2 accumMoments = gCurrentAccumMoments[iPos].xy;

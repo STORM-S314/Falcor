@@ -24,6 +24,7 @@
 #	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
+#include "ASVGFCommon.slang"
 
 cbuffer PerImageCB
 {
@@ -106,11 +107,11 @@ void box3()
 	}
 }
 
-PS_OUT main(float2 texCoord : TEXCOORD)
+PS_OUT main(FullScreenPassVsOut vsOut)
 {
     PS_OUT psOut;
 
-    ipos = int2(texCoord);
+    ipos = int2(vsOut.posH.xy);
 
     float4 centerGradient1  = gGradientLuminance[ipos];
     float4 centerGradient2  = gGradientVariance[ipos];

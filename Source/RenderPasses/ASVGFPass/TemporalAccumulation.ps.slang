@@ -27,6 +27,7 @@
  import Utils.Math.MathHelpers;
  import ColorSpace;
  import Scene.HitInfo;
+ #include "ASVGFCommon.slang"
 
 cbuffer PerImageCB
 {
@@ -56,9 +57,9 @@ cbuffer PerImageCB
 
 struct PS_OUT
 {
-    float4  accumulated;
-    float2  moments;
-    float   histLen;
+    float4  accumulated : SV_TARGET0;
+    float2  moments     : SV_TARGET1;
+    float   histLen     : SV_TARGET2;
 }
 
 float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
@@ -66,13 +67,13 @@ float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
     return (a_Color - a_Emission) / max(float3(0.001, 0.001, 0.001), a_Albedo);
 }
 
-PS_OUT main(float2 texCoord : TEXCOORD)  : SV_TARGET0 
+PS_OUT main(FullScreenPassVsOut vsOut) 
 {
     PS_OUT psOut;
 
-    int2 iPos = int2(texCoord);
+    int2 iPos = int2(vsOut.posH.xy);
     float2 currentMotion = gMotionVectorsTexture[iPos].rg + gJitterOffset;
-    const float2 prevPos = texCoord + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5);
+    const float2 prevPos = vsOut.posH.xy + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5);
 
     float4  currentColor = gColor[iPos].xyzw;
     float2  currentDepth = gLinearZTexture[iPos].xy;

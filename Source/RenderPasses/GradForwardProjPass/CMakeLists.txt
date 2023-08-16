@@ -6,6 +6,7 @@ target_sources(GradForwardProjPass PRIVATE
 	RandomNumGenerator.ps.slang
 	GradientForwardProjection.ps.slang
 	PackLinearZAndNormal.ps.slang
+	GradForwardProjCommon.slang
 )
 
 target_source_group(GradForwardProjPass "RenderPasses")

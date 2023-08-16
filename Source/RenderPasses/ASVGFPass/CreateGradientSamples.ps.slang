@@ -26,9 +26,7 @@
  *************************************************************************/
 import ColorSpace;
 import Scene.HitInfo;
-
-#define TILE_OFFSET_SHIFT 3u
-#define TILE_OFFSET_MASK ((1 << TILE_OFFSET_SHIFT) - 1)
+#include "ASVGFCommon.slang"
 
 cbuffer PerImageCB
 {
@@ -57,11 +55,11 @@ float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
     return (a_Color - a_Emission) / max(float3(0.001, 0.001, 0.001), a_Albedo);
 }
 
-PS_OUT main(float2 texCoord : TEXCOORD)
+PS_OUT main(FullScreenPassVsOut vsOut)
 {
 	PS_OUT psOut;
     
-    const int2 posGrad = texCoord;
+    const int2 posGrad = int2(vsOut.posH.xy);
 	uint gradientSample = gGradientSamples[posGrad].x;
     
 	//The position of the texel in the tile

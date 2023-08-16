@@ -25,6 +25,7 @@
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
 import ColorSpace;
+#include "ASVGFCommon.slang"
 
 cbuffer PerImageCB
 {
@@ -105,9 +106,9 @@ void box3()
 	}
 }
 
-float4 main(float2 texCoord : TEXCOORD) : SV_TARGET0
+float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
-    int2 ipos = int2(texCoord.xy);
+    int2 ipos = int2(vsOut.posH.xy);
 
     centerLuminance = luminance(gColorAndVariance[ipos].rgb);
     sigmaLuminance  = compute_sigma_luminance(gColorAndVariance[ipos].a, ipos);

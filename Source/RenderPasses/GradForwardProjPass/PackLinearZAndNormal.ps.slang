@@ -26,6 +26,7 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 import Utils.Math.MathHelpers;
+import GradForwardProjCommon;
 
 cbuffer PerImageCB
 {
@@ -33,9 +34,9 @@ cbuffer PerImageCB
     Texture2D gNormal;
 };
 
-float4 main(float2 a_TextureCoordinate : TEXCOORD) : SV_TARGET0
+float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
-    const int2 ipos = int2(a_TextureCoordinate.xy);
+    const int2 ipos = int2(vsOut.posH.xy);
 
     const float2 nPacked = ndir_to_oct_snorm(gNormal[ipos].xyz);
     return float4(gLinearZ[ipos].xy, nPacked.x, nPacked.y);
