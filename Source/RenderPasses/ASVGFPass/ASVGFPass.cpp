@@ -98,18 +98,21 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kTemporalAlpha)         mTemporalAlpha = value;
         else if (key == kDiffAtrousIterations)  mDiffAtrousIterations = value;
         else if (key == kGradientFilterRadius)  mGradientFilterRadius = value;
-        else if (key == kNormalizeGradient)     mNormalizeGradient = value;
-        else if (key == kShowAntilagAlpha)      mShowAntilagAlpha = value;
+        //else if (key == kNormalizeGradient)     mNormalizeGradient = value;
+        //else if (key == kShowAntilagAlpha)      mShowAntilagAlpha = value;
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
     pGraphicsState = GraphicsState::create(pDevice);
 
-    mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
+    /*mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader);
     mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader);
     mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader);
     mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader);
-    mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader);
+    mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader);*/
+
+    
+
 }
 
 Properties ASVGFPass::getProperties() const
@@ -123,8 +126,8 @@ Properties ASVGFPass::getProperties() const
     props[kTemporalAlpha] = mTemporalAlpha;
     props[kDiffAtrousIterations] = mDiffAtrousIterations;
     props[kGradientFilterRadius] = mGradientFilterRadius;
-    props[kNormalizeGradient] = mNormalizeGradient;
-    props[kShowAntilagAlpha] = mShowAntilagAlpha;
+    //props[kNormalizeGradient] = mNormalizeGradient;
+    //props[kShowAntilagAlpha] = mShowAntilagAlpha;
     return props;
 }
 
@@ -154,7 +157,6 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
 
     //Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
-    formatAtrousFullScreenResult.setSampleCount(0);
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    //Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
@@ -222,7 +224,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInternalPrevEmissionTexture   = renderData.getTexture(kInternalPrevEmissionTexture);
     ref<Texture> pInternalPrevLinearZTexture    = renderData.getTexture(kInternalPrevLinearZTexture);
     ref<Texture> pInternalPrevNormalsTexture    = renderData.getTexture(kInternalPrevNormalsTexture);
-    ref<Texture> pInternalPrevVisBufferTexture = renderData.getTexture(kInternalPrevVisibilityBuffer);
+    ref<Texture> pInternalPrevVisBufferTexture  = renderData.getTexture(kInternalPrevVisibilityBuffer);
     
 
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
@@ -251,7 +253,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageGradForwardProjCB["gPrevEmissionTexture"]   = pInternalPrevEmissionTexture;
     perImageGradForwardProjCB["gGradientSamples"]       = pInputGradientSamples;
     perImageGradForwardProjCB["gVisibilityBuffer"]      = pInputVisibilityBuffer;
-    perImageGradForwardProjCB["gLinearZTexture"]        = pInputLinearZTexture;
     perImageGradForwardProjCB["gLinearZTexture"]        = pInputLinearZTexture;
     perImageGradForwardProjCB["gGradientDownsample"]    = gradientDownsample;
     perImageGradForwardProjCB["gScreenWidth"]           = screenWidth;
@@ -359,6 +360,13 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
 {
     pScene = a_pScene;
+    auto sceneDefines = pScene->getSceneDefines();
+
+    mpPrgGradientForwardProjection = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
+    mpPrgAtrousGradientCalculation = FullScreenPass::create(mpDevice, kAtrousGradientShader, sceneDefines);
+    mpPrgTemporalAccumulation = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);
+    mpPrgEstimateVariance = FullScreenPass::create(mpDevice, kEstimateVarianceShader, sceneDefines);
+    mpPrgAtrousFullScreen = FullScreenPass::create(mpDevice, kAtrousShader, sceneDefines);
 }
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
@@ -374,7 +382,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     };
     widget.dropdown( "Kernel", filterKernels, mFilterKernel);
 
-    widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
+    //widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
     widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
     widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 

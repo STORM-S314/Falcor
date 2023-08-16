@@ -68,8 +68,6 @@ private:
     float mTemporalAlpha = 0.1f;
     int mDiffAtrousIterations = 5;
     int mGradientFilterRadius = 2;
-    bool mNormalizeGradient = true;
-    bool mShowAntilagAlpha = false;
     int gradientDownsample = 3;
 
     //Params frame

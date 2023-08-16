@@ -24,27 +24,25 @@
 #	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
-//import Utils.Math.MathHelpers;
-//import Utils.Color.ColorHelpers;
-
 import ColorSpace;
+import Scene.HitInfo;
 
 #define TILE_OFFSET_SHIFT 3u
 #define TILE_OFFSET_MASK ((1 << TILE_OFFSET_SHIFT) - 1)
 
 cbuffer PerImageCB
 {
-	Texture2D   gColorTexture;
-	Texture2D   gPrevColorTexture;
-	Texture2D   gAlbedoTexture;
-	Texture2D   gPrevAlbedoTexture;
-    Texture2D   gEmissionTexture;
-	Texture2D   gPrevEmissionTexture;
-	Texture2D   gGradientSamples;
-    Texture2D   gVisibilityBuffer;
-	Texture2D   gLinearZTexture;
-	int         gGradientDownsample;
-    int         gScreenWidth;
+	Texture2D                   gColorTexture;
+	Texture2D                   gPrevColorTexture;
+	Texture2D                   gAlbedoTexture;
+	Texture2D                   gPrevAlbedoTexture;
+    Texture2D                   gEmissionTexture;
+	Texture2D                   gPrevEmissionTexture;
+	Texture2D                   gGradientSamples;
+    Texture2D<PackedHitInfo>    gVisibilityBuffer;
+	Texture2D                   gLinearZTexture;
+	int                         gGradientDownsample;
+    int                         gScreenWidth;
 };
 
 struct PS_OUT
@@ -94,7 +92,7 @@ PS_OUT main(float2 texCoord : TEXCOORD)
 	float2 moments = float2(currentLuminance, currentLuminance * currentLuminance);
 	float sumWeight = 1.0;
 	float2 currentDepth = gLinearZTexture[currentPos].rg;
-	uint meshID  = asuint(gVisibilityBuffer[currentPos].r);
+	uint meshID  = HitInfo(gVisibilityBuffer[currentPos]).getInstanceID().index;
     for(int yy = 0; yy < gGradientDownsample; yy++) {
 		for(int xx = 0; xx < gGradientDownsample; xx++) {
 			int2 indexPos = posGrad * gGradientDownsample + int2(xx, yy);
@@ -103,7 +101,7 @@ PS_OUT main(float2 texCoord : TEXCOORD)
                 float3 indexEmission = gEmissionTexture[indexPos].rgb;
                 float3 indexAlbedo = gAlbedoTexture[indexPos].rgb;
 
-				uint indexMeshID = asuint(gVisibilityBuffer[indexPos].r);
+				uint indexMeshID = HitInfo(gVisibilityBuffer[indexPos]).getInstanceID().index;
 
                 float3 indexIllumination = getIllumination(indexColor, indexEmission, indexAlbedo);
 				float indexLuminance = luminance(indexIllumination);

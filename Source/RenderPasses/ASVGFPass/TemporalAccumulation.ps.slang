@@ -26,6 +26,7 @@
  *************************************************************************/
  import Utils.Math.MathHelpers;
  import ColorSpace;
+ import Scene.HitInfo;
 
 cbuffer PerImageCB
 {
@@ -38,8 +39,8 @@ cbuffer PerImageCB
     Texture2D   gPrevLinearZTexture;
     Texture2D   gNormalsTexture;
     Texture2D   gPrevNormalsTexture;
-    Texture2D   gVisibilityBuffer;
-    Texture2D   gPrevVisibilityBuffer;
+    Texture2D<PackedHitInfo>   gVisibilityBuffer;
+    Texture2D<PackedHitInfo>   gPrevVisibilityBuffer;
     Texture2D   gEmissionTexture;
 	Texture2D   gPrevEmissionTexture;
     Texture2D   gAlbedoTexture;
@@ -77,7 +78,7 @@ PS_OUT main(float2 texCoord : TEXCOORD)  : SV_TARGET0
     float2  currentDepth = gLinearZTexture[iPos].xy;
     float   currentLuminance = luminance(getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].xyz));
     float2  currentMomemnts = float2(currentLuminance, currentLuminance * currentLuminance);
-	uint    currentMeshID = gVisibilityBuffer[iPos].x;
+	uint    currentMeshID = HitInfo(gVisibilityBuffer[iPos]).getInstanceID().index;
     float3  currentNormal = oct_to_ndir_snorm(gNormalsTexture[iPos].xy);
     float  currentPosNormalFWidth = gPosNormalFWidth[iPos].y;
 
@@ -112,6 +113,9 @@ PS_OUT main(float2 texCoord : TEXCOORD)  : SV_TARGET0
 
         // check normals for compatibility
         isAccept = isAccept && ((distance(currentNormal, prevNormals) / (currentPosNormalFWidth + 1e-2f)) > 16.0f);
+
+        uint pMeshID = HitInfo(gPrevVisibilityBuffer[loc]).getInstanceID().index;
+        isAccept = isAccept && (currentMeshID == pMeshID);
 
         if(isAccept)
         {
