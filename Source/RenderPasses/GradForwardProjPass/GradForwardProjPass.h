@@ -58,12 +58,10 @@ private:
     int gradient_res(int x);
 
     //Render passes
-    ref<FullScreenPass> mpPackLinearZAndNormal;
     ref<FullScreenPass> mpPrgRandomNumberGenerator;
     ref<ComputePass> mpPrgGradientForwardProjection;
 
     //FBOs
-    ref<Fbo> mpPackLinearZAndNormalFBO;
     ref<Fbo> mpRandomNumberGenerationFBO;
 
     //Textures

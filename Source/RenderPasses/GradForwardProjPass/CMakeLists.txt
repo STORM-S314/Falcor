@@ -4,7 +4,6 @@ target_sources(GradForwardProjPass PRIVATE
     GradForwardProjPass.cpp
     GradForwardProjPass.h
 	RandomNumGenerator.ps.slang
-	PackLinearZAndNormal.ps.slang
 	GradForwardProjCommon.slang
 	GradientForwardProjection.cs.slang
 )

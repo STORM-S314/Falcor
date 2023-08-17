@@ -32,8 +32,10 @@ import Utils.Math.MathHelpers;
 cbuffer PerImageCB {
 	Texture2D                   gPrevRandomNumberTexture;
 	RWTexture2D<uint>           gCurrentRandomNumberTexture;
-	Texture2D 	                gLinearZAndNormalTexture;
-    Texture2D 	                gPrevLinearZAndNormalTexture;
+	Texture2D 	                gLinearZTexture;
+    Texture2D 	                gPrevLinearZTexture;
+    Texture2D 	                gWNormalTexture;
+    Texture2D 	                gPrevWNormalTexture;
     RWTexture2D<uint4>          gVisibilityBuffer;
     Texture2D 	                gPrevVisibilityBuffer;
     RWTexture2D<uint>  	        gGradientSamplesTexture;
@@ -107,14 +109,14 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (any(idx_curr < int2(1,1)) || any(idx_curr > (imageDim - int2(1,1)))){ return; }
     
     // check if deviation of depths is acceptable
-    float currentDepth = gLinearZAndNormalTexture[idx_curr].x;
-    float prevDepth = gPrevLinearZAndNormalTexture[idx_prev].x;
-    float fwidthZ = gLinearZAndNormalTexture[idx_curr].y;
+    float currentDepth = gLinearZTexture[idx_curr].x;
+    float prevDepth = gPrevLinearZTexture[idx_prev].x;
+    float fwidthZ = gLinearZTexture[idx_curr].y;
     if (abs(prevDepth - currentDepth) / (fwidthZ + 1e-2f) > 10.f) return;
     
     // check normals for compatibility
-    float3 currentNormal = oct_to_ndir_snorm(gLinearZAndNormalTexture[idx_curr].zw).xyz;
-    float3 prevNormal = oct_to_ndir_snorm(gPrevLinearZAndNormalTexture[idx_prev].zw).xyz;
+    float3 currentNormal = gWNormalTexture[idx_curr].xyz;
+    float3 prevNormal = gPrevWNormalTexture[idx_prev].xyz;
     float posNormalFWidth = gPositionNormalFwidth[idx_curr].y;
     if (distance(currentNormal, prevNormal) / (posNormalFWidth + 1e-2) > 16.0) return;
     
@@ -129,9 +131,8 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     
     if(outputValue == 0u)
     {
-        gCurrentRandomNumberTexture[idx_curr] = gPrevRandomNumberTexture[idx_prev].x;
-        gVisibilityBuffer[idx_curr] = gPrevVisibilityBuffer[idx_prev].xyzw;
-        //gColorTestTexture[idx_curr] = float4(1.0, 0.0, 0.0, 1.0);
+        gCurrentRandomNumberTexture[idx_curr].x = gPrevRandomNumberTexture[idx_prev].x;
+        gVisibilityBuffer[idx_curr].xyzw = gPrevVisibilityBuffer[idx_prev].xyzw;
     }
     //gColorTestTexture[idx_prev] = float4(0.0, 1.0, 0.0, 1.0);
     //gColorTestTexture[idx_curr] = float4(0.0, 0.0, 1.0, 1.0);
