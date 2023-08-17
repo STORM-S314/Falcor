@@ -37,13 +37,18 @@ cbuffer PerImageCB {
     RWTexture2D<uint4>          gVisibilityBuffer;
     Texture2D 	                gPrevVisibilityBuffer;
     RWTexture2D<uint>  	        gGradientSamplesTexture;
+    Texture2D 	                gPosTexture;
     Texture2D 	                gPrevWPosTexture;
     Texture2D 	                gPositionNormalFwidth;
+    float4x4                    gViewMat;
+    float4x4                    gProjMat;
     float4x4                    gViewProjMat;
+    float4x4                    gPrevViewProjMat;
 	uint 		                gFrameNumber;
-    uint                        gTextureWidth;
-    uint                        gTextureHeight;
+    float                       gTextureWidth;
+    float                       gTextureHeight;
     uint                        gGradientDownsample;
+    RWTexture2D<float4>         gColorTestTexture;
 };
 
 uint get_gradient_idx_from_tile_pos(int2 pos)
@@ -68,43 +73,45 @@ void encrypt_tea(inout uint2 arg)
     arg[1] = v1;
 }
 
-void main(FullScreenPassVsOut vsOut)
+void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     //Get a random index from the previous frame within the stratum (gGradientDownsample X gGradientDownsample) that is selected to be forward projected to the next frame
 	// here arg is the position within the stratum
-    uint2 ipos = uint2(vsOut.posH.xy);
+    uint2 ipos = uint2(dispatchThreadId.xy);
     int2 idx_prev;
 	{
-		uint2 arg = uint2(ipos.x + ipos.y * gTextureWidth, gFrameNumber);
+		uint2 arg = uint2(ipos.x + ipos.y * uint(gTextureWidth), gFrameNumber);
 		encrypt_tea(arg);
 		arg %= gGradientDownsample;
 		idx_prev = int2(ipos * gGradientDownsample + arg);
 	}
 
-    float4 posWCurrent = mul(gViewProjMat, float4(gPrevWPosTexture[idx_prev].xyz, 1.0));
+    precise float4 posWCurrent = mul(gViewProjMat, float4(gPrevWPosTexture[idx_prev].xyz, 1.0));
     
     if(any(posWCurrent.xyz <= -posWCurrent.www)
 	|| any(posWCurrent.xyz >= posWCurrent.www))
 	{
 		return;
 	}
-    
+
     posWCurrent.xyz /= posWCurrent.w;
 	posWCurrent.xyz *= 0.5;
 	posWCurrent.xyz += 0.5;
-    
-    const int2 imageDim = int2(gTextureWidth, gTextureHeight);
-    int2 idx_curr = int2(posWCurrent.xy * imageDim);
-    
-    // check whether reprojected pixel is inside of the screen
-    if (any(idx_curr < int2(1,1)) || any(idx_curr > imageDim - int2(1,1))) return;
+
+    posWCurrent.y = 1.0 - posWCurrent.y;
+    const float2 imageDim = float2(gTextureWidth, gTextureHeight);
+
+    int2 idx_curr = int2(posWCurrent.xy * imageDim.xy);
+
+    //check whether reprojected pixel is inside of the screen
+    if (any(idx_curr < int2(1,1)) || any(idx_curr > (imageDim - int2(1,1)))){ return; }
     
     // check if deviation of depths is acceptable
     float currentDepth = gLinearZAndNormalTexture[idx_curr].x;
     float prevDepth = gPrevLinearZAndNormalTexture[idx_prev].x;
     float fwidthZ = gLinearZAndNormalTexture[idx_curr].y;
     if (abs(prevDepth - currentDepth) / (fwidthZ + 1e-2f) > 10.f) return;
-
+    
     // check normals for compatibility
     float3 currentNormal = oct_to_ndir_snorm(gLinearZAndNormalTexture[idx_curr].zw).xyz;
     float3 prevNormal = oct_to_ndir_snorm(gPrevLinearZAndNormalTexture[idx_prev].zw).xyz;
@@ -115,14 +122,18 @@ void main(FullScreenPassVsOut vsOut)
 	uint gradient_idx_curr = get_gradient_idx_from_tile_pos(idx_curr % gGradientDownsample);
     
 	/* encode position in previous frame */
-	gradient_idx_curr |= (idx_prev.x + idx_prev.y * gTextureWidth) << (2 * TILE_OFFSET_SHIFT);
+	gradient_idx_curr |= (idx_prev.x + idx_prev.y * uint(gTextureWidth)) << (2 * TILE_OFFSET_SHIFT);
     
     uint outputValue = 1u;
 	InterlockedCompareExchange(gGradientSamplesTexture[ipos], 0u, gradient_idx_curr, outputValue);
     
     if(outputValue == 0u)
     {
-         gCurrentRandomNumberTexture[idx_curr] = gPrevRandomNumberTexture[idx_prev].x;
-         gVisibilityBuffer[idx_curr] = gPrevVisibilityBuffer[idx_prev].xyzw;
+        gCurrentRandomNumberTexture[idx_curr] = gPrevRandomNumberTexture[idx_prev].x;
+        gVisibilityBuffer[idx_curr] = gPrevVisibilityBuffer[idx_prev].xyzw;
+        //gColorTestTexture[idx_curr] = float4(1.0, 0.0, 0.0, 1.0);
     }
+    //gColorTestTexture[idx_prev] = float4(0.0, 1.0, 0.0, 1.0);
+    //gColorTestTexture[idx_curr] = float4(0.0, 0.0, 1.0, 1.0);
+    
 }

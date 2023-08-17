@@ -60,18 +60,21 @@ private:
     //Render passes
     ref<FullScreenPass> mpPackLinearZAndNormal;
     ref<FullScreenPass> mpPrgRandomNumberGenerator;
-    ref<FullScreenPass> mpPrgGradientForwardProjection;
+    ref<ComputePass> mpPrgGradientForwardProjection;
 
     //FBOs
     ref<Fbo> mpPackLinearZAndNormalFBO;
     ref<Fbo> mpRandomNumberGenerationFBO;
-    ref<Fbo> mpGradientForwardProjOutputFBO;
 
     //Textures
     ref<Texture> mpGradientSamplesTexture;
     ref<Texture> mpVisibilityBufferTexture;
     ref<Texture> mpRandomNumberTexture;
     ref<Texture> mpPrevRandomNumberTexture;
+
+    //TODO :: Remove when test is complete
+    //Test
+    ref<Texture> mpColorTestTexture;
 
     uint32_t frameNumber = 0;
 };
