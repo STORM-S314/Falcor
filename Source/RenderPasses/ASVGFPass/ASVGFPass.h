@@ -62,7 +62,6 @@ public:
     #endif IS_DEBUG_PASS
 
 private:
-    ref<GraphicsState> pGraphicsState;
     ref<Scene> pScene;
 
     //Params

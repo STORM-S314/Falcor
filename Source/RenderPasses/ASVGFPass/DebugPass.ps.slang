@@ -47,5 +47,5 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     //    psOut = gColor[iPos];
     //}
 
-	return float4(gColor[iPos].rgb, 1.0);
+	return float4(gColor[iPos].xyz, 1.0);
 }
