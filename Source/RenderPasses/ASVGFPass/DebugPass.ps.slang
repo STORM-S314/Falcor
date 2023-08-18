@@ -33,6 +33,7 @@ cbuffer PerImageCB
     Texture2D                   gColor;
     Texture2D                   gAlbedo;
     Texture2D                   gEmission;
+    Texture2D                   gGradientSample;
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
@@ -42,12 +43,12 @@ cbuffer PerImageCB
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
     int2 iPos = int2(vsOut.posH.xy);
-	float4 psOut = float4(0.0);
+    uint gradientSample = gGradientSample[iPos].x;
+	//float4 psOut = float4(0.0);
 
-    //if(HitInfo(gVisibilityBuffer[iPos]).getInstanceID().index == HitInfo(gPrevVisibilityBuffer[iPos]).getInstanceID().index)
-    //{
-    //    psOut = gColor[iPos];
-    //}
+    int2 posInTile = int2((gradientSample & TILE_OFFSET_MASK), (gradientSample >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
+    int2 iCurrentPos = iPos * 3.0 + posInTile;
 
-	return float4(gColor[iPos].xxx , 1.0);
+    return float4((gColor[iPos].rgb + gEmission[iCurrentPos].rgb) * gAlbedo[iCurrentPos].rgb , 1.0);
+	
 }

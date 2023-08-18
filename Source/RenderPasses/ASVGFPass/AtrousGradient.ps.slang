@@ -28,8 +28,8 @@
 
 cbuffer PerImageCB
 {
-	Texture2D gGradientLuminance;
-    Texture2D gGradientVariance;
+	Texture2D gGradientLuminance;   // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0 
+    Texture2D gGradientVariance;    // variance :: total luminance, variance, depth current.x, depth current.y
     int gStepSize;
     int gGradientDownsample;
 };
@@ -79,9 +79,9 @@ void tap(int2 offset, float kernelWeight)
 {
 	int2 pos = ipos + offset; 
 
-	float4 color1_p   = gGradientLuminance[pos]; 
-	float4 color2_p   = gGradientVariance[pos]; 
-	float currentDepth  = color2_p.z;
+	float4 color1_p         = gGradientLuminance[pos]; 
+	float4 color2_p         = gGradientVariance[pos]; 
+	float currentDepth      = color2_p.z;
 	float currentLuminance  = color2_p.x;
 
 	float weightLuminance = abs(currentLuminance - centerLuminance) / (sigmaLuminance + 1e-10); 
