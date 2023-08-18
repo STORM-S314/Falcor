@@ -67,16 +67,17 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     PS_OUT psOut;
 
     int2 iPos = int2(vsOut.posH.xy);
-    float2 currentMotion = gMotionVectorsTexture[iPos].rg + gJitterOffset;
+    float2 currentMotion = gMotionVectorsTexture[iPos].rg;// + gJitterOffset;
     const float2 prevPos = vsOut.posH.xy + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5);
 
-    float4  currentColor = gColor[iPos].xyzw;
-    float2  currentDepth = gLinearZTexture[iPos].xy;
-    float   currentLuminance = luminance(getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].xyz));
-    float2  currentMomemnts = float2(currentLuminance, currentLuminance * currentLuminance);
-	uint    currentMeshID = getMeshInstanceID(HitInfo(gVisibilityBuffer[iPos]));
-    float3  currentNormal = gNormalsTexture[iPos].xyz;
-    float  currentPosNormalFWidth = gPosNormalFWidth[iPos].y;
+    float4  currentColor            = gColor[iPos].xyzw;
+    float2  currentDepth            = gLinearZTexture[iPos].xy;
+    float3  currentIllumination     = getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].xyz);
+    float   currentLuminance        = luminance(currentIllumination.rgb);
+    float2  currentMomemnts         = float2(currentLuminance, currentLuminance * currentLuminance);
+	uint    currentMeshID           = getMeshInstanceID(HitInfo(gVisibilityBuffer[iPos]));
+    float3  currentNormal           = gNormalsTexture[iPos].xyz;
+    float   currentPosNormalFWidth  = gPosNormalFWidth[iPos].y;
 
     float4 weightedColorPrev    = float4(0);
 	float2 weightedMomentsPrev  = float2(0);
@@ -116,7 +117,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         if(isAccept)
         {
             float currentBilinearWeight = bilinearWeights[sampleIdx];
-            weightedColorPrev   += currentBilinearWeight * gPrevAccumColorTexture[loc];
+            weightedColorPrev   += currentBilinearWeight * gPrevAccumColorTexture[loc].xyzw;
             weightedMomentsPrev += currentBilinearWeight * gPrevAccumMomentsTexture[loc].xy;
             histLen             += currentBilinearWeight * gPrevHistLenTexture[loc].x;
             weightedSum         += currentBilinearWeight;
@@ -129,7 +130,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
 	const int r = gGradientFilterRadius;
 
-	antilagAlpha = 0.0;
 	for(int yy = -r; yy <= r; yy++) {
 		for(int xx = -r; xx <= r; xx++) {
 			float4 gradientDifference = gGradientDifferenceTexture[iPos / gGradientDownsample + int2(xx, yy)];
@@ -146,28 +146,26 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     //endif Antilag alpha
 
-
-
     if(weightedSum > 0.01) { /* found sufficiently reliable history information */
 		weightedColorPrev   /= weightedSum;
 		weightedMomentsPrev /= weightedSum;
-		histLen      /= weightedSum;
+		histLen             /= weightedSum;
 
-        float alphaColor   = max(gTemporalAlpha, 1.0 / (histLen + 1.0));
-	    float alphaMoments = max(0.6, 1.0 / (histLen + 1.0));
+        float alphaColor   = max(gTemporalAlpha, 1.0 / (histLen + 1.0)); //histLen max used is 9 to 9.99
+	    float alphaMoments = max(0.6, 1.0 / (histLen + 1.0));   //histLen max used is 1.66
 
 	    alphaColor   = lerp(alphaColor,   1.0, antilagAlpha);
 	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
 
-        psOut.accumulated.xyz   = lerp(weightedColorPrev.rgb, currentColor.xyz, alphaColor);
+        psOut.accumulated.xyz   = lerp(weightedColorPrev.rgb, currentIllumination.xyz, alphaColor);
         psOut.accumulated.a     = min(64, histLen + 1.0);
-		psOut.moments           = lerp(weightedMomentsPrev.xy, currentMomemnts.xy, alphaMoments);
+		psOut.moments.xy        = lerp(weightedMomentsPrev.xy, currentMomemnts.xy, alphaMoments);
 		psOut.histLen           = clamp(1.0 / alphaColor, 0.0, 64.0);
     }
     else {
-		psOut.accumulated = float4(currentColor.xyz, 1.0);
-		psOut.moments     = currentMomemnts.xy;
-		psOut.histLen     = 1.0;
+		psOut.accumulated.xyzw  = float4(currentIllumination.xyz, 1.0);
+		psOut.moments.xy        = currentMomemnts.xy;
+		psOut.histLen           = 1.0;
     }
 
     return psOut;

@@ -26,16 +26,17 @@
  *************************************************************************/
 import ColorSpace;
 #include "ASVGFCommon.slang"
+#include "ASVGFUtils.slang"
 
 cbuffer PerImageCB
 {
 	Texture2D                   gCurrentAccumColor;
     Texture2D                   gCurrentAccumMoments;
     Texture2D                   gCurrentAccumHistLen;
-    Texture2D                   gColor;
+    //Texture2D                   gColor;
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
-    Texture2D                   gVisibilityBuffer;
+    Texture2D<PackedHitInfo>    gVisibilityBuffer;
 };
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
@@ -63,7 +64,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 		momentsSpatial += float2(currentluminance, currentluminance * currentluminance);
 
         float3 centerNormals    =   gNormalsTexture[iPos].xyz;
-        uint centerMeshID       =   gVisibilityBuffer[iPos].x;
+        uint centerMeshID       =   getMeshInstanceID(HitInfo(gVisibilityBuffer[iPos]));
 
         float sumWeight = 1.0;
 		const int radius = hisLen > 1 ? 2 : 3;
@@ -81,7 +82,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 					float weightDepth = abs(depth_p - centerDepth.x) / (centerDepth.y * length(float2(xx, yy)) + 1e-2);
                     float weightNormals = pow(max(0, dot(normals_p, centerNormals)), 128.0); 
 
-					uint meshID_p =  gVisibilityBuffer[p].x;
+					uint meshID_p =  getMeshInstanceID(HitInfo(gVisibilityBuffer[p]));
 
 					float weight = exp(- weightDepth) * weightNormals * (centerMeshID == meshID_p ? 1.0 : 0.0);
 
