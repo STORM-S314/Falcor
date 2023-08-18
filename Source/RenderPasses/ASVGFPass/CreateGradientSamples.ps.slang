@@ -25,8 +25,8 @@
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
 import ColorSpace;
-import Scene.HitInfo;
 #include "ASVGFCommon.slang"
+#include "ASVGFUtils.slang"
 
 cbuffer PerImageCB
 {
@@ -48,12 +48,6 @@ struct PS_OUT
     float4 fragGradientLuminance  : SV_TARGET0;
 	float4 fragGradientVariance  : SV_TARGET1;
 };
-
-
-float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
-{
-    return (a_Color - a_Emission) / max(float3(0.001, 0.001, 0.001), a_Albedo);
-}
 
 PS_OUT main(FullScreenPassVsOut vsOut)
 {
@@ -90,7 +84,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	float2 moments = float2(currentLuminance, currentLuminance * currentLuminance);
 	float sumWeight = 1.0;
 	float2 currentDepth = gLinearZTexture[currentPos].rg;
-	uint meshID  = HitInfo(gVisibilityBuffer[currentPos]).getInstanceID().index;
+	uint meshID  = getMeshInstanceID(HitInfo(gVisibilityBuffer[currentPos]));
     for(int yy = 0; yy < gGradientDownsample; yy++) {
 		for(int xx = 0; xx < gGradientDownsample; xx++) {
 			int2 indexPos = posGrad * gGradientDownsample + int2(xx, yy);
@@ -99,7 +93,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                 float3 indexEmission = gEmissionTexture[indexPos].rgb;
                 float3 indexAlbedo = gAlbedoTexture[indexPos].rgb;
 
-				uint indexMeshID = HitInfo(gVisibilityBuffer[indexPos]).getInstanceID().index;
+				uint indexMeshID = getMeshInstanceID(HitInfo(gVisibilityBuffer[indexPos]));
 
                 float3 indexIllumination = getIllumination(indexColor, indexEmission, indexAlbedo);
 				float indexLuminance = luminance(indexIllumination);

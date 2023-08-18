@@ -27,6 +27,7 @@
  **************************************************************************/
 
 import Utils.Math.MathHelpers;
+import Scene.HitInfo;
 #include "GradForwardProjCommon.slang"
 
 cbuffer PerImageCB {
@@ -36,8 +37,8 @@ cbuffer PerImageCB {
     Texture2D 	                gPrevLinearZTexture;
     Texture2D 	                gWNormalTexture;
     Texture2D 	                gPrevWNormalTexture;
-    RWTexture2D<uint4>          gVisibilityBuffer;
-    Texture2D 	                gPrevVisibilityBuffer;
+    RWTexture2D<PackedHitInfo>  gVisibilityBuffer;
+    Texture2D<PackedHitInfo> 	gPrevVisibilityBuffer;
     RWTexture2D<uint>  	        gGradientSamplesTexture;
     Texture2D 	                gPosTexture;
     Texture2D 	                gPrevWPosTexture;
@@ -52,6 +53,8 @@ cbuffer PerImageCB {
     uint                        gGradientDownsample;
     RWTexture2D<float4>         gColorTestTexture;
 };
+
+
 
 uint get_gradient_idx_from_tile_pos(int2 pos)
 {
@@ -103,7 +106,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     posWCurrent.y = 1.0 - posWCurrent.y;
     const float2 imageDim = float2(gTextureWidth, gTextureHeight);
 
-    int2 idx_curr = int2(posWCurrent.xy * imageDim.xy);
+    int2 idx_curr = int2((posWCurrent.xy * imageDim.xy));
 
     //check whether reprojected pixel is inside of the screen
     if (any(idx_curr < int2(1,1)) || any(idx_curr > (imageDim - int2(1,1)))){ return; }
@@ -128,13 +131,11 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     
     uint outputValue = 1u;
 	InterlockedCompareExchange(gGradientSamplesTexture[ipos], 0u, gradient_idx_curr, outputValue);
-    
+
     if(outputValue == 0u)
     {
         gCurrentRandomNumberTexture[idx_curr].x = gPrevRandomNumberTexture[idx_prev].x;
         gVisibilityBuffer[idx_curr].xyzw = gPrevVisibilityBuffer[idx_prev].xyzw;
     }
-    //gColorTestTexture[idx_prev] = float4(0.0, 1.0, 0.0, 1.0);
-    //gColorTestTexture[idx_curr] = float4(0.0, 0.0, 1.0, 1.0);
     
 }

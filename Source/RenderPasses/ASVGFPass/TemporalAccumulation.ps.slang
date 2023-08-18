@@ -26,8 +26,8 @@
  *************************************************************************/
  import Utils.Math.MathHelpers;
  import ColorSpace;
- import Scene.HitInfo;
  #include "ASVGFCommon.slang"
+ #include "ASVGFUtils.slang"
 
 cbuffer PerImageCB
 {
@@ -62,11 +62,6 @@ struct PS_OUT
     float   histLen     : SV_TARGET2;
 }
 
-float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
-{
-    return (a_Color - a_Emission) / max(float3(0.001, 0.001, 0.001), a_Albedo);
-}
-
 PS_OUT main(FullScreenPassVsOut vsOut) 
 {
     PS_OUT psOut;
@@ -79,8 +74,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float2  currentDepth = gLinearZTexture[iPos].xy;
     float   currentLuminance = luminance(getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].xyz));
     float2  currentMomemnts = float2(currentLuminance, currentLuminance * currentLuminance);
-	uint    currentMeshID = HitInfo(gVisibilityBuffer[iPos]).getInstanceID().index;
-    float3  currentNormal = oct_to_ndir_snorm(gNormalsTexture[iPos].xy);
+	uint    currentMeshID = getMeshInstanceID(HitInfo(gVisibilityBuffer[iPos]));
+    float3  currentNormal = gNormalsTexture[iPos].xyz;
     float  currentPosNormalFWidth = gPosNormalFWidth[iPos].y;
 
     float4 weightedColorPrev    = float4(0);
@@ -110,12 +105,12 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         // check if deviation of depths is acceptable
         isAccept = isAccept && ((abs(depthPrev - currentDepth.x) / (currentDepth.y + 1e-2f)) > 10.f);
 
-        float3 prevNormals = oct_to_ndir_snorm(gPrevNormalsTexture[loc].xy);
+        float3 prevNormals = gPrevNormalsTexture[loc].xyz;
 
         // check normals for compatibility
         isAccept = isAccept && ((distance(currentNormal, prevNormals) / (currentPosNormalFWidth + 1e-2f)) > 16.0f);
 
-        uint pMeshID = HitInfo(gPrevVisibilityBuffer[loc]).getInstanceID().index;
+        uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[loc]));
         isAccept = isAccept && (currentMeshID == pMeshID);
 
         if(isAccept)
