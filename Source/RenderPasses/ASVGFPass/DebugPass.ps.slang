@@ -31,6 +31,8 @@ import Scene.HitInfo;
 cbuffer PerImageCB
 {
     Texture2D                   gColor;
+    Texture2D                   gAlbedo;
+    Texture2D                   gEmission;
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
@@ -47,5 +49,5 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     //    psOut = gColor[iPos];
     //}
 
-	return float4(gColor[iPos].xyz, 1.0);
+	return float4(gColor[iPos].xxx , 1.0);
 }

@@ -154,7 +154,6 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
 
-
     #if IS_DEBUG_PASS
     Fbo::Desc formatDebugFullScreenResult;
     formatDebugFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
@@ -259,10 +258,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
 
     #if IS_DEBUG_PASS
-    debugPass(pRenderContext, renderData);
-    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+    //debugPass(pRenderContext, renderData);
+    pRenderContext->blit(mpGradientResultPingPongBuffer[0]->getColorTexture(2)->getSRV(), pOutputFilteredImage->getRTV());
 
-    // Swap buffers for next frame}
+    //// Swap buffers for next frame}
     pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
     pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
     pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
@@ -438,7 +437,10 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     gradforwardGraphicState->setViewport(0, vp1);
 
     auto perImageDebugFullScreenCB = mpPrgDebugFullScreen->getRootVar()["PerImageCB"];
-    perImageDebugFullScreenCB["gColor"] = pInputColorTexture;
+    perImageDebugFullScreenCB["gColor"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
+    perImageDebugFullScreenCB["gAlbedo"] = pInputAlbedoTexture;
+    perImageDebugFullScreenCB["gEmission"] = pInputEmissionTexture;
+    
     perImageDebugFullScreenCB["gLinearZTexture"] = pInputLinearZTexture;
     perImageDebugFullScreenCB["gNormalsTexture"] = pInputNormalVectors;
     perImageDebugFullScreenCB["gVisibilityBuffer"] = pInputVisibilityBuffer;
