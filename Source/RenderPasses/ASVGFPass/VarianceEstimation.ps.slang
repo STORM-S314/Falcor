@@ -46,7 +46,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     float2 accumMoments = gCurrentAccumMoments[iPos].xy;
     float hisLen        = gCurrentAccumHistLen[iPos].x;
-    float4 accumColor   = gCurrentAccumColor[iPos];
+    float4 accumColor   = gCurrentAccumColor[iPos].xyzw;
 
     const float hisLenThreshold = 4.0f;
 

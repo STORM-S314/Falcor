@@ -49,7 +49,7 @@ cbuffer PerImageCB
     Texture2D   gPosNormalFWidth;
     Texture2D   gGradientDifferenceTexture;
     int         gGradientDownsample;
-    int2        gScreenDimension;
+    float2      gScreenDimension;
     float2      gJitterOffset;
     float       gTemporalAlpha;
     float       gGradientFilterRadius;
@@ -67,7 +67,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     PS_OUT psOut;
 
     int2 iPos = int2(vsOut.posH.xy);
-    float2 currentMotion = gMotionVectorsTexture[iPos].rg;// + gJitterOffset;
+    float2 currentMotion = gMotionVectorsTexture[iPos].rg;
     const float2 prevPos = vsOut.posH.xy + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5);
 
     float4  currentColor            = gColor[iPos].xyzw;
@@ -103,14 +103,15 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         bool isAccept = isReprojectionValid(loc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
 
         uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[loc]));
+
         isAccept = isAccept && (currentMeshID == pMeshID);
 
         if(isAccept)
         {
             float currentBilinearWeight = bilinearWeights[sampleIdx];
-            weightedColorPrev   += currentBilinearWeight * gPrevAccumColorTexture[loc].xyzw;
-            weightedMomentsPrev += currentBilinearWeight * gPrevAccumMomentsTexture[loc].xy;
-            histLen             += currentBilinearWeight * gPrevHistLenTexture[loc].x;
+            weightedColorPrev   += gPrevAccumColorTexture[loc].xyzw * currentBilinearWeight;
+            weightedMomentsPrev += gPrevAccumMomentsTexture[loc].xy * currentBilinearWeight;
+            histLen             += gPrevHistLenTexture[loc].x * currentBilinearWeight;
             weightedSum         += currentBilinearWeight;
         }
     }
@@ -148,15 +149,15 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	    alphaColor   = lerp(alphaColor,   1.0, antilagAlpha);
 	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
 
-        psOut.accumulated.xyz   = lerp(weightedColorPrev.rgb, currentIllumination.xyz, alphaColor);
-        psOut.accumulated.a     = min(64, histLen + 1.0);
-		psOut.moments.xy        = lerp(weightedMomentsPrev.xy, currentMomemnts.xy, alphaMoments);
-		psOut.histLen           = clamp(1.0 / alphaColor, 0.0, 64.0);
+        psOut.accumulated.xyz   =   lerp(weightedColorPrev.rgb, currentIllumination.xyz, alphaColor);
+        psOut.accumulated.a     =   min(64, histLen + 1.0);
+		psOut.moments.xy        =   lerp(weightedMomentsPrev.xy, currentMomemnts.xy, alphaMoments);
+		psOut.histLen           =   clamp(1.0 / alphaColor, 0.0, 64.0);
     }
     else {
-		psOut.accumulated.xyzw  = float4(currentIllumination.xyz, 1.0);
-		psOut.moments.xy        = currentMomemnts.xy;
-		psOut.histLen           = 1.0;
+		psOut.accumulated.xyzw  =   float4(currentIllumination.xyz, 1.0);
+		psOut.moments.xy        =   currentMomemnts.xy;
+		psOut.histLen           =   1.0;
     }
 
     return psOut;

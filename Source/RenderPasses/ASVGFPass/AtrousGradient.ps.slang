@@ -84,8 +84,8 @@ void tap(int2 offset, float kernelWeight)
 
     if(!isPixelWithinScreenDimensions(pos, gGradientResDimensions.xy)){return;}
 
-	float4 color1_p         = gGradientLuminance[pos]; 
-	float4 color2_p         = gGradientVariance[pos]; 
+	float4 color1_p         = gGradientLuminance[pos].xyzw; 
+	float4 color2_p         = gGradientVariance[pos].xyzw; 
 	float currentDepth      = color2_p.z;
 	float currentLuminance  = color2_p.x;
 
@@ -94,7 +94,7 @@ void tap(int2 offset, float kernelWeight)
 
 	float weight = exp(-weightLuminance * weightLuminance - weightDepth) * kernelWeight; 
 
-	sumColor     += color1_p * weight; 
+	sumColor     += color1_p.xyzw * weight; 
 	sumLuminance += currentLuminance * weight;
 	sumVariance  += weight * weight * color2_p.y; 
 	sumWeight    += weight; 
@@ -118,8 +118,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     ipos = int2(vsOut.posH.xy);
 
-    float4 centerGradient1  = gGradientLuminance[ipos];
-    float4 centerGradient2  = gGradientVariance[ipos];
+    float4 centerGradient1  = gGradientLuminance[ipos].xyzw;
+    float4 centerGradient2  = gGradientVariance[ipos].xyzw;
 
     centerDepth = centerGradient2.ba;
     centerLuminance = centerGradient2.r;
