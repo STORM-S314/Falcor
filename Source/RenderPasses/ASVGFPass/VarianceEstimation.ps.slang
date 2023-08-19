@@ -85,7 +85,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 					float weight = exp(- weightDepth) * weightNormals * (centerMeshID == meshID_p ? 1.0 : 0.0);
 
-					if(isnan(weight))
+					if(isNaN(weight))
                     {
 						weight = 0.0;
                     }

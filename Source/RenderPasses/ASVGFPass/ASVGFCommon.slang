@@ -109,3 +109,10 @@ bool is_gradient_sample(Texture2D tex_gradient, int2 ipos, int gradientDownsampl
 	int2 tile_pos = int2((u & TILE_OFFSET_MASK), (u >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
 	return (u >= (1u << 31) && all(ipos_grad * gradientDownsample + tile_pos == ipos));
 }
+
+// Workaround for isnan() not working in slang.
+bool isNaN(float f)
+{
+    uint u = asuint(f) & ~0x80000000u; // clear out the sign bit
+    return (u > 0x7F800000);           // greater than Inf is NaN
+}

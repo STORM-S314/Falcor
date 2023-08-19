@@ -100,7 +100,7 @@ void box3()
 	for(int yy = -r; yy <= r; yy++) {
 		for(int xx = -r; xx <= r; xx++) {
 			if(xx != 0 || yy != 0) {
-				tap(int2(xx, yy) * gStepSize, 1.0);
+				tap(int2(xx, yy) * int2(gStepSize, gStepSize), 1.0);
 			}
 		}
 	}
@@ -118,15 +118,15 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     sumVariance     = gColorAndVariance[ipos].a;
 
 	if(gLinearZTexture[ipos].x > 0.0) { /* only filter foreground pixels */
-	    box3();
+        box3();
     }
 
 	sumColor    /= sumWeight;
-	sumVariance /= sumWeight * sumWeight;
+	sumVariance /= (sumWeight * sumWeight);
 
 	float4 fragColor  = float4(sumColor, sumVariance);
 
-	if(gIsModulateAlbedo > 0.0) {
+	if(gIsModulateAlbedo == 1) {
 		fragColor.rgb = (fragColor.rgb * gAlbedoTexture[ipos].rgb) + gEmissionTexture[ipos].rgb;
 	}
     return fragColor;

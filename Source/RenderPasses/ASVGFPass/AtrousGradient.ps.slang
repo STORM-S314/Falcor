@@ -106,7 +106,7 @@ void box3()
 	for(int yy = -r; yy <= r; yy++) {
 		for(int xx = -r; xx <= r; xx++) {
 			if(xx != 0 || yy != 0) {
-				tap(int2(xx, yy) * gStepSize, 1.0);
+				tap(int2(xx, yy) * int2(gStepSize,gStepSize), 1.0);
 			}
 		}
 	}

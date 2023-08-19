@@ -133,7 +133,7 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
 
     //Gradient
     Fbo::Desc formatDescGradientResult;
-    formatDescGradientResult.setSampleCount(0);
+    //formatDescGradientResult.setSampleCount(0);
     formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0 
     formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
     mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
@@ -141,16 +141,16 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
 
     //Accumulation
     Fbo::Desc formatDescAccumulationResult;
-    formatDescAccumulationResult.setSampleCount(0);
+    //formatDescAccumulationResult.setSampleCount(0);
     formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    // Accumulation color                                          
     formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);      // Accumulation moments
-    formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R32Float);       // Accumulation length
+    formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);       // Accumulation length
     mpAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
     mpPrevAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
 
     //Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
-    formatAtrousFullScreenResult.setSampleCount(0);
+    //formatAtrousFullScreenResult.setSampleCount(0);
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    //Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
@@ -241,6 +241,9 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     GraphicsState::Viewport vpGradRes(0, 0, gradResWidth, gradResHeight, 0, 1);
 
     //Gradient creation pass
+    auto gradForwardGraphicState = mpPrgGradientForwardProjection->getState();
+    gradForwardGraphicState->setViewport(0, vpGradRes);
+
     auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
     perImageGradForwardProjCB["gColorTexture"]          = pInputColorTexture;
     perImageGradForwardProjCB["gPrevColorTexture"]      = pInternalPrevColorTexture;
@@ -254,22 +257,21 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageGradForwardProjCB["gGradientDownsample"]    = gradientDownsample;
     perImageGradForwardProjCB["gScreenWidth"]           = screenWidth;
 
-    auto gradForwardGraphicState = mpPrgGradientForwardProjection->getState();
-    gradForwardGraphicState->setViewport(0, vpGradRes);
     mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
 
     //A-trous gradient
     auto atrousGradCalcGraphicState = mpPrgAtrousGradientCalculation->getState();
     atrousGradCalcGraphicState->setViewport(0, vpGradRes);
 
-    for (int indexAtrous = 0; indexAtrous < mNumIterations; indexAtrous++)
+    auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
+    perImageATrousGradientCB["gGradientResDimensions"]  = float2(gradResWidth, gradResHeight);
+    perImageATrousGradientCB["gGradientDownsample"]     = gradientDownsample;
+
+    for (int indexAtrous = 0; indexAtrous < mDiffAtrousIterations; indexAtrous++)
     {
-        auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
         perImageATrousGradientCB["gGradientLuminance"]      = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
         perImageATrousGradientCB["gGradientVariance"]       = mpGradientResultPingPongBuffer[0]->getColorTexture(1);
-        perImageATrousGradientCB["gStepSize"]               = 1 << indexAtrous;
-        perImageATrousGradientCB["gGradientDownsample"]     = gradientDownsample;
-        perImageATrousGradientCB["gGradientResDimensions"]  = float2(gradResWidth, gradResHeight);
+        perImageATrousGradientCB["gStepSize"]               = (1 << indexAtrous);
 
         mpPrgAtrousGradientCalculation->execute(pRenderContext, mpGradientResultPingPongBuffer[1], false);
         std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
@@ -337,20 +339,22 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     }
 
     // Atrous full screen
+
+    auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
+    perImageAtrousFullScreenCB["gLinearZTexture"]   =   pInputLinearZTexture;
+    perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
+    perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
+    perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
+
     for (int i = 0; i < mNumIterations; i++)
     {
-        if (i - 1 == mHistoryTap)
+        if ((i - 1) == mHistoryTap)
         {
             pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
         }
 
-        auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
         perImageAtrousFullScreenCB["gColorAndVariance"] =   mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
-        perImageAtrousFullScreenCB["gLinearZTexture"]   =   pInputLinearZTexture;
-        perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
-        perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
-        perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
-        perImageAtrousFullScreenCB["gStepSize"]         =   1 << i;
+        perImageAtrousFullScreenCB["gStepSize"]         =   (1 << i);
         perImageAtrousFullScreenCB["gIsModulateAlbedo"] =   int(i == (mNumIterations - 1));
 
         mpPrgAtrousFullScreen->execute(pRenderContext, mpAtrousFullScreenResultPingPong[1]);
@@ -390,22 +394,22 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
 {
-    widget.checkbox("Enable", mEnable);
-    widget.checkbox("Modulate Albedo", mModulateAlbedo);
-    widget.var("Temporal Alpha", mTemporalAlpha);
-    widget.var("# Iterations", mNumIterations, 0, 16, 1);
-    widget.var("History Tap", mHistoryTap, -1, 16, 1);
+    //widget.checkbox("Enable", mEnable);
+    //widget.checkbox("Modulate Albedo", mModulateAlbedo);
+    //widget.var("Temporal Alpha", mTemporalAlpha);
+    //widget.var("# Iterations", mNumIterations, 0, 16, 1);
+    //widget.var("History Tap", mHistoryTap, -1, 16, 1);
 
-    Falcor::Gui::DropdownList filterKernels{
-        {0, "A-Trous"}, {1, "Box 3x3"}, {2, "Box 5x5"}, {3, "Sparse"}, {4, "Box3x3 / Sparse"}, {5, "Box5x5 / Sparse"},
-    };
-    widget.dropdown( "Kernel", filterKernels, mFilterKernel);
+    //Falcor::Gui::DropdownList filterKernels{
+    //    {0, "A-Trous"}, {1, "Box 3x3"}, {2, "Box 5x5"}, {3, "Sparse"}, {4, "Box3x3 / Sparse"}, {5, "Box5x5 / Sparse"},
+    //};
+    //widget.dropdown( "Kernel", filterKernels, mFilterKernel);
 
-    //widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
-    widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
-    widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
+    ////widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
+    //widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
+    //widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 
-    widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
+    //widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
 }
 
 #if IS_DEBUG_PASS
