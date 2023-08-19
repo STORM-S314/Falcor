@@ -264,10 +264,11 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     for (int indexAtrous = 0; indexAtrous < mNumIterations; indexAtrous++)
     {
         auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
-        perImageATrousGradientCB["gGradientLuminance"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
-        perImageATrousGradientCB["gGradientVariance"] = mpGradientResultPingPongBuffer[0]->getColorTexture(1);
-        perImageATrousGradientCB["gStepSize"] = 1 << indexAtrous;
-        perImageATrousGradientCB["gGradientDownsample"] = gradientDownsample;
+        perImageATrousGradientCB["gGradientLuminance"]      = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
+        perImageATrousGradientCB["gGradientVariance"]       = mpGradientResultPingPongBuffer[0]->getColorTexture(1);
+        perImageATrousGradientCB["gStepSize"]               = 1 << indexAtrous;
+        perImageATrousGradientCB["gGradientDownsample"]     = gradientDownsample;
+        perImageATrousGradientCB["gGradientResDimensions"]  = float2(gradResWidth, gradResHeight);
 
         mpPrgAtrousGradientCalculation->execute(pRenderContext, mpGradientResultPingPongBuffer[1], false);
         std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
@@ -343,13 +344,14 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         }
 
         auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
-        perImageAtrousFullScreenCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
-        perImageAtrousFullScreenCB["gLinearZTexture"]   = pInputLinearZTexture;
-        perImageAtrousFullScreenCB["gNormalsTexture"]   = pInputNormalVectors;
-        perImageAtrousFullScreenCB["gAlbedoTexture"]    = pInputAlbedoTexture;
-        perImageAtrousFullScreenCB["gIteration"]        = i;
-        perImageAtrousFullScreenCB["gStepSize"]         = 1 << i;
-        perImageAtrousFullScreenCB["gIsModulateAlbedo"] = int(i == (mNumIterations - 1));
+        perImageAtrousFullScreenCB["gColorAndVariance"] =   mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+        perImageAtrousFullScreenCB["gLinearZTexture"]   =   pInputLinearZTexture;
+        perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
+        perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
+        perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
+        perImageAtrousFullScreenCB["gIteration"]        =   i;
+        perImageAtrousFullScreenCB["gStepSize"]         =   1 << i;
+        perImageAtrousFullScreenCB["gIsModulateAlbedo"] =   int(i == (mNumIterations - 1));
 
         mpPrgAtrousFullScreen->execute(pRenderContext, mpAtrousFullScreenResultPingPong[1]);
 

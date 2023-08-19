@@ -96,20 +96,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
     {
-        const int2 loc = int2(prevPos) + offset[sampleIdx];
+        const int2 loc      = int2(prevPos) + offset[sampleIdx];
+        float2 prevDepth    = gPrevLinearZTexture[loc].xy;
+        float3 prevNormals  = gPrevNormalsTexture[loc].xyz;
 
-        // check whether reprojected pixel is inside of the screen
-        bool isAccept = (any(loc < int2(1,1)) || any(loc >  gScreenDimension.xy - int2(1,1)));
-
-        float depthPrev     =   gPrevLinearZTexture[loc].x;
-
-        // check if deviation of depths is acceptable
-        isAccept = isAccept && ((abs(depthPrev - currentDepth.x) / (currentDepth.y + 1e-2f)) > 10.f);
-
-        float3 prevNormals = gPrevNormalsTexture[loc].xyz;
-
-        // check normals for compatibility
-        isAccept = isAccept && ((distance(currentNormal, prevNormals) / (currentPosNormalFWidth + 1e-2f)) > 16.0f);
+        bool isAccept = isReprojectionValid(loc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
 
         uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[loc]));
         isAccept = isAccept && (currentMeshID == pMeshID);

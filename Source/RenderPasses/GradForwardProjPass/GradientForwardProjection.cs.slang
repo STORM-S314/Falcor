@@ -109,7 +109,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     int2 idx_curr = int2((posWCurrent.xy * imageDim.xy));
 
     //check whether reprojected pixel is inside of the screen
-    if (any(idx_curr < int2(1,1)) || any(idx_curr > (imageDim - int2(1,1)))){ return; }
+    if (any(idx_curr < int2(0,0)) || any(idx_curr > (imageDim - int2(1,1)))){ return; }
     
     // check if deviation of depths is acceptable
     float currentDepth = gLinearZTexture[idx_curr].x;

@@ -28,25 +28,26 @@
 
 cbuffer PerImageCB
 {
-	Texture2D gGradientLuminance;   // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0 
-    Texture2D gGradientVariance;    // variance :: total luminance, variance, depth current.x, depth current.y
-    int gStepSize;
-    int gGradientDownsample;
+	Texture2D   gGradientLuminance;   // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0 
+    Texture2D   gGradientVariance;    // variance :: total luminance, variance, depth current.x, depth current.y
+    int         gStepSize;
+    int         gGradientDownsample;
+    float2      gGradientResDimensions;
 };
 
-static float sigmaLuminance    = 0.0;
-static int2 ipos               = int2(0, 0);
-static float centerLuminance   = 0.0;
-static float2 centerDepth      = float2(0.0, 0.0);
-static float4 sumColor         = float4(0.0, 0.0, 0.0, 0.0);
-static float sumLuminance      = 0.0;
-static float sumVariance       = 0.0;
-static float sumWeight         = 0.0;
+static float    sigmaLuminance  = 0.0;
+static int2     ipos            = int2(0, 0);
+static float    centerLuminance = 0.0;
+static float2   centerDepth     = float2(0.0, 0.0);
+static float4   sumColor        = float4(0.0, 0.0, 0.0, 0.0);
+static float    sumLuminance    = 0.0;
+static float    sumVariance     = 0.0;
+static float    sumWeight       = 0.0;
 
 struct PS_OUT
 {
     float4 gradientLuminanceAtrous  : SV_TARGET0;
-	float4 gradientVarianceAtrous  : SV_TARGET1;
+	float4 gradientVarianceAtrous   : SV_TARGET1;
 };
 
 const float gaussianKernel[3][3] = {
@@ -65,6 +66,8 @@ float computeSigmaLuminance(float center, int2 pos)
 		for(int xx = -r; xx <= r; xx++) {
 			if(xx != 0 || yy != 0) {
 				int2 p = pos + int2(xx, yy);
+                if(!isPixelWithinScreenDimensions(p, gGradientResDimensions.xy)){continue;}
+
 				float v = gGradientVariance[p].y;
 				float w = gaussianKernel[xx + 1][yy + 1];
 				sum += v * w;
@@ -77,7 +80,9 @@ float computeSigmaLuminance(float center, int2 pos)
 
 void tap(int2 offset, float kernelWeight)
 {
-	int2 pos = ipos + offset; 
+	int2 pos = ipos + offset;
+
+    if(!isPixelWithinScreenDimensions(pos, gGradientResDimensions.xy)){return;}
 
 	float4 color1_p         = gGradientLuminance[pos]; 
 	float4 color2_p         = gGradientVariance[pos]; 

@@ -33,6 +33,7 @@ cbuffer PerImageCB
     Texture2D   gLinearZTexture;
     Texture2D   gNormalsTexture;
     Texture2D   gAlbedoTexture;
+    Texture2D   gEmissionTexture;
 	int 		gIteration;
 	int 		gStepSize;
 	int 		gIsModulateAlbedo;
@@ -127,7 +128,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 	float4 fragColor  = float4(sumColor, sumVariance);
 
 	if(gIsModulateAlbedo > 0) {
-		fragColor.rgb *= gAlbedoTexture[ipos].rgb;
+		fragColor.rgb = (fragColor.rgb * gAlbedoTexture[ipos].rgb) + gEmissionTexture[ipos].rgb;
 	}
     return fragColor;
 }
