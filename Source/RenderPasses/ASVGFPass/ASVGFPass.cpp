@@ -150,6 +150,7 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
 
     //Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
+    formatAtrousFullScreenResult.setSampleCount(0);
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    //Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
@@ -301,22 +302,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     
     mpPrgTemporalAccumulation->execute(pRenderContext, mpAccumulationBuffer);
 
-#if IS_DEBUG_PASS
-    debugPass(pRenderContext, renderData);
-    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
-
-    //// Swap buffers for next frame}
-    pRenderContext->blit(pInputColorTexture->getSRV(),      pInternalPrevColorTexture->getRTV());
-    pRenderContext->blit(pInputAlbedoTexture->getSRV(),     pInternalPrevAlbedoTexture->getRTV());
-    pRenderContext->blit(pInputEmissionTexture->getSRV(),   pInternalPrevEmissionTexture->getRTV());
-    pRenderContext->blit(pInputLinearZTexture->getSRV(),    pInternalPrevLinearZTexture->getRTV());
-    pRenderContext->blit(pInputNormalVectors->getSRV(),     pInternalPrevNormalsTexture->getRTV());
-    pRenderContext->blit(pInputVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
-    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
-    mPrevFrameJitter = cameraJitter;
-    return;
-#endif
-
     // Estimate variance
     auto perImageEstimateVarianceCB = mpPrgEstimateVariance->getRootVar()["PerImageCB"];
 
@@ -328,6 +313,23 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageEstimateVarianceCB["gVisibilityBuffer"]     = pInputVisibilityBuffer;
 
     mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
+
+#if IS_DEBUG_PASS
+    debugPass(pRenderContext, renderData);
+    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+
+    //// Swap buffers for next frame}
+    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
+    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
+    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
+    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
+    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
+    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
+    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
+    mPrevFrameJitter = cameraJitter;
+    return;
+#endif
+
 
     if (mNumIterations == 0)
     {
@@ -348,7 +350,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
         perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
         perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
-        perImageAtrousFullScreenCB["gIteration"]        =   i;
         perImageAtrousFullScreenCB["gStepSize"]         =   1 << i;
         perImageAtrousFullScreenCB["gIsModulateAlbedo"] =   int(i == (mNumIterations - 1));
 
@@ -439,7 +440,7 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     gradforwardGraphicState->setViewport(0, vp1);*/
 
     auto perImageDebugFullScreenCB = mpPrgDebugFullScreen->getRootVar()["PerImageCB"];
-    perImageDebugFullScreenCB["gColor"] = mpAccumulationBuffer->getColorTexture(0);
+    perImageDebugFullScreenCB["gColor"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
     perImageDebugFullScreenCB["gAlbedo"] = pInputAlbedoTexture;
     perImageDebugFullScreenCB["gEmission"] = pInputEmissionTexture;
     perImageDebugFullScreenCB["gGradientSample"] = pInputGradSamplesTexture;

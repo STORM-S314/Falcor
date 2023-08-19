@@ -34,7 +34,6 @@ cbuffer PerImageCB
     Texture2D   gNormalsTexture;
     Texture2D   gAlbedoTexture;
     Texture2D   gEmissionTexture;
-	int 		gIteration;
 	int 		gStepSize;
 	int 		gIsModulateAlbedo;
 };
@@ -55,11 +54,11 @@ static float3 sumColor          = float3(0.0);
 static float sumVariance        = 0.0;
 static float sumWeight          = 1.0;
 
-float compute_sigma_luminance(float center, int2 ipos)
+float compute_sigma_luminance(float centerVariance, int2 ipos)
 {
 	const int r = 1;
 
-	float sum = center * gaussian_kernel[0][0];
+	float sum = centerVariance * gaussian_kernel[0][0];
 
 	for(int yy = -r; yy <= r; yy++) {
 		for(int xx = -r; xx <= r; xx++) {
@@ -79,7 +78,7 @@ void tap(int2 offset, float kernel_weight)
 {
 	int2 p = ipos + offset; 
 
-	float4 color_p      = gColorAndVariance[p]; 
+	float4 color_p      = gColorAndVariance[p].xyzw; 
 	float3 normal_p     = gNormalsTexture[p].xyz; 
 	float z_p           = gLinearZTexture[p].x;
 	float l_p           = luminance(color_p.rgb); 
@@ -118,7 +117,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     sumColor        = gColorAndVariance[ipos].rgb;
     sumVariance     = gColorAndVariance[ipos].a;
 
-	if(gLinearZTexture[ipos].x > 0) { /* only filter foreground pixels */
+	if(gLinearZTexture[ipos].x > 0.0) { /* only filter foreground pixels */
 	    box3();
     }
 
@@ -127,7 +126,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 	float4 fragColor  = float4(sumColor, sumVariance);
 
-	if(gIsModulateAlbedo > 0) {
+	if(gIsModulateAlbedo > 0.0) {
 		fragColor.rgb = (fragColor.rgb * gAlbedoTexture[ipos].rgb) + gEmissionTexture[ipos].rgb;
 	}
     return fragColor;

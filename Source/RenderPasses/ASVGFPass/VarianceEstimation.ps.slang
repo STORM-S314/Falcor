@@ -92,13 +92,13 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 					sumWeight += weight;
 
-					momentsSpatial += float2(luminance_p, luminance_p * luminance_p) * weight;
+					momentsSpatial.rg += float2(luminance_p, luminance_p * luminance_p) * weight;
 					colorSpatial.rgb += color_p.rgb * weight;
 				}
 			}
 		}
 
-		momentsSpatial /= sumWeight;
+		momentsSpatial.rg /= sumWeight;
 		colorSpatial.rgb /= sumWeight;
 		
 		psOut = float4(colorSpatial.rgb, (1.0 + 3.0 * (1.0 - hisLen / hisLenThreshold)) * max(0.0, momentsSpatial.y - momentsSpatial.x * momentsSpatial.x));
