@@ -68,7 +68,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     int2 iPos = int2(vsOut.posH.xy);
     float2 currentMotion = gMotionVectorsTexture[iPos].rg;
-    const float2 prevPos = vsOut.posH.xy + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5);
+
+    const int2 iPrevPos = int2(float2(iPos) + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5));
+    const float2 prevPos = floor(vsOut.posH.xy) + currentMotion.xy * gScreenDimension.xy;
 
     float4  currentColor            = gColor[iPos].xyzw;
     float2  currentDepth            = gLinearZTexture[iPos].xy;
@@ -96,22 +98,24 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
     {
-        const int2 loc      = int2(prevPos) + offset[sampleIdx];
-        float2 prevDepth    = gPrevLinearZTexture[loc].xy;
-        float3 prevNormals  = gPrevNormalsTexture[loc].xyz;
+        const int2 offsetLoc      = int2(prevPos) + offset[sampleIdx];
+        float2 prevDepth    = gPrevLinearZTexture[offsetLoc].xy;
+        float3 prevNormals  = gPrevNormalsTexture[offsetLoc].xyz;
 
-        bool isAccept = isReprojectionValid(loc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
+        bool isAccept = isReprojectionValid(iPrevPos, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
 
-        uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[loc]));
+        isAccept = isAccept && isPixelWithinScreenDimensions(offsetLoc, gScreenDimension.xy);
+
+        uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[offsetLoc]));
 
         isAccept = isAccept && (currentMeshID == pMeshID);
 
         if(isAccept)
         {
             float currentBilinearWeight = bilinearWeights[sampleIdx];
-            weightedColorPrev   += gPrevAccumColorTexture[loc].xyzw * currentBilinearWeight;
-            weightedMomentsPrev += gPrevAccumMomentsTexture[loc].xy * currentBilinearWeight;
-            histLen             += gPrevHistLenTexture[loc].x * currentBilinearWeight;
+            weightedColorPrev   += gPrevAccumColorTexture[offsetLoc].xyzw * currentBilinearWeight;
+            weightedMomentsPrev += gPrevAccumMomentsTexture[offsetLoc].xy * currentBilinearWeight;
+            histLen             += gPrevHistLenTexture[offsetLoc].x * currentBilinearWeight;
             weightedSum         += currentBilinearWeight;
         }
     }

@@ -301,7 +301,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     
     mpPrgTemporalAccumulation->execute(pRenderContext, mpAccumulationBuffer);
 
-    #if IS_DEBUG_PASS
+#if IS_DEBUG_PASS
     debugPass(pRenderContext, renderData);
     pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
 
@@ -323,7 +323,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageEstimateVarianceCB["gCurrentAccumColor"]    = mpAccumulationBuffer->getColorTexture(0);
     perImageEstimateVarianceCB["gCurrentAccumMoments"]  = mpAccumulationBuffer->getColorTexture(1);
     perImageEstimateVarianceCB["gCurrentAccumHistLen"]  = mpAccumulationBuffer->getColorTexture(2);
-    //perImageEstimateVarianceCB["gColor"]                = pInputColorTexture;
     perImageEstimateVarianceCB["gLinearZTexture"]       = pInputLinearZTexture;
     perImageEstimateVarianceCB["gNormalsTexture"]       = pInputNormalVectors;
     perImageEstimateVarianceCB["gVisibilityBuffer"]     = pInputVisibilityBuffer;
@@ -440,7 +439,7 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     gradforwardGraphicState->setViewport(0, vp1);*/
 
     auto perImageDebugFullScreenCB = mpPrgDebugFullScreen->getRootVar()["PerImageCB"];
-    perImageDebugFullScreenCB["gColor"] = mpAccumulationBuffer->getColorTexture(3);
+    perImageDebugFullScreenCB["gColor"] = mpAccumulationBuffer->getColorTexture(0);
     perImageDebugFullScreenCB["gAlbedo"] = pInputAlbedoTexture;
     perImageDebugFullScreenCB["gEmission"] = pInputEmissionTexture;
     perImageDebugFullScreenCB["gGradientSample"] = pInputGradSamplesTexture;

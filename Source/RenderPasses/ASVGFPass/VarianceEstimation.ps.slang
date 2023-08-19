@@ -33,7 +33,6 @@ cbuffer PerImageCB
 	Texture2D                   gCurrentAccumColor;
     Texture2D                   gCurrentAccumMoments;
     Texture2D                   gCurrentAccumHistLen;
-    //Texture2D                   gColor;
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
@@ -51,7 +50,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float hisLenThreshold = 4.0f;
 
     float3 colorSpatial     = accumColor.rgb;
-	float2 momentsSpatial   = accumMoments;
+	float2 momentsSpatial   = accumMoments.rg;
 
     float2 centerDepth = gLinearZTexture[iPos].xy;
 	if(centerDepth.x < 0.0) {
