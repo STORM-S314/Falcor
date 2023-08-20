@@ -30,19 +30,11 @@ cbuffer PerImageCB
 {
 	Texture2D   gGradientLuminance;   // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0 
     Texture2D   gGradientVariance;    // variance :: total luminance, variance, depth current.x, depth current.y
+    float       gPhiColor;
     int         gStepSize;
     int         gGradientDownsample;
     float2      gGradientResDimensions;
 };
-
-static float    sigmaLuminance  = 0.0;
-static int2     ipos            = int2(0, 0);
-static float    centerLuminance = 0.0;
-static float2   centerDepth     = float2(0.0, 0.0);
-static float4   sumColor        = float4(0.0, 0.0, 0.0, 0.0);
-static float    sumLuminance    = 0.0;
-static float    sumVariance     = 0.0;
-static float    sumWeight       = 0.0;
 
 struct PS_OUT
 {
@@ -50,96 +42,111 @@ struct PS_OUT
 	float4 gradientVarianceAtrous   : SV_TARGET1;
 };
 
-const float gaussianKernel[3][3] = {
-	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
-	{ 1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0  },
-	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
-};
-
-float computeSigmaLuminance(float center, int2 pos)
+float computeWeight(
+    float depthCenter, float depthP, float phiDepth,
+    float luminanceIllumCenter, float luminanceIllumP, float phiIllum)
 {
-	const int r = 1;
+    const float weightZ       = (phiDepth == 0) ? 0.0f : abs(depthCenter - depthP) / phiDepth;
+    const float weightLillum  = abs(luminanceIllumCenter - luminanceIllumP) / phiIllum;
 
-	float sum = center * gaussianKernel[0][0];
+    const float weightIllum   = exp(0.0 - (max(weightLillum, 0.0) * max(weightLillum, 0.0)) - max(weightZ, 0.0));
 
-	for(int yy = -r; yy <= r; yy++) {
-		for(int xx = -r; xx <= r; xx++) {
-			if(xx != 0 || yy != 0) {
-				int2 p = pos + int2(xx, yy);
-                if(!isPixelWithinScreenDimensions(p, gGradientResDimensions.xy)){continue;}
-
-				float v = gGradientVariance[p].y;
-				float w = gaussianKernel[xx + 1][yy + 1];
-				sum += v * w;
-			}
-		}
-	}
-
-	return sqrt(max(sum, 0.0));
+    return weightIllum;
 }
 
-void tap(int2 offset, float kernelWeight)
+float computeVarianceCenter(int2 ipos)
 {
-	int2 pos = ipos + offset;
+    float sum = 0.f;
 
-    if(!isPixelWithinScreenDimensions(pos, gGradientResDimensions.xy)){return;}
+    const float kernel[2][2] = {
+        { 1.0 / 4.0, 1.0 / 8.0  },
+        { 1.0 / 8.0, 1.0 / 16.0 }
+    };
 
-	float4 color1_p         = gGradientLuminance[pos].xyzw; 
-	float4 color2_p         = gGradientVariance[pos].xyzw; 
-	float currentDepth      = color2_p.z;
-	float currentLuminance  = color2_p.x;
+    const int radius = 1;
+    for (int yy = -radius; yy <= radius; yy++)
+    {
+        for (int xx = -radius; xx <= radius; xx++)
+        {
+            const int2 p = ipos + int2(xx, yy);
+            const float k = kernel[abs(xx)][abs(yy)];
+            sum += gGradientVariance.Load(int3(p, 0)).r * k;
+        }
+    }
 
-	float weightLuminance = abs(currentLuminance - centerLuminance) / (sigmaLuminance + 1e-10); 
-	float weightDepth = abs(currentDepth - centerDepth.x) / (centerDepth.y * length(float2(offset) * gStepSize * gGradientDownsample) + 1e-2); 
-
-	float weight = exp(-weightLuminance * weightLuminance - weightDepth) * kernelWeight; 
-
-	sumColor     += color1_p.xyzw * weight; 
-	sumLuminance += currentLuminance * weight;
-	sumVariance  += weight * weight * color2_p.y; 
-	sumWeight    += weight; 
+    return sum;
 }
 
-void box3()
-{
-	const int r = 1;
-	for(int yy = -r; yy <= r; yy++) {
-		for(int xx = -r; xx <= r; xx++) {
-			if(xx != 0 || yy != 0) {
-				tap(int2(xx, yy) * int2(gStepSize,gStepSize), 1.0);
-			}
-		}
-	}
-}
 
 PS_OUT main(FullScreenPassVsOut vsOut)
 {
     PS_OUT psOut;
+    int2 ipos = int2(vsOut.posH.xy);
 
-    ipos = int2(vsOut.posH.xy);
+    const float epsVariance      = 1e-10;
+    const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
-    float4 centerGradient1  = gGradientLuminance[ipos].xyzw;
-    float4 centerGradient2  = gGradientVariance[ipos].xyzw;
+    const float4 color1 = gGradientLuminance.Load(int3(ipos, 0));
+    const float4 color2 = gGradientVariance.Load(int3(ipos, 0));
 
-    centerDepth = centerGradient2.ba;
-    centerLuminance = centerGradient2.r;
-    sigmaLuminance  = computeSigmaLuminance(centerGradient2.g, ipos) * 3.0;
+    const float4 centerGradientDifference = color1.rgba;
+    const float centerLuminance = color2.r;
+    const float centerVariance = color2.g;
 
-    sumColor       = centerGradient1;
-    sumLuminance   = centerGradient2.r;
-    sumVariance    = centerGradient2.g;
-    sumWeight      = 1.0;
+    const float var = computeVarianceCenter(ipos);
 
-    if(centerDepth.x > 0) { /* only filter foreground pixels */
-        box3();
-	}
+    const float2 zCenter = color2.ba;
+    if (zCenter.x < 0)
+    {
+        // not a valid depth => must be envmap => do not filter
+        psOut.gradientLuminanceAtrous   = color1;
+        psOut.gradientVarianceAtrous    = color2;
+        return psOut;
+    }
 
-    sumColor     /= sumWeight;
-	sumLuminance /= sumWeight;
-	sumVariance  /= sumWeight * sumWeight;
+    const float phiLIllumination    = gPhiColor * sqrt(max(0.0, epsVariance + var.r));
+    const float phiDepth            = max(zCenter.y, 1e-8) * gStepSize * gGradientDownsample;
 
-	psOut.gradientLuminanceAtrous   = sumColor;
-	psOut.gradientVarianceAtrous    = float4(sumLuminance, sumVariance, centerDepth);
+    float   sumWIllumination        = 1.0;
+    float4  sumGradientDifference   = centerGradientDifference;
+    float   sumVariance             = centerVariance;
+    float   sumLuminance            = centerLuminance;
+
+    for (int yy = -1; yy <= 1; yy++)
+    {
+        for (int xx = -1; xx <= 1; xx++)
+        {
+            const int2 p        = ipos + int2(xx, yy) * gStepSize;
+            const bool inside   = all(p >= int2(0,0)) && all(p < gGradientResDimensions);
+
+            const float kernel = kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
+
+            if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
+            {
+                const float4 currentGradientVarianceP = gGradientVariance.Load(int3(p, 0));
+                const float luminanceP  =   currentGradientVarianceP.r;
+                const float zP          =   currentGradientVarianceP.b;
+                const float varianceP   =   currentGradientVarianceP.g;
+                const float4 currentGradientDifferenceP = gGradientLuminance.Load(int3(p, 0));
+
+                // compute the edge-stopping functions
+                const float2 w = computeWeight(
+                    zCenter.x, zP, phiDepth * length(float2(xx, yy)),
+                    centerLuminance, luminanceP, phiLIllumination);
+
+                const float wIllumination = w.x * kernel;
+
+                // alpha channel contains the variance, therefore the weights need to be squared, see paper for the formula
+                sumWIllumination        +=  wIllumination;
+                sumGradientDifference   +=  (wIllumination.xxxx) * currentGradientDifferenceP;
+                sumVariance             +=  wIllumination * wIllumination * varianceP;
+                sumLuminance            +=  wIllumination * luminanceP;
+            }
+        }
+    }
+
+    psOut.gradientLuminanceAtrous   = sumGradientDifference / sumWIllumination.xxxx;
+    psOut.gradientVarianceAtrous    = float4(sumLuminance, sumVariance, zCenter.r, zCenter.g) / float4(sumWIllumination.x, sumWIllumination.x * sumWIllumination.x, 1.0, 1.0);
 
     return psOut;
 }

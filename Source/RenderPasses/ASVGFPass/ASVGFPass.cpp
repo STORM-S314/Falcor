@@ -266,6 +266,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
     perImageATrousGradientCB["gGradientResDimensions"]  = float2(gradResWidth, gradResHeight);
     perImageATrousGradientCB["gGradientDownsample"]     = gradientDownsample;
+    perImageATrousGradientCB["gPhiColor"]               = 10.0f;
 
     for (int indexAtrous = 0; indexAtrous < mDiffAtrousIterations; indexAtrous++)
     {
@@ -398,22 +399,22 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
 {
-    //widget.checkbox("Enable", mEnable);
-    //widget.checkbox("Modulate Albedo", mModulateAlbedo);
-    //widget.var("Temporal Alpha", mTemporalAlpha);
-    //widget.var("# Iterations", mNumIterations, 0, 16, 1);
-    //widget.var("History Tap", mHistoryTap, -1, 16, 1);
+    widget.checkbox("Enable", mEnable);
+    widget.checkbox("Modulate Albedo", mModulateAlbedo);
+    widget.var("Temporal Alpha", mTemporalAlpha);
+    widget.var("# Iterations", mNumIterations, 0, 16, 1);
+    widget.var("History Tap", mHistoryTap, -1, 16, 1);
 
-    //Falcor::Gui::DropdownList filterKernels{
-    //    {0, "A-Trous"}, {1, "Box 3x3"}, {2, "Box 5x5"}, {3, "Sparse"}, {4, "Box3x3 / Sparse"}, {5, "Box5x5 / Sparse"},
-    //};
-    //widget.dropdown( "Kernel", filterKernels, mFilterKernel);
+    Falcor::Gui::DropdownList filterKernels{
+        {0, "A-Trous"}, {1, "Box 3x3"}, {2, "Box 5x5"}, {3, "Sparse"}, {4, "Box3x3 / Sparse"}, {5, "Box5x5 / Sparse"},
+    };
+    widget.dropdown( "Kernel", filterKernels, mFilterKernel);
 
-    ////widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
-    //widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
-    //widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
+    //widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
+    widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
+    widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 
-    //widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
+    widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
 }
 
 #if IS_DEBUG_PASS
