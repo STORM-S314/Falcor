@@ -187,7 +187,7 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     perImageGradForwardProjCB["gPosTexture"] = pInputWPosBuffer;
     perImageGradForwardProjCB["gPrevWPosTexture"] = pInternalPrevWPositionBuffer;
     perImageGradForwardProjCB["gPositionNormalFwidth"] = pInputPosNormalFWidthBuffer;
-    perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrixNoJitter();
+    perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrix();
     perImageGradForwardProjCB["gTextureWidth"] = screenWidth;
     perImageGradForwardProjCB["gTextureHeight"] = screenHeight;
     perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;

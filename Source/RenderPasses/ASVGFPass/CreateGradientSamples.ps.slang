@@ -89,9 +89,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		for(int xx = 0; xx < gGradientDownsample; xx++) {
 			int2 indexPos = posGrad * gGradientDownsample + int2(xx, yy);
 			if(!all(currentPos == indexPos)) {
-				float3 indexColor = gColorTexture[indexPos].rgb;
-                float3 indexEmission = gEmissionTexture[indexPos].rgb;
-                float3 indexAlbedo = gAlbedoTexture[indexPos].rgb;
+				float3 indexColor       = gColorTexture[indexPos].rgb;
+                float3 indexEmission    = gEmissionTexture[indexPos].rgb;
+                float3 indexAlbedo      = gAlbedoTexture[indexPos].rgb;
 
 				uint indexMeshID = getMeshInstanceID(HitInfo(gVisibilityBuffer[indexPos]));
 

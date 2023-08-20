@@ -94,9 +94,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
 {
     for (const auto& [key, value] : props)
     {
-        if (key == kEnable)                     mEnable = value;
-        else if (key == kModulateAlbedo)        mModulateAlbedo = value;
-        else if (key == kNumIterations)         mNumIterations = value;
+        if (key == kNumIterations)              mNumIterations = value;
         else if (key == kHistoryTap)            mHistoryTap = value;
         else if (key == kFilterKernel)          mFilterKernel = value;
         else if (key == kTemporalAlpha)         mTemporalAlpha = value;
@@ -111,8 +109,6 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
 Properties ASVGFPass::getProperties() const
 {
     Properties props;
-    props[kEnable] = mEnable;
-    props[kModulateAlbedo] = mModulateAlbedo;
     props[kNumIterations] = mNumIterations;
     props[kHistoryTap] = mHistoryTap;
     props[kFilterKernel] = mFilterKernel;
@@ -399,8 +395,6 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
 {
-    widget.checkbox("Enable", mEnable);
-    widget.checkbox("Modulate Albedo", mModulateAlbedo);
     widget.var("Temporal Alpha", mTemporalAlpha);
     widget.var("# Iterations", mNumIterations, 0, 16, 1);
     widget.var("History Tap", mHistoryTap, -1, 16, 1);

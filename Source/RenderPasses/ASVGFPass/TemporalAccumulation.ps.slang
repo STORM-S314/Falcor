@@ -67,7 +67,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     PS_OUT psOut;
 
     int2 iPos = int2(vsOut.posH.xy);
-    float2 currentMotion = gMotionVectorsTexture[iPos].rg;
+    float2 currentMotion = gMotionVectorsTexture[iPos].rg + gJitterOffset.xy;
 
     const int2 iPrevPos = int2(float2(iPos) + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5));
     const float2 prevPos = floor(vsOut.posH.xy) + currentMotion.xy * gScreenDimension.xy;
@@ -98,9 +98,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
     {
-        const int2 offsetLoc      = int2(prevPos) + offset[sampleIdx];
-        float2 prevDepth    = gPrevLinearZTexture[offsetLoc].xy;
-        float3 prevNormals  = gPrevNormalsTexture[offsetLoc].xyz;
+        const int2 offsetLoc    = int2(prevPos) + offset[sampleIdx];
+        float2 prevDepth        = gPrevLinearZTexture[offsetLoc].xy;
+        float3 prevNormals      = gPrevNormalsTexture[offsetLoc].xyz;
 
         bool isAccept = isReprojectionValid(iPrevPos, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
 

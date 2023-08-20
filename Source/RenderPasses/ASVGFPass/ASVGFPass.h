@@ -65,8 +65,6 @@ private:
     ref<Scene> pScene;
 
     //Params
-    bool mEnable = true;
-    bool mModulateAlbedo = true;
     int mNumIterations = 5;
     int mHistoryTap = 0;
     uint32_t mFilterKernel = 1;
