@@ -61,7 +61,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     
 	int2 currentPos = posGrad * gGradientDownsample + posInTile;
 
-    float3 currentIllumination = getIllumination(gColorTexture[currentPos].rgb, gEmissionTexture[currentPos].rgb, gPrevAlbedoTexture[currentPos].rgb);
+    float3 currentIllumination = getIllumination(gColorTexture[currentPos].rgb, gEmissionTexture[currentPos].rgb, gAlbedoTexture[currentPos].rgb);
 	float currentLuminance = luminance(currentIllumination);
     
 	if(gradientSample >= (1u << 31)) {

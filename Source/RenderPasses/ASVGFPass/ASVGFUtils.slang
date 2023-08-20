@@ -31,7 +31,7 @@ uint getMeshInstanceID(HitInfo hit)
 {
         uint instanceID = 10000000;
         uint materialID = 10000000;
-        uint geometryID = 10000000;
+        //uint geometryID = 10000000;
 
         switch (hit.getType())
         {
@@ -39,7 +39,7 @@ uint getMeshInstanceID(HitInfo hit)
         {
             const TriangleHit triangleHit = hit.getTriangleHit();
             instanceID = triangleHit.instanceID.index;
-            geometryID = gScene.getGeometryInstance(triangleHit.instanceID).geometryID;
+            //geometryID = gScene.getGeometryInstance(triangleHit.instanceID).geometryID;
             materialID = gScene.getMaterialID(triangleHit.instanceID);
             break;
         }
@@ -47,7 +47,7 @@ uint getMeshInstanceID(HitInfo hit)
         {
             const DisplacedTriangleHit displacedTriangleHit = hit.getDisplacedTriangleHit();
             instanceID = displacedTriangleHit.instanceID.index;
-            geometryID = gScene.getGeometryInstance(displacedTriangleHit.instanceID).geometryID;
+            //geometryID = gScene.getGeometryInstance(displacedTriangleHit.instanceID).geometryID;
             materialID = gScene.getMaterialID(displacedTriangleHit.instanceID);
             break;
         }
@@ -55,7 +55,7 @@ uint getMeshInstanceID(HitInfo hit)
         {
             const CurveHit curveHit = hit.getCurveHit();
             instanceID = curveHit.instanceID.index;
-            geometryID = gScene.getGeometryInstance(curveHit.instanceID).geometryID;
+            //geometryID = gScene.getGeometryInstance(curveHit.instanceID).geometryID;
             materialID = gScene.getMaterialID(curveHit.instanceID);
             break;
         }
@@ -63,7 +63,7 @@ uint getMeshInstanceID(HitInfo hit)
         {
             const SDFGridHit sdfGridHit = hit.getSDFGridHit();
             instanceID = sdfGridHit.instanceID.index;
-            geometryID = gScene.getGeometryInstance(sdfGridHit.instanceID).geometryID;
+            //geometryID = gScene.getGeometryInstance(sdfGridHit.instanceID).geometryID;
             materialID = gScene.getMaterialID(sdfGridHit.instanceID);
             break;
         }

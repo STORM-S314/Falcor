@@ -84,7 +84,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     int2 ipos = int2(vsOut.posH.xy);
 
     const float epsVariance      = 1e-10;
-    const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
+    //const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
     const float4 color1 = gGradientLuminance.Load(int3(ipos, 0));
     const float4 color2 = gGradientVariance.Load(int3(ipos, 0));
@@ -119,7 +119,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             const int2 p        = ipos + int2(xx, yy) * gStepSize;
             const bool inside   = all(p >= int2(0,0)) && all(p < gGradientResDimensions);
 
-            const float kernel = kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
+            const float kernel = 1.0;//kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
 
             if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
             {
