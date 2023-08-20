@@ -45,7 +45,7 @@ float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
 
 bool isPixelWithinScreenDimensions(float2 pixelPos, float2 screenDimensions)
 {
-    return (any(pixelPos >= int2(0,0)) && any(pixelPos <= (screenDimensions.xy - int2(1,1))));
+    return (all(pixelPos >= int2(0,0)) && all(pixelPos <= (screenDimensions.xy - int2(1,1))));
 }
 
 bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 currentDepth, float2 prevDepth, float3 currentNormal, float3 prevNormal, float fWidthNormal)
