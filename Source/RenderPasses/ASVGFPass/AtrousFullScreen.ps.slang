@@ -34,100 +34,116 @@ cbuffer PerImageCB
     Texture2D   gNormalsTexture;
     Texture2D   gAlbedoTexture;
     Texture2D   gEmissionTexture;
+    float       gPhiColor;
+    float       gPhiNormal;
 	int 		gStepSize;
 	int 		gIsModulateAlbedo;
+    int2        gScreenDimension;
 };
 
-const float gaussian_kernel[3][3] = {
-	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 },
-	{ 1.0 / 8.0,  1.0 / 4.0, 1.0 / 8.0  },
-	{ 1.0 / 16.0, 1.0 / 8.0, 1.0 / 16.0 }
-};
 
-static int2 ipos                = int2(0, 0);
-static float centerLuminance    = 0.0;
-static float sigmaLuminance     = 0.0;
-static float2 centerZ           = float2(0.0);
-static float3 centerNormal      = float3(0.0);
-
-static float3 sumColor          = float3(0.0);
-static float sumVariance        = 0.0;
-static float sumWeight          = 1.0;
-
-float compute_sigma_luminance(float centerVariance, int2 ipos)
+float computeWeight(
+    float depthCenter, float depthP, float phiDepth,
+    float3 normalCenter, float3 normalP, float phiNormal,
+    float luminanceIllumCenter, float luminanceIllumP, float phiIllum)
 {
-	const int r = 1;
+    const float weightNormal  = pow(saturate(dot(normalCenter, normalP)), phiNormal);
+    const float weightZ       = (phiDepth == 0) ? 0.0f : abs(depthCenter - depthP) / phiDepth;
+    const float weightLillum  = abs(luminanceIllumCenter - luminanceIllumP) / phiIllum;
 
-	float sum = centerVariance * gaussian_kernel[0][0];
+    const float weightIllum   = exp(0.0 - max(weightLillum, 0.0) - max(weightZ, 0.0)) * weightNormal;
 
-	for(int yy = -r; yy <= r; yy++) {
-		for(int xx = -r; xx <= r; xx++) {
-			if(xx != 0 || yy != 0) {
-				int2 p = ipos + int2(xx, yy);
-				float v = gColorAndVariance[p].a;
-				float w = gaussian_kernel[xx + 1][yy + 1];
-				sum += v * w;
-			}
-		}
-	}
-
-	return sqrt(max(sum, 0.0));
+    return weightIllum;
 }
 
-void tap(int2 offset, float kernel_weight)
+float computeVarianceCenter(int2 ipos)
 {
-	int2 p = ipos + offset; 
+    float sum = 0.f;
 
-	float4 color_p      = gColorAndVariance[p].xyzw; 
-	float3 normal_p     = gNormalsTexture[p].xyz; 
-	float z_p           = gLinearZTexture[p].x;
-	float l_p           = luminance(color_p.rgb); 
+    const float kernel[2][2] = {
+        { 1.0 / 4.0, 1.0 / 8.0  },
+        { 1.0 / 8.0, 1.0 / 16.0 }
+    };
 
-	float w_l = abs(l_p - centerLuminance) / (sigmaLuminance + 1e-10); 
-	float w_z = 3.0 * abs(z_p - centerZ.x) / (centerZ.y * length(float2(offset) * gStepSize) + 1e-2); 
-	float w_n = pow(max(0, dot(normal_p, centerNormal)), 128.0); 
+    const int radius = 1;
+    for (int yy = -radius; yy <= radius; yy++)
+    {
+        for (int xx = -radius; xx <= radius; xx++)
+        {
+            const int2 p = ipos + int2(xx, yy);
+            const float k = kernel[abs(xx)][abs(yy)];
+            sum += gColorAndVariance.Load(int3(p, 0)).a * k;
+        }
+    }
 
-	float w = exp(-w_l * w_l - w_z) * kernel_weight * w_n; 
-
-	sumColor    += color_p.rgb * w; 
-	sumVariance += w * w * color_p.a; 
-	sumWeight   += w; 
+    return sum;
 }
 
-void box3()
-{
-	const int r = 1;
-	for(int yy = -r; yy <= r; yy++) {
-		for(int xx = -r; xx <= r; xx++) {
-			if(xx != 0 || yy != 0) {
-				tap(int2(xx, yy) * int2(gStepSize, gStepSize), 1.0);
-			}
-		}
-	}
-}
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
+
     int2 ipos = int2(vsOut.posH.xy);
 
-    centerLuminance = luminance(gColorAndVariance[ipos].rgb);
-    sigmaLuminance  = compute_sigma_luminance(gColorAndVariance[ipos].a, ipos);
-    centerZ         = gLinearZTexture[ipos].xy;
-    centerNormal    = gNormalsTexture[ipos].xyz;
-    sumColor        = gColorAndVariance[ipos].rgb;
-    sumVariance     = gColorAndVariance[ipos].a;
+    const float epsVariance      = 1e-10;
+    const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
-	if(gLinearZTexture[ipos].x > 0.0) { /* only filter foreground pixels */
-        box3();
+    const float4 illuminationCenter = gColorAndVariance.Load(int3(ipos, 0));
+    const float lIlluminationCenter = luminance(illuminationCenter.rgb);
+
+    const float var = computeVarianceCenter(ipos);
+
+    const float2 zCenter = gLinearZTexture[ipos].xy;
+    if (zCenter.x < 0)
+    {
+        // not a valid depth => must be envmap => do not filter
+        return illuminationCenter;
     }
 
-	sumColor    /= sumWeight;
-	sumVariance /= (sumWeight * sumWeight);
+    const float3 nCenter = gNormalsTexture[ipos].xyz;
 
-	float4 fragColor  = float4(sumColor, sumVariance);
+    const float phiLIllumination   = gPhiColor * sqrt(max(0.0, epsVariance + var.r));
+    const float phiDepth     = max(zCenter.y, 1e-8) * gStepSize;
 
-	if(gIsModulateAlbedo == 1) {
-		fragColor.rgb = (fragColor.rgb * gAlbedoTexture[ipos].rgb) + gEmissionTexture[ipos].rgb;
+    float sumWIllumination   = 1.0;
+    float4  sumIllumination  = illuminationCenter;
+
+    for (int yy = -1; yy <= 1; yy++)
+    {
+        for (int xx = -1; xx <= 1; xx++)
+        {
+            const int2 p     = ipos + int2(xx, yy) * gStepSize;
+            const bool inside = all(p >= int2(0,0)) && all(p < gScreenDimension);
+
+            const float kernel = kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
+
+            if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
+            {
+                const float4 illuminationP = gColorAndVariance.Load(int3(p, 0));
+                const float lIlluminationP = luminance(illuminationP.rgb);
+                const float zP = gLinearZTexture[p].x;
+                const float3 nP = gNormalsTexture[p].xyz;
+
+                // compute the edge-stopping functions
+                const float2 w = computeWeight(
+                    zCenter.x, zP, phiDepth * length(float2(xx, yy)),
+                    nCenter, nP, gPhiNormal,
+                    lIlluminationCenter, lIlluminationP, phiLIllumination);
+
+                const float wIllumination = w.x * kernel;
+
+                // alpha channel contains the variance, therefore the weights need to be squared, see paper for the formula
+                sumWIllumination  += wIllumination;
+                sumIllumination   += float4(wIllumination.xxx, wIllumination * wIllumination) * illuminationP;
+            }
+        }
+    }
+
+    float4 filteredIllumination = float4(sumIllumination / float4(sumWIllumination.xxx, sumWIllumination * sumWIllumination));
+
+    if(gIsModulateAlbedo == 1) {
+		filteredIllumination.rgba = float4((filteredIllumination.rgb * gAlbedoTexture[ipos].rgb) + gEmissionTexture[ipos].rgb, 1.0);
 	}
-    return fragColor;
+
+    return filteredIllumination;
 }

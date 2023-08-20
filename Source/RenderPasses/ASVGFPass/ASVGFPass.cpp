@@ -345,6 +345,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
     perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
     perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
+    perImageAtrousFullScreenCB["gPhiColor"]         =   10.0f;
+    perImageAtrousFullScreenCB["gPhiNormal"]        =   128.0f;
+    perImageAtrousFullScreenCB["gScreenDimension"]  =   int2(screenWidth, screenHeight);
+    
 
     for (int i = 0; i < mNumIterations; i++)
     {
