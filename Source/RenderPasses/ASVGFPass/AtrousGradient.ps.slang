@@ -70,7 +70,7 @@ float computeVarianceCenter(int2 ipos)
         {
             const int2 p = ipos + int2(xx, yy);
             const float k = kernel[abs(xx)][abs(yy)];
-            sum += gGradientVariance.Load(int3(p, 0)).r * k;
+            sum += gGradientVariance.Load(int3(p, 0)).g * k;
         }
     }
 
@@ -130,11 +130,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                 const float4 currentGradientDifferenceP = gGradientLuminance.Load(int3(p, 0));
 
                 // compute the edge-stopping functions
-                const float2 w = computeWeight(
+                const float w = computeWeight(
                     zCenter.x, zP, phiDepth * length(float2(xx, yy)),
                     centerLuminance, luminanceP, phiLIllumination);
 
-                const float wIllumination = w.x * kernel;
+                const float wIllumination = w * kernel;
 
                 // alpha channel contains the variance, therefore the weights need to be squared, see paper for the formula
                 sumWIllumination        +=  wIllumination;
