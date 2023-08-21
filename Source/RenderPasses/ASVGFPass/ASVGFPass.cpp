@@ -124,38 +124,9 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
 {
     int screenWidth = compileData.defaultTexDims.x;
     int screenHeight = compileData.defaultTexDims.y;
-    int gradResWidth = gradient_res(screenWidth);
-    int gradResHeight = gradient_res(screenHeight);
 
-    //Gradient
-    Fbo::Desc formatDescGradientResult;
-    //formatDescGradientResult.setSampleCount(0);
-    formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0 
-    formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
-    mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
-    mpGradientResultPingPongBuffer[1] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
-
-    //Accumulation
-    Fbo::Desc formatDescAccumulationResult;
-    //formatDescAccumulationResult.setSampleCount(0);
-    formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    // Accumulation color                                          
-    formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);      // Accumulation moments
-    formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);       // Accumulation length
-    mpAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
-    mpPrevAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
-
-    //Atrous full screen
-    Fbo::Desc formatAtrousFullScreenResult;
-    //formatAtrousFullScreenResult.setSampleCount(0);
-    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    //Color.rgb, variance
-    mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult); 
-    mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
-
-    #if IS_DEBUG_PASS
-    Fbo::Desc formatDebugFullScreenResult;
-    formatDebugFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
-    mpDebugBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDebugFullScreenResult); 
-    #endif IS_DEBUG_PASS
+    allocateBuffers(pRenderContext, compileData.defaultTexDims.x, compileData.defaultTexDims.y);
+    IsClearBuffers = true;
 }
 
 RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
@@ -197,6 +168,46 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     return reflector;
 }
 
+void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWidth,  int a_ScreenHeight)
+{
+    int screenWidth = a_ScreenWidth;
+    int screenHeight = a_ScreenHeight;
+    int gradResWidth = gradient_res(screenWidth);
+    int gradResHeight = gradient_res(screenHeight);
+
+    // Gradient
+    Fbo::Desc formatDescGradientResult;
+    // formatDescGradientResult.setSampleCount(0);
+    formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0
+                                                                                     // or 0.0, 0.0
+    formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth
+                                                                                     // current.x, depth current.y
+    mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
+    mpGradientResultPingPongBuffer[1] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
+
+    // Accumulation
+    Fbo::Desc formatDescAccumulationResult;
+    // formatDescAccumulationResult.setSampleCount(0);
+    formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Accumulation color
+    formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);   // Accumulation moments
+    formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);    // Accumulation length
+    mpAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
+    mpPrevAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
+
+    // Atrous full screen
+    Fbo::Desc formatAtrousFullScreenResult;
+    // formatAtrousFullScreenResult.setSampleCount(0);
+    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Color.rgb, variance
+    mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
+    mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
+
+#if IS_DEBUG_PASS
+    Fbo::Desc formatDebugFullScreenResult;
+    formatDebugFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
+    mpDebugBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDebugFullScreenResult);
+#endif IS_DEBUG_PASS
+}
+
 void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
     if (!pScene)
@@ -224,8 +235,21 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
 
+    if (IsClearBuffers)
+    {
+        clearBuffers(pRenderContext, renderData);
+        IsClearBuffers = false;
+    }
+
     int screenWidth = pInputColorTexture->getWidth();
     int screenHeight = pInputColorTexture->getHeight();
+
+    FALCOR_ASSERT(
+        mpAccumulationBuffer &&
+        mpAccumulationBuffer->getWidth() == screenWidth &&
+        mpAccumulationBuffer->getHeight() == screenHeight
+    );
+
 
     float gradResWidth = gradient_res(screenWidth);
     float gradResHeight = gradient_res(screenHeight);
@@ -375,6 +399,23 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(pInputVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     mPrevFrameJitter = cameraJitter;
+}
+
+void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& renderData)
+{
+    pRenderContext->clearFbo(mpGradientResultPingPongBuffer[0].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpGradientResultPingPongBuffer[1].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpAtrousFullScreenResultPingPong[0].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpAtrousFullScreenResultPingPong[1].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpPrevAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevColorTexture).get());
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevAlbedoTexture).get());
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevEmissionTexture).get());
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevLinearZTexture).get());
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevNormalsTexture).get());
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevVisibilityBuffer).get());
 }
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)

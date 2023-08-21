@@ -29,42 +29,32 @@ import Scene.HitInfo;
 
 uint getMeshInstanceID(HitInfo hit)
 {
-        uint instanceID = 10000000;
-        uint materialID = 10000000;
-        //uint geometryID = 10000000;
+    uint instanceID = 10000000;
 
-        switch (hit.getType())
-        {
+    switch (hit.getType())
+    {
         case HitType::Triangle:
         {
             const TriangleHit triangleHit = hit.getTriangleHit();
             instanceID = triangleHit.instanceID.index;
-            //geometryID = gScene.getGeometryInstance(triangleHit.instanceID).geometryID;
-            materialID = gScene.getMaterialID(triangleHit.instanceID);
             break;
         }
         case HitType::DisplacedTriangle:
         {
             const DisplacedTriangleHit displacedTriangleHit = hit.getDisplacedTriangleHit();
             instanceID = displacedTriangleHit.instanceID.index;
-            //geometryID = gScene.getGeometryInstance(displacedTriangleHit.instanceID).geometryID;
-            materialID = gScene.getMaterialID(displacedTriangleHit.instanceID);
             break;
         }
         case HitType::Curve:
         {
             const CurveHit curveHit = hit.getCurveHit();
             instanceID = curveHit.instanceID.index;
-            //geometryID = gScene.getGeometryInstance(curveHit.instanceID).geometryID;
-            materialID = gScene.getMaterialID(curveHit.instanceID);
             break;
         }
         case HitType::SDFGrid:
         {
             const SDFGridHit sdfGridHit = hit.getSDFGridHit();
             instanceID = sdfGridHit.instanceID.index;
-            //geometryID = gScene.getGeometryInstance(sdfGridHit.instanceID).geometryID;
-            materialID = gScene.getMaterialID(sdfGridHit.instanceID);
             break;
         }
     }
