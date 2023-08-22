@@ -415,7 +415,7 @@ void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevEmissionTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevLinearZTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevNormalsTexture).get());
-    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevVisibilityBuffer).get());
+    //pRenderContext->clearTexture(renderData.getTexture(kInternalPrevVisibilityBuffer).get());
 }
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)

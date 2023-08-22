@@ -36,7 +36,7 @@ cbuffer PerImageCB
 	Texture2D                   gPrevAlbedoTexture;
     Texture2D                   gEmissionTexture;
 	Texture2D                   gPrevEmissionTexture;
-	Texture2D                   gGradientSamples;
+	Texture2D<uint>             gGradientSamples;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
 	Texture2D                   gLinearZTexture;
 	int                         gGradientDownsample;
@@ -54,7 +54,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	PS_OUT psOut;
     
     const int2 posGrad = int2(vsOut.posH.xy);
-	uint gradientSample = gGradientSamples[posGrad].x;
+	uint gradientSample = gGradientSamples[posGrad];
     
 	//The position of the texel in the tile
 	int2 posInTile = int2((gradientSample & TILE_OFFSET_MASK), (gradientSample >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);

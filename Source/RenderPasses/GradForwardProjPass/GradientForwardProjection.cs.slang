@@ -130,7 +130,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 	gradient_idx_curr |= (idx_prev.x + idx_prev.y * uint(gTextureWidth)) << (2 * TILE_OFFSET_SHIFT);
     
     uint outputValue = 1u;
-	InterlockedCompareExchange(gGradientSamplesTexture[ipos], 0u, gradient_idx_curr, outputValue);
+	InterlockedCompareExchange(gGradientSamplesTexture[tile_pos_curr], 0u, gradient_idx_curr, outputValue);
 
     if(outputValue == 0u)
     {
