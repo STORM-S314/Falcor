@@ -125,7 +125,7 @@ void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compil
     int screenWidth = compileData.defaultTexDims.x;
     int screenHeight = compileData.defaultTexDims.y;
 
-    allocateBuffers(pRenderContext, compileData.defaultTexDims.x, compileData.defaultTexDims.y);
+    allocateBuffers(pRenderContext, screenWidth, screenHeight);
     IsClearBuffers = true;
 }
 
@@ -139,10 +139,10 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputEmissionTexture, "Emission");
     reflector.addInput(kInputLinearZTexture, "LinearZ");
     reflector.addInput(kInputNormalsTexture, "Normals");
-    reflector.addInput(kInputVisibilityBufferTexture, "VisibilityBuffer");
+    reflector.addInput(kInputVisibilityBufferTexture, "VisibilityBuffer").format(ResourceFormat::RGBA32Uint);
     reflector.addInput(kInputMotionVectors, "MotionVectors");
     reflector.addInput(kInputPosNormalFWidth, "PosNormalFWidth");
-    reflector.addInput(kInputGradientSamplesTexture, "GradSamples");
+    reflector.addInput(kInputGradientSamplesTexture, "GradSamples").format(ResourceFormat::R32Uint);
     
     //Internal buffers
     reflector.addInternal(kInternalPrevColorTexture, "Previous Color").format(ResourceFormat::RGBA32Float)
@@ -178,7 +178,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Gradient
     Fbo::Desc formatDescGradientResult;
-    // formatDescGradientResult.setSampleCount(0);
+    formatDescGradientResult.setSampleCount(0);
     formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0
                                                                                      // or 0.0, 0.0
     formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth
@@ -188,7 +188,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Accumulation
     Fbo::Desc formatDescAccumulationResult;
-    // formatDescAccumulationResult.setSampleCount(0);
+    formatDescAccumulationResult.setSampleCount(0);
     formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Accumulation color
     formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);   // Accumulation moments
     formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);    // Accumulation length
@@ -197,7 +197,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
-    // formatAtrousFullScreenResult.setSampleCount(0);
+    formatAtrousFullScreenResult.setSampleCount(0);
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
@@ -265,19 +265,37 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     gradForwardGraphicState->setViewport(0, vpGradRes);
 
     auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
-    perImageGradForwardProjCB["gColorTexture"]          = pInputColorTexture;
-    perImageGradForwardProjCB["gPrevColorTexture"]      = pInternalPrevColorTexture;
-    perImageGradForwardProjCB["gAlbedoTexture"]         = pInputAlbedoTexture;
-    perImageGradForwardProjCB["gPrevAlbedoTexture"]     = pInternalPrevAlbedoTexture;
-    perImageGradForwardProjCB["gEmissionTexture"]       = pInputEmissionTexture;
-    perImageGradForwardProjCB["gPrevEmissionTexture"]   = pInternalPrevEmissionTexture;
-    perImageGradForwardProjCB["gGradientSamples"]       = pInputGradientSamples;
-    perImageGradForwardProjCB["gVisibilityBuffer"]      = pInputVisibilityBuffer;
-    perImageGradForwardProjCB["gLinearZTexture"]        = pInputLinearZTexture;
-    perImageGradForwardProjCB["gGradientDownsample"]    = gradientDownsample;
-    perImageGradForwardProjCB["gScreenWidth"]           = screenWidth;
+    perImageGradForwardProjCB["gColorTexture"]          =   pInputColorTexture;
+    perImageGradForwardProjCB["gPrevColorTexture"]      =   pInternalPrevColorTexture;
+    perImageGradForwardProjCB["gAlbedoTexture"]         =   pInputAlbedoTexture;
+    perImageGradForwardProjCB["gPrevAlbedoTexture"]     =   pInternalPrevAlbedoTexture;
+    perImageGradForwardProjCB["gEmissionTexture"]       =   pInputEmissionTexture;
+    perImageGradForwardProjCB["gPrevEmissionTexture"]   =   pInternalPrevEmissionTexture;
+    perImageGradForwardProjCB["gGradientSamples"]       =   pInputGradientSamples;
+    perImageGradForwardProjCB["gVisibilityBuffer"]      =   pInputVisibilityBuffer;
+    perImageGradForwardProjCB["gLinearZTexture"]        =   pInputLinearZTexture;
+    perImageGradForwardProjCB["gGradientDownsample"]    =   gradientDownsample;
+    perImageGradForwardProjCB["gScreenWidth"]           =   screenWidth;
 
     mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
+
+    #if IS_DEBUG_PASS
+    debugPass(pRenderContext, renderData);
+    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+
+    //// Swap buffers for next frame}
+    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
+    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
+    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
+    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
+    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
+    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
+    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
+    mPrevFrameJitter = cameraJitter;
+
+    pRenderContext->clearUAV(mpColorTest->getUAV().get(), uint4(0, 0, 0, 0));
+    return;
+#endif
 
     //A-trous gradient
     auto atrousGradCalcGraphicState = mpPrgAtrousGradientCalculation->getState();
@@ -337,21 +355,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
 
-#if IS_DEBUG_PASS
-    debugPass(pRenderContext, renderData);
-    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
 
-    //// Swap buffers for next frame}
-    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
-    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
-    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
-    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
-    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
-    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
-    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
-    mPrevFrameJitter = cameraJitter;
-    return;
-#endif
 
 
     if (mNumIterations == 0)
@@ -449,7 +453,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
     widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 
-    widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
+    //widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
 }
 
 #if IS_DEBUG_PASS

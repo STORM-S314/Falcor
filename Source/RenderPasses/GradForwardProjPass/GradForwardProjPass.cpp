@@ -79,24 +79,19 @@ void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileDa
     int screenHeight = compileData.defaultTexDims.y;
     
     mpGradientSamplesTexture = Texture::create2D(mpDevice, gradient_res(screenWidth), gradient_res(screenHeight), ResourceFormat::R32Uint, 1, 1, nullptr,
-        ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
 
     mpRandomNumberTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::R32Uint, 1, 1, nullptr,
-        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
 
     mpPrevRandomNumberTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::R32Uint, 1, 1, nullptr,
-        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
 
     mpVisibilityBufferTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::RGBA32Uint, 1, 1, nullptr,
-        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
 
     mpColorTestTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::RGBA32Float, 1, 1, nullptr,
-        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
 
     //Create random number generation pass output
     Fbo::Desc formatDescRndNum;
@@ -106,6 +101,13 @@ void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileDa
 
 RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData)
 {
+    int screenWidth = compileData.defaultTexDims.x;
+    int screenHeight = compileData.defaultTexDims.y;
+
+    // Gradient forward projection generation pass
+    float gradResWidth = gradient_res(screenWidth);
+    float gradResHeight = gradient_res(screenHeight);
+
     // Define the required resources here
     RenderPassReflection reflector;
 
@@ -127,9 +129,9 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     //Output
-    reflector.addOutput(kOutputRandomNumberBuffer, "RandomNumberBuffer");
-    reflector.addOutput(kOutputGradientSamples, "GradientSamples");
-    reflector.addOutput(kOutputVisibilityBuffer, "GradientVisibilityBuffer");
+    reflector.addOutput(kOutputRandomNumberBuffer, "RandomNumberBuffer").format(ResourceFormat::R32Uint);
+    reflector.addOutput(kOutputGradientSamples, "GradientSamples").texture2D(gradResWidth, gradResHeight).format(ResourceFormat::R32Uint);
+    reflector.addOutput(kOutputVisibilityBuffer, "GradientVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
 
 
     reflector.addOutput(kOutputColorTestBuffer, "kOutputColorTestBuffer");

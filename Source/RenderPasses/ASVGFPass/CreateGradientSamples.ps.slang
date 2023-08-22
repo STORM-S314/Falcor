@@ -53,8 +53,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 {
 	PS_OUT psOut;
     
-    const int2 posGrad = int2(vsOut.posH.xy);
-	uint gradientSample = gGradientSamples[posGrad];
+    int2 posGrad = int2(vsOut.posH.xy);
+	uint gradientSample = uint(gGradientSamples[posGrad]);
     
 	//The position of the texel in the tile
 	int2 posInTile = int2((gradientSample & TILE_OFFSET_MASK), (gradientSample >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);

@@ -78,6 +78,7 @@ void encrypt_tea(inout uint2 arg)
     arg[1] = v1;
 }
 
+[numthreads(16, 16, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     //Get a random index from the previous frame within the stratum (gGradientDownsample X gGradientDownsample) that is selected to be forward projected to the next frame
@@ -136,6 +137,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         gCurrentRandomNumberTexture[idx_curr].x = gPrevRandomNumberTexture[idx_prev].x;
         gVisibilityBuffer[idx_curr].xyzw = gPrevVisibilityBuffer[idx_prev].xyzw;
+        //gColorTestTexture[idx_curr] = float4(1.0, 1.0, 1.0, 1.0);
     }
     
 }
