@@ -77,7 +77,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float3  currentIllumination     = getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].xyz);
     float   currentLuminance        = luminance(currentIllumination.rgb);
     float2  currentMomemnts         = float2(currentLuminance, currentLuminance * currentLuminance);
-	uint    currentMeshID           = getMeshInstanceID(HitInfo(gVisibilityBuffer[iPos]));
+    HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);
+	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
     float3  currentNormal           = gNormalsTexture[iPos].xyz;
     float   currentPosNormalFWidth  = gPosNormalFWidth[iPos].y;
 
@@ -96,27 +97,30 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                                         (1 - x) * y,
                                         x       * y  };
 
-    for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
+    if(currentHitInfo.isValid())
     {
-        const int2 offsetLoc    = int2(prevPos) + offset[sampleIdx];
-        float2 prevDepth        = gPrevLinearZTexture[offsetLoc].xy;
-        float3 prevNormals      = gPrevNormalsTexture[offsetLoc].xyz;
-
-        bool isAccept = isReprojectionValid(iPrevPos, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
-
-        isAccept = isAccept && isPixelWithinScreenDimensions(offsetLoc, gScreenDimension.xy);
-
-        uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[offsetLoc]));
-
-        isAccept = isAccept && (currentMeshID == pMeshID);
-
-        if(isAccept)
+        for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
         {
-            float currentBilinearWeight = bilinearWeights[sampleIdx];
-            weightedColorPrev   += gPrevAccumColorTexture[offsetLoc].xyzw * currentBilinearWeight;
-            weightedMomentsPrev += gPrevAccumMomentsTexture[offsetLoc].xy * currentBilinearWeight;
-            histLen             += gPrevHistLenTexture[offsetLoc].x * currentBilinearWeight;
-            weightedSum         += currentBilinearWeight;
+            const int2 offsetLoc    = int2(prevPos) + offset[sampleIdx];
+            float2 prevDepth        = gPrevLinearZTexture[offsetLoc].xy;
+            float3 prevNormals      = gPrevNormalsTexture[offsetLoc].xyz;
+
+            bool isAccept = isReprojectionValid(iPrevPos, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
+
+            isAccept = isAccept && isPixelWithinScreenDimensions(offsetLoc, gScreenDimension.xy);
+
+            uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[offsetLoc]));
+
+            isAccept = isAccept && (currentMeshID == pMeshID);
+
+            if(isAccept)
+            {
+                float currentBilinearWeight = bilinearWeights[sampleIdx];
+                weightedColorPrev   += gPrevAccumColorTexture[offsetLoc].xyzw * currentBilinearWeight;
+                weightedMomentsPrev += gPrevAccumMomentsTexture[offsetLoc].xy * currentBilinearWeight;
+                histLen             += gPrevHistLenTexture[offsetLoc].x * currentBilinearWeight;
+                weightedSum         += currentBilinearWeight;
+            }
         }
     }
 

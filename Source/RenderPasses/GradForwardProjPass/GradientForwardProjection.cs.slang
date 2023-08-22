@@ -31,7 +31,7 @@ import Scene.HitInfo;
 #include "GradForwardProjCommon.slang"
 
 cbuffer PerImageCB {
-	Texture2D                   gPrevRandomNumberTexture;
+	Texture2D<uint>             gPrevRandomNumberTexture;
 	RWTexture2D<uint>           gCurrentRandomNumberTexture;
 	Texture2D 	                gLinearZTexture;
     Texture2D 	                gPrevLinearZTexture;
@@ -43,10 +43,9 @@ cbuffer PerImageCB {
     Texture2D 	                gPosTexture;
     Texture2D 	                gPrevWPosTexture;
     Texture2D 	                gPositionNormalFwidth;
-    float4x4                    gViewMat;
-    float4x4                    gProjMat;
+    Texture2D<float4>           gPrevWViewBuffer;
+    RWTexture2D<float4>         gWViewBuffer;
     float4x4                    gViewProjMat;
-    float4x4                    gPrevViewProjMat;
 	uint 		                gFrameNumber;
     float                       gTextureWidth;
     float                       gTextureHeight;
@@ -135,8 +134,9 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     if(outputValue == 0u)
     {
-        gCurrentRandomNumberTexture[idx_curr].x = gPrevRandomNumberTexture[idx_prev].x;
-        gVisibilityBuffer[idx_curr].xyzw = gPrevVisibilityBuffer[idx_prev].xyzw;
+        gCurrentRandomNumberTexture[idx_curr]   =   gPrevRandomNumberTexture[idx_prev];
+        gVisibilityBuffer[idx_curr]             =   gPrevVisibilityBuffer[idx_prev];
+        gWViewBuffer[idx_curr]                  =   gPrevWViewBuffer[idx_prev];
         //gColorTestTexture[idx_curr] = float4(1.0, 1.0, 1.0, 1.0);
     }
     

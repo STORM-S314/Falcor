@@ -69,6 +69,7 @@ private:
     ref<Texture> mpVisibilityBufferTexture;
     ref<Texture> mpRandomNumberTexture;
     ref<Texture> mpPrevRandomNumberTexture;
+    ref<Texture> mpWViewBufferTexture;
 
     //TODO :: Remove when test is complete
     //Test
