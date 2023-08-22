@@ -142,6 +142,7 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputVisibilityBufferTexture, "VisibilityBuffer");
     reflector.addInput(kInputMotionVectors, "MotionVectors");
     reflector.addInput(kInputPosNormalFWidth, "PosNormalFWidth");
+    reflector.addInput(kInputGradientSamplesTexture, "GradSamples");
     
     //Internal buffers
     reflector.addInternal(kInternalPrevColorTexture, "Previous Color").format(ResourceFormat::RGBA32Float)
@@ -218,7 +219,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInputColorTexture             = renderData.getTexture(kInputColorTexture);
     ref<Texture> pInputAlbedoTexture            = renderData.getTexture(kInputAlbedoTexture);
     ref<Texture> pInputEmissionTexture          = renderData.getTexture(kInputEmissionTexture);
-    ref<Texture> pInputGradSamplesTexture       = renderData.getTexture(kInputGradientSamplesTexture);
     ref<Texture> pInputLinearZTexture           = renderData.getTexture(kInputLinearZTexture);
     ref<Texture> pInputGradientSamples          = renderData.getTexture(kInputGradientSamplesTexture);
     ref<Texture> pInputVisibilityBuffer         = renderData.getTexture(kInputVisibilityBufferTexture);
@@ -458,7 +458,6 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     ref<Texture> pInputColorTexture = renderData.getTexture(kInputColorTexture);
     ref<Texture> pInputAlbedoTexture = renderData.getTexture(kInputAlbedoTexture);
     ref<Texture> pInputEmissionTexture = renderData.getTexture(kInputEmissionTexture);
-    ref<Texture> pInputGradSamplesTexture = renderData.getTexture(kInputGradientSamplesTexture);
     ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputLinearZTexture);
     ref<Texture> pInputGradientSamples = renderData.getTexture(kInputGradientSamplesTexture);
     ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputVisibilityBufferTexture);
@@ -487,7 +486,7 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     perImageDebugFullScreenCB["gColor"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
     perImageDebugFullScreenCB["gAlbedo"] = pInputAlbedoTexture;
     perImageDebugFullScreenCB["gEmission"] = pInputEmissionTexture;
-    perImageDebugFullScreenCB["gGradientSample"] = pInputGradSamplesTexture;
+    perImageDebugFullScreenCB["gGradientSample"] = pInputGradientSamples;
 
     perImageDebugFullScreenCB["gLinearZTexture"] = pInputLinearZTexture;
     perImageDebugFullScreenCB["gNormalsTexture"] = pInputNormalVectors;
