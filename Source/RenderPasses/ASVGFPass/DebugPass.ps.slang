@@ -49,6 +49,6 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     //int2 posInTile = int2((gradientSample & TILE_OFFSET_MASK), (gradientSample >> TILE_OFFSET_SHIFT) & TILE_OFFSET_MASK);
     //int2 iCurrentPos = iPos * 3.0 + posInTile;
 
-    return float4((gColor[iPos].rgb * gAlbedo[iPos].rgb) + gEmission[iPos].rgb, 1.0);
+    return float4(gColor[iPos].rgb, 1.0);
 	
 }

@@ -36,6 +36,7 @@ cbuffer PerImageCB
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
+    //RWTexture2D<float4>         gColorTest;
 };
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
@@ -102,11 +103,13 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 		colorSpatial.rgb /= sumWeight;
 		
 		psOut = float4(colorSpatial.rgb, (1.0 + 3.0 * (1.0 - hisLen / hisLenThreshold)) * max(0.0, momentsSpatial.y - momentsSpatial.x * momentsSpatial.x));
+        //gColorTest[iPos] = float4(1.0, 0.0, 0.0, 1.0);
     }
     else
     {
         float temporalVariance = max(0.0, accumMoments.y - accumMoments.x * accumMoments.x);
 		psOut = float4(accumColor.rgb, temporalVariance);
+        //gColorTest[iPos] = float4(0.0, 1.0, 0.0, 1.0);
     }
 
 	return psOut;

@@ -206,6 +206,11 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
     Fbo::Desc formatDebugFullScreenResult;
     formatDebugFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
     mpDebugBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDebugFullScreenResult);
+
+    mpTestColorTexture = Texture::create2D(
+        mpDevice, screenWidth, screenHeight, ResourceFormat::RGBA32Float, 1, 1, nullptr,
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+    );
 #endif IS_DEBUG_PASS
 }
 
@@ -299,23 +304,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
     }
 
-#if IS_DEBUG_PASS
-    debugPass(pRenderContext, renderData);
-    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
-
-    //// Swap buffers for next frame}
-    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
-    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
-    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
-    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
-    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
-    pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
-    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
-    mPrevFrameJitter = cameraJitter;
-
-    return;
-#endif
-
     //Temporal Accumulation
     auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
     perImageAccumulationCB["gColor"]                        = pInputColorTexture;
@@ -346,15 +334,33 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     // Estimate variance
     auto perImageEstimateVarianceCB = mpPrgEstimateVariance->getRootVar()["PerImageCB"];
 
-    perImageEstimateVarianceCB["gCurrentAccumColor"]    = mpAccumulationBuffer->getColorTexture(0);
-    perImageEstimateVarianceCB["gCurrentAccumMoments"]  = mpAccumulationBuffer->getColorTexture(1);
-    perImageEstimateVarianceCB["gCurrentAccumHistLen"]  = mpAccumulationBuffer->getColorTexture(2);
-    perImageEstimateVarianceCB["gLinearZTexture"]       = pInputLinearZTexture;
-    perImageEstimateVarianceCB["gNormalsTexture"]       = pInputNormalVectors;
-    perImageEstimateVarianceCB["gVisibilityBuffer"]     = pInputCurrVisibilityBuffer;
+    perImageEstimateVarianceCB["gCurrentAccumColor"]    =   mpAccumulationBuffer->getColorTexture(0);
+    perImageEstimateVarianceCB["gCurrentAccumMoments"]  =   mpAccumulationBuffer->getColorTexture(1);
+    perImageEstimateVarianceCB["gCurrentAccumHistLen"]  =   mpAccumulationBuffer->getColorTexture(2);
+    perImageEstimateVarianceCB["gLinearZTexture"]       =   pInputLinearZTexture;
+    perImageEstimateVarianceCB["gNormalsTexture"]       =   pInputNormalVectors;
+    perImageEstimateVarianceCB["gVisibilityBuffer"]     =   pInputCurrVisibilityBuffer;
+    //perImageEstimateVarianceCB["gColorTest"]            =   mpTestColorTexture;
+
 
     mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
 
+#if IS_DEBUG_PASS
+    debugPass(pRenderContext, renderData);
+    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+
+    //// Swap buffers for next frame}
+    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
+    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
+    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
+    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
+    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
+    pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
+    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
+    mPrevFrameJitter = cameraJitter;
+
+    return;
+#endif
 
     if (mNumIterations == 0)
     {
@@ -491,7 +497,7 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     gradforwardGraphicState->setViewport(0, vp1);
 
     auto perImageDebugFullScreenCB = mpPrgDebugFullScreen->getRootVar()["PerImageCB"];
-    perImageDebugFullScreenCB["gColor"] = mpGradientResultPingPongBuffer[0]->getColorTexture(2);
+    perImageDebugFullScreenCB["gColor"] = mpTestColorTexture;//mpGradientResultPingPongBuffer[0]->getColorTexture(2);
     perImageDebugFullScreenCB["gAlbedo"] = pInputAlbedoTexture;
     perImageDebugFullScreenCB["gEmission"] = pInputEmissionTexture;
     perImageDebugFullScreenCB["gGradientSample"] = pInputGradientSamples;

@@ -96,5 +96,6 @@ private:
     #if IS_DEBUG_PASS
     ref<FullScreenPass> mpPrgDebugFullScreen;
     ref<Fbo> mpDebugBuffer;
+    ref<Texture> mpTestColorTexture;
     #endif IS_DEBUG_PASS
 };
