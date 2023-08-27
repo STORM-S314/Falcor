@@ -458,7 +458,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
     isDirty |= widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 
-    isDirty |= widget.var("Weight Phi", weightPhi, 0.0f, 10.0f, 1.0f);
+    isDirty |= widget.var("Weight Phi", weightPhi, 0.0f, 100.0f, 1.0f);
     isDirty |= widget.var("Weight Normal", weightNormal, 0.0f, 128.0f, 1.0f);
 
     if (isDirty)

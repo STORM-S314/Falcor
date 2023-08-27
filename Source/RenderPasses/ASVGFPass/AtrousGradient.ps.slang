@@ -56,7 +56,7 @@ float computeWeight(
 
 float computeVarianceCenter(int2 ipos)
 {
-    float sum = 0.f;
+    float sum = 0.0f;
 
     const float kernel[2][2] = {
         { 1.0 / 4.0, 1.0 / 8.0  },
@@ -70,7 +70,7 @@ float computeVarianceCenter(int2 ipos)
         {
             const int2 p = ipos + int2(xx, yy);
             const float k = kernel[abs(xx)][abs(yy)];
-            sum += gGradientVariance.Load(int3(p, 0)).g * k;
+            sum += gGradientVariance[p].g * k;
         }
     }
 
@@ -86,8 +86,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float epsVariance      = 1e-10;
     //const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
-    const float4 color1 = gGradientLuminance.Load(int3(ipos, 0));
-    const float4 color2 = gGradientVariance.Load(int3(ipos, 0));
+    const float4 color1 = gGradientLuminance[ipos].rgba;
+    const float4 color2 = gGradientVariance[ipos].rgba;
 
     const float4 centerGradientDifference = color1.rgba;
     const float centerLuminance = color2.r;
@@ -123,11 +123,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
             if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
             {
-                const float4 currentGradientVarianceP = gGradientVariance.Load(int3(p, 0));
+                const float4 currentGradientVarianceP = gGradientVariance[p].rgba;
                 const float luminanceP  =   currentGradientVarianceP.r;
                 const float zP          =   currentGradientVarianceP.b;
                 const float varianceP   =   currentGradientVarianceP.g;
-                const float4 currentGradientDifferenceP = gGradientLuminance.Load(int3(p, 0));
+                const float4 currentGradientDifferenceP = gGradientLuminance[p].rgba;
 
                 // compute the edge-stopping functions
                 const float w = computeWeight(

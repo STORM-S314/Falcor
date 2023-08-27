@@ -57,7 +57,7 @@ float computeWeight(
 
 float computeVarianceCenter(int2 ipos)
 {
-    float sum = 0.f;
+    float sum = 0.0f;
 
     const float kernel[2][2] = {
         { 1.0 / 4.0, 1.0 / 8.0  },
@@ -71,7 +71,7 @@ float computeVarianceCenter(int2 ipos)
         {
             const int2 p = ipos + int2(xx, yy);
             const float k = kernel[abs(xx)][abs(yy)];
-            sum += gColorAndVariance.Load(int3(p, 0)).a * k;
+            sum += gColorAndVariance[p].a * k;
         }
     }
 
@@ -87,7 +87,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float epsVariance      = 1e-10;
     //const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
-    const float4 illuminationCenter = gColorAndVariance.Load(int3(ipos, 0));
+    const float4 illuminationCenter = gColorAndVariance[ipos].rgba;
     const float lIlluminationCenter = luminance(illuminationCenter.rgb);
 
     const float var = computeVarianceCenter(ipos);
@@ -118,7 +118,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
             if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
             {
-                const float4 illuminationP = gColorAndVariance.Load(int3(p, 0));
+                const float4 illuminationP = gColorAndVariance[p].rgba;
                 const float lIlluminationP = luminance(illuminationP.rgb);
                 const float zP = gLinearZTexture[p].x;
                 const float3 nP = gNormalsTexture[p].xyz;
@@ -141,7 +141,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     float4 filteredIllumination = float4(sumIllumination / float4(sumWIllumination.xxx, sumWIllumination * sumWIllumination));
 
     if(gIsModulateAlbedo == 1) {
-		filteredIllumination.rgba = float4((filteredIllumination.rgb * gAlbedoTexture[ipos].rgb) + gEmissionTexture[ipos].rgb, 1.0);
+		filteredIllumination.rgba = float4((filteredIllumination.rgb * gAlbedoTexture[ipos].rgb), 1.0);
 	}
 
     return filteredIllumination;
