@@ -292,7 +292,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
     perImageATrousGradientCB["gGradientResDimensions"]  = float2(gradResWidth, gradResHeight);
     perImageATrousGradientCB["gGradientDownsample"]     = gradientDownsample;
-    perImageATrousGradientCB["gPhiColor"]               = 10.0f;
+    perImageATrousGradientCB["gPhiColor"]               = weightPhi;
 
     for (int indexAtrous = 0; indexAtrous < mDiffAtrousIterations; indexAtrous++)
     {
@@ -374,8 +374,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
     perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
     perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
-    perImageAtrousFullScreenCB["gPhiColor"]         =   10.0f;
-    perImageAtrousFullScreenCB["gPhiNormal"]        =   128.0f;
+    perImageAtrousFullScreenCB["gPhiColor"]         =   weightPhi;
+    perImageAtrousFullScreenCB["gPhiNormal"]        =   weightNormal;
     perImageAtrousFullScreenCB["gScreenDimension"]  =   int2(screenWidth, screenHeight);
     
 
@@ -458,7 +458,8 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
     isDirty |= widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 
-    //widget.var("Gradient Downsample", gradientDownsample, 0, 16, 1);
+    isDirty |= widget.var("Weight Phi", weightPhi, 0.0f, 10.0f, 1.0f);
+    isDirty |= widget.var("Weight Normal", weightNormal, 0.0f, 128.0f, 1.0f);
 
     if (isDirty)
     {
