@@ -75,7 +75,7 @@ private:
     int mDiffAtrousIterations = 5;
     int mGradientFilterRadius = 2;
     int gradientDownsample = 3;
-    float weightPhi     = 3.0f;
+    float weightPhi     = 10.0f;
     float weightNormal = 128.0f;
 
     //Params frame

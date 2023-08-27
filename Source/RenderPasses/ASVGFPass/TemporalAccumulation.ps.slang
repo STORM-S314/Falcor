@@ -157,15 +157,15 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	    alphaColor   = lerp(alphaColor,   1.0, antilagAlpha);
 	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
 
-        psOut.accumulated.xyz   =   lerp(weightedColorPrev.rgb, currentIllumination.xyz, alphaColor);
+        psOut.accumulated.rgb   =   lerp(weightedColorPrev.rgb, currentIllumination.rgb, alphaColor);
         psOut.accumulated.a     =   min(64, histLen + 1.0);
-		psOut.moments.xy        =   lerp(weightedMomentsPrev.xy, currentMomemnts.xy, alphaMoments);
-		psOut.histLen           =   clamp(1.0 / alphaColor, 0.0, 64.0);
+		psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
+		psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
     }
     else {
-		psOut.accumulated.xyzw  =   float4(currentIllumination.xyz, 1.0);
+		psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;
-		psOut.histLen           =   1.0;
+		psOut.histLen.r         =   1.0;
     }
 
     return psOut;

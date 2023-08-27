@@ -173,14 +173,14 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 
 void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWidth,  int a_ScreenHeight)
 {
-    int screenWidth = a_ScreenWidth;
-    int screenHeight = a_ScreenHeight;
-    int gradResWidth = gradient_res(screenWidth);
-    int gradResHeight = gradient_res(screenHeight);
+    int screenWidth     = a_ScreenWidth;
+    int screenHeight    = a_ScreenHeight;
+    int gradResWidth    = gradient_res(screenWidth);
+    int gradResHeight   = gradient_res(screenHeight);
 
     // Gradient
     Fbo::Desc formatDescGradientResult;
-    formatDescGradientResult.setSampleCount(0);
+    //formatDescGradientResult.setSampleCount(0);
     formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0
     formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
     mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
@@ -188,7 +188,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Accumulation
     Fbo::Desc formatDescAccumulationResult;
-    formatDescAccumulationResult.setSampleCount(0);
+    //formatDescAccumulationResult.setSampleCount(0);
     formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Accumulation color
     formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);   // Accumulation moments
     formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);    // Accumulation length
@@ -197,7 +197,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
-    formatAtrousFullScreenResult.setSampleCount(0);
+    //formatAtrousFullScreenResult.setSampleCount(0);
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);

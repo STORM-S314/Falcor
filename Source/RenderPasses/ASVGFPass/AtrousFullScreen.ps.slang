@@ -47,31 +47,34 @@ float computeWeight(
     float luminanceIllumCenter, float luminanceIllumP, float phiIllum)
 {
     const float weightNormal  = pow(saturate(dot(normalCenter, normalP)), phiNormal);
-    const float weightZ       = (phiDepth == 0) ? 0.0f : abs(depthCenter - depthP) / phiDepth;
+    const float weightZ       = abs(depthCenter - depthP) / phiDepth;
     const float weightLillum  = abs(luminanceIllumCenter - luminanceIllumP) / phiIllum;
 
-    const float weightIllum   = exp(0.0 - (max(weightLillum, 0.0) * max(weightLillum, 0.0)) - max(weightZ, 0.0)) * weightNormal;
+    const float weightIllum   = exp((0.0 - max(weightLillum, 0.0) * max(weightLillum, 0.0)) - max(weightZ, 0.0)) * weightNormal;
 
     return weightIllum;
 }
 
 float computeVarianceCenter(int2 ipos)
 {
-    float sum = 0.0f;
-
     const float kernel[2][2] = {
         { 1.0 / 4.0, 1.0 / 8.0  },
         { 1.0 / 8.0, 1.0 / 16.0 }
     };
+
+    float sum = gColorAndVariance[ipos].a * kernel[1][1];
 
     const int radius = 1;
     for (int yy = -radius; yy <= radius; yy++)
     {
         for (int xx = -radius; xx <= radius; xx++)
         {
-            const int2 p = ipos + int2(xx, yy);
-            const float k = kernel[abs(xx)][abs(yy)];
-            sum += gColorAndVariance[p].a * k;
+            if(xx != 0 || yy != 0)
+            {
+                const int2 p = ipos + int2(xx, yy);
+                const float k = kernel[abs(xx)][abs(yy)];
+                sum += gColorAndVariance[p].a * k;
+            }
         }
     }
 
@@ -107,12 +110,13 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     float sumWIllumination   = 1.0;
     float4  sumIllumination  = illuminationCenter;
 
-    for (int yy = -1; yy <= 1; yy++)
+    const float radius = 1;
+    for (int yy = -radius; yy <= radius; yy++)
     {
-        for (int xx = -1; xx <= 1; xx++)
+        for (int xx = -radius; xx <= radius; xx++)
         {
             const int2 p     = ipos + int2(xx, yy) * gStepSize;
-            const bool inside = all(p >= int2(0,0)) && all(p < gScreenDimension);
+            const bool inside = isPixelWithinScreenDimensions(p, gScreenDimension);
 
             const float kernel = 1.0;//kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
 
@@ -124,12 +128,12 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 const float3 nP = gNormalsTexture[p].xyz;
 
                 // compute the edge-stopping functions
-                const float2 w = computeWeight(
+                const float w = computeWeight(
                     zCenter.x, zP, phiDepth * length(float2(xx, yy)),
                     nCenter, nP, gPhiNormal,
                     lIlluminationCenter, lIlluminationP, phiLIllumination);
 
-                const float wIllumination = w.x * kernel;
+                const float wIllumination = w * kernel;
 
                 // alpha channel contains the variance, therefore the weights need to be squared, see paper for the formula
                 sumWIllumination  += wIllumination;
@@ -140,8 +144,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     float4 filteredIllumination = float4(sumIllumination / float4(sumWIllumination.xxx, sumWIllumination * sumWIllumination));
 
-    if(gIsModulateAlbedo == 1) {
-		filteredIllumination.rgba = float4((filteredIllumination.rgb * gAlbedoTexture[ipos].rgb), 1.0);
+    if(gIsModulateAlbedo == 1)
+    {
+        filteredIllumination.rgba = float4((filteredIllumination.rgb * gAlbedoTexture[ipos].rgb), 1.0);
 	}
 
     return filteredIllumination;
