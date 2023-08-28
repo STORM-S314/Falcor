@@ -68,15 +68,15 @@ private:
     bool IsClearBuffers = false;
 
     //Params
-    int mNumIterations = 5;
-    int mHistoryTap = 0;
-    uint32_t mFilterKernel = 1;
-    float mTemporalAlpha = 0.1f;
-    int mDiffAtrousIterations = 5;
-    int mGradientFilterRadius = 2;
-    int gradientDownsample = 3;
-    float weightPhi     = 10.0f;
-    float weightNormal = 128.0f;
+    int mNumIterations          = 5;
+    int mHistoryTap             = 0;
+    uint32_t mFilterKernel      = 1;
+    float mTemporalAlpha        = 0.1f;
+    int mDiffAtrousIterations   = 5;
+    int mGradientFilterRadius   = 2;
+    int gradientDownsample      = 3;
+    float weightPhiColor        = 10.0f;
+    float weightPhiNormal       = 128.0f;
 
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};

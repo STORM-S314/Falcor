@@ -282,8 +282,27 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageGradForwardProjCB["gLinearZTexture"]        =   pInputLinearZTexture;
     perImageGradForwardProjCB["gGradientDownsample"]    =   gradientDownsample;
     perImageGradForwardProjCB["gScreenWidth"]           =   screenWidth;
+    //perImageGradForwardProjCB["gColorTest"]             =   mpTestColorTexture;
 
     mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
+
+#if IS_DEBUG_PASS
+    debugPass(pRenderContext, renderData);
+    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+
+    //// Swap buffers for next frame}
+    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
+    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
+    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
+    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
+    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
+    pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
+    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
+    mPrevFrameJitter = cameraJitter;
+    pRenderContext->clearTexture(mpTestColorTexture.get());
+
+    return;
+#endif
 
     //A-trous gradient
     auto atrousGradCalcGraphicState = mpPrgAtrousGradientCalculation->getState();
@@ -292,7 +311,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
     perImageATrousGradientCB["gGradientResDimensions"]  = float2(gradResWidth, gradResHeight);
     perImageATrousGradientCB["gGradientDownsample"]     = gradientDownsample;
-    perImageATrousGradientCB["gPhiColor"]               = weightPhi;
+    perImageATrousGradientCB["gPhiColor"]               = weightPhiColor;
 
     for (int indexAtrous = 0; indexAtrous < mDiffAtrousIterations; indexAtrous++)
     {
@@ -345,22 +364,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
 
-#if IS_DEBUG_PASS
-    debugPass(pRenderContext, renderData);
-    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
-
-    //// Swap buffers for next frame}
-    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
-    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
-    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
-    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
-    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
-    pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
-    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
-    mPrevFrameJitter = cameraJitter;
-
-    return;
-#endif
 
     if (mNumIterations == 0)
     {
@@ -374,8 +377,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
     perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
     perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
-    perImageAtrousFullScreenCB["gPhiColor"]         =   weightPhi;
-    perImageAtrousFullScreenCB["gPhiNormal"]        =   weightNormal;
+    perImageAtrousFullScreenCB["gPhiColor"]         =   weightPhiColor;
+    perImageAtrousFullScreenCB["gPhiNormal"]        =   weightPhiNormal;
     perImageAtrousFullScreenCB["gScreenDimension"]  =   int2(screenWidth, screenHeight);
     
 
@@ -458,8 +461,8 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
     isDirty |= widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 
-    isDirty |= widget.var("Weight Phi", weightPhi, 0.0f, 100.0f, 1.0f);
-    isDirty |= widget.var("Weight Normal", weightNormal, 0.0f, 128.0f, 1.0f);
+    isDirty |= widget.var("Weight Phi", weightPhiColor, 0.0f, 100.0f, 1.0f);
+    isDirty |= widget.var("Weight Normal", weightPhiNormal, 0.0f, 128.0f, 1.0f);
 
     if (isDirty)
     {

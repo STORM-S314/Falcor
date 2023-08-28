@@ -41,6 +41,7 @@ cbuffer PerImageCB
 	Texture2D                   gLinearZTexture;
 	int                         gGradientDownsample;
     int                         gScreenWidth;
+    //RWTexture2D<float4>         gColorTest;
 };
 
 struct PS_OUT
