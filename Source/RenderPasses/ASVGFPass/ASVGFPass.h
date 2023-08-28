@@ -71,7 +71,8 @@ private:
     int mNumIterations          = 5;
     int mHistoryTap             = 0;
     uint32_t mFilterKernel      = 1;
-    float mTemporalAlpha        = 0.1f;
+    float mTemporalColorAlpha   = 0.1f;
+    float mTemporalMomentsAlpha = 0.6f;
     int mDiffAtrousIterations   = 5;
     int mGradientFilterRadius   = 2;
     int gradientDownsample      = 3;

@@ -60,7 +60,8 @@ const char kModulateAlbedo[]        = "ModulateAlbedo";
 const char kNumIterations[]         = "NumIterations";
 const char kHistoryTap[]            = "HistoryTap";
 const char kFilterKernel[]          = "FilterKernel";
-const char kTemporalAlpha[]         = "TemporalAlpha";
+const char kTemporalColorAlpha[]    = "TemporalColorAlpha";
+const char kTemporalMomentsAlpha[]  = "TemporalMomentsAlpha";
 const char kDiffAtrousIterations[]  = "DiffAtrousIterations";
 const char kGradientFilterRadius[]  = "GradientFilterRadius";
 const char kNormalizeGradient[]     = "NormalizeGradient";
@@ -98,7 +99,8 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         if (key == kNumIterations)              mNumIterations = value;
         else if (key == kHistoryTap)            mHistoryTap = value;
         else if (key == kFilterKernel)          mFilterKernel = value;
-        else if (key == kTemporalAlpha)         mTemporalAlpha = value;
+        else if (key == kTemporalColorAlpha)    mTemporalColorAlpha = value;
+        else if (key == kTemporalMomentsAlpha)  mTemporalMomentsAlpha = value;
         else if (key == kDiffAtrousIterations)  mDiffAtrousIterations = value;
         else if (key == kGradientFilterRadius)  mGradientFilterRadius = value;
         //else if (key == kNormalizeGradient)     mNormalizeGradient = value;
@@ -110,12 +112,13 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
 Properties ASVGFPass::getProperties() const
 {
     Properties props;
-    props[kNumIterations] = mNumIterations;
-    props[kHistoryTap] = mHistoryTap;
-    props[kFilterKernel] = mFilterKernel;
-    props[kTemporalAlpha] = mTemporalAlpha;
-    props[kDiffAtrousIterations] = mDiffAtrousIterations;
-    props[kGradientFilterRadius] = mGradientFilterRadius;
+    props[kNumIterations]           = mNumIterations;
+    props[kHistoryTap]              = mHistoryTap;
+    props[kFilterKernel]            = mFilterKernel;
+    props[kTemporalColorAlpha]      = mTemporalColorAlpha;
+    props[kTemporalMomentsAlpha]    = mTemporalMomentsAlpha;
+    props[kDiffAtrousIterations]    = mDiffAtrousIterations;
+    props[kGradientFilterRadius]    = mGradientFilterRadius;
     //props[kNormalizeGradient] = mNormalizeGradient;
     //props[kShowAntilagAlpha] = mShowAntilagAlpha;
     return props;
@@ -345,7 +348,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageAccumulationCB["gGradientDownsample"]           = gradientDownsample;
     perImageAccumulationCB["gScreenDimension"]              = float2(screenWidth, screenHeight);
     perImageAccumulationCB["gJitterOffset"]                 = jitterOffset;
-    perImageAccumulationCB["gTemporalAlpha"]                = mTemporalAlpha;
+    perImageAccumulationCB["gTemporalColorAlpha"]           = mTemporalColorAlpha;
+    perImageAccumulationCB["gTemporalMomentsAlpha"]         = mTemporalMomentsAlpha;
     perImageAccumulationCB["gGradientFilterRadius"]         = mGradientFilterRadius;
     
     mpPrgTemporalAccumulation->execute(pRenderContext, mpAccumulationBuffer);
@@ -359,7 +363,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageEstimateVarianceCB["gLinearZTexture"]       =   pInputLinearZTexture;
     perImageEstimateVarianceCB["gNormalsTexture"]       =   pInputNormalVectors;
     perImageEstimateVarianceCB["gVisibilityBuffer"]     =   pInputCurrVisibilityBuffer;
-    //perImageEstimateVarianceCB["gColorTest"]            =   mpTestColorTexture;
+    //perImageEstimateVarianceCB["gColorTest"]          =   mpTestColorTexture;
 
 
     mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
@@ -408,6 +412,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(pInputLinearZTexture->getSRV(),        pInternalPrevLinearZTexture->getRTV());
     pRenderContext->blit(pInputNormalVectors->getSRV(),         pInternalPrevNormalsTexture->getRTV());
     pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
+
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     mPrevFrameJitter = cameraJitter;
 }
@@ -448,7 +453,8 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
 void ASVGFPass::renderUI(Gui::Widgets& widget)
 {
     
-    bool isDirty = widget.var("Temporal Alpha", mTemporalAlpha);
+    bool isDirty = widget.var("Temporal Color Alpha", mTemporalColorAlpha, 0.0f, 1.0f, 0.01f);
+    isDirty |= widget.var("Temporal Moments Alpha", mTemporalMomentsAlpha, 0.0f, 1.0f, 0.01f);
     isDirty |= widget.var("# Iterations", mNumIterations, 0, 16, 1);
     isDirty |= widget.var("History Tap", mHistoryTap, -1, 16, 1);
 

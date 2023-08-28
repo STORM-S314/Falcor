@@ -51,7 +51,8 @@ cbuffer PerImageCB
     int         gGradientDownsample;
     float2      gScreenDimension;
     float2      gJitterOffset;
-    float       gTemporalAlpha;
+    float       gTemporalColorAlpha;
+    float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
 };
 
@@ -151,8 +152,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		weightedMomentsPrev /= weightedSum;
 		histLen             /= weightedSum;
 
-        float alphaColor   = max(gTemporalAlpha, 1.0 / (histLen + 1.0)); //histLen max used is 9 to 9.99
-	    float alphaMoments = max(0.6, 1.0 / (histLen + 1.0));   //histLen max used is 1.66
+        float alphaColor   = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
+	    float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));               //histLen max used is 1.66
 
 	    alphaColor   = lerp(alphaColor,   1.0, antilagAlpha);
 	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
