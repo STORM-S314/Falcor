@@ -122,6 +122,13 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float3 prevNormal = gPrevWNormalTexture[idx_prev].xyz;
     float posNormalFWidth = gPositionNormalFwidth[idx_curr].y;
     if (distance(currentNormal, prevNormal) / (posNormalFWidth + 1e-2) > 16.0) return;
+
+    //Check if its the same mesh id
+    HitInfo currentHitInfo      = HitInfo(gVisibilityBuffer[idx_curr]);
+	uint    currentMeshID       = getMeshInstanceID(currentHitInfo);
+    HitInfo prevHitInfo         = HitInfo(gPrevVisibilityBuffer[idx_prev]);
+	uint    prevMeshID          = getMeshInstanceID(prevHitInfo);
+    if(!currentHitInfo.isValid() || !prevHitInfo.isValid() || (prevMeshID != currentMeshID)){ return; }
     
     int2 tile_pos_curr = idx_curr / gGradientDownsample;
 	uint gradient_idx_curr = get_gradient_idx_from_tile_pos(idx_curr % gGradientDownsample);

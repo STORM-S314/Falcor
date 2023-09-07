@@ -183,7 +183,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Gradient
     Fbo::Desc formatDescGradientResult;
-    //formatDescGradientResult.setSampleCount(0);
+    formatDescGradientResult.setSampleCount(0);
     formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0
     formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
     mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
@@ -191,7 +191,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Accumulation
     Fbo::Desc formatDescAccumulationResult;
-    //formatDescAccumulationResult.setSampleCount(0);
+    formatDescAccumulationResult.setSampleCount(0);
     formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Accumulation color
     formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);   // Accumulation moments
     formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);    // Accumulation length
@@ -200,13 +200,14 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
-    //formatAtrousFullScreenResult.setSampleCount(0);
+    formatAtrousFullScreenResult.setSampleCount(0);
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
 
 #if IS_DEBUG_PASS
     Fbo::Desc formatDebugFullScreenResult;
+    formatDebugFullScreenResult.setSampleCount(0);
     formatDebugFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
     mpDebugBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDebugFullScreenResult);
 
@@ -285,27 +286,11 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     perImageGradForwardProjCB["gLinearZTexture"]        =   pInputLinearZTexture;
     perImageGradForwardProjCB["gGradientDownsample"]    =   gradientDownsample;
     perImageGradForwardProjCB["gScreenWidth"]           =   screenWidth;
-    //perImageGradForwardProjCB["gColorTest"]             =   mpTestColorTexture;
+#if IS_DEBUG_PASS
+    perImageGradForwardProjCB["gColorTest"]             =   mpTestColorTexture;
+#endif
 
     mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
-
-#if IS_DEBUG_PASS
-    debugPass(pRenderContext, renderData);
-    pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
-
-    //// Swap buffers for next frame}
-    pRenderContext->blit(pInputColorTexture->getSRV(), pInternalPrevColorTexture->getRTV());
-    pRenderContext->blit(pInputAlbedoTexture->getSRV(), pInternalPrevAlbedoTexture->getRTV());
-    pRenderContext->blit(pInputEmissionTexture->getSRV(), pInternalPrevEmissionTexture->getRTV());
-    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
-    pRenderContext->blit(pInputNormalVectors->getSRV(), pInternalPrevNormalsTexture->getRTV());
-    pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(), pInternalPrevVisBufferTexture->getRTV());
-    std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
-    mPrevFrameJitter = cameraJitter;
-    pRenderContext->clearTexture(mpTestColorTexture.get());
-
-    return;
-#endif
 
     //A-trous gradient
     auto atrousGradCalcGraphicState = mpPrgAtrousGradientCalculation->getState();
@@ -403,7 +388,14 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     }
 
     //Blit outputs
-    pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+    #if IS_DEBUG_PASS
+        debugPass(pRenderContext, renderData);
+        pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+        pRenderContext->clearTexture(mpTestColorTexture.get());
+    #else
+        pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+    #endif
+
 
     // Swap buffers for next frame}
     pRenderContext->blit(pInputColorTexture->getSRV(),          pInternalPrevColorTexture->getRTV());

@@ -110,9 +110,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
             isAccept = isAccept && isPixelWithinScreenDimensions(offsetLoc, gScreenDimension.xy);
 
-            uint pMeshID = getMeshInstanceID(HitInfo(gPrevVisibilityBuffer[offsetLoc]));
-
-            isAccept = isAccept && (currentMeshID == pMeshID);
+            HitInfo pHitInfo    = HitInfo(gPrevVisibilityBuffer[offsetLoc]);
+            uint pMeshID = getMeshInstanceID(pHitInfo);
+            isAccept  = isAccept && pHitInfo.isValid() && (currentMeshID == pMeshID);
 
             if(isAccept)
             {

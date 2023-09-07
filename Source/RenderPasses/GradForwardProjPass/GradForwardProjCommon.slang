@@ -24,6 +24,8 @@
 #	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
+import Scene.Scene;
+import Scene.HitInfo;
 
 #ifndef TILE_OFFSET_SHIFT
     #define TILE_OFFSET_SHIFT 3u
@@ -38,3 +40,37 @@ struct FullScreenPassVsOut
     float2 texC       : TEXCOORD;
     float4 posH       : SV_POSITION;
 };
+
+uint getMeshInstanceID(HitInfo hit)
+{
+    uint instanceID = 10000000;
+
+    switch (hit.getType())
+    {
+        case HitType::Triangle:
+        {
+            const TriangleHit triangleHit = hit.getTriangleHit();
+            instanceID = triangleHit.instanceID.index;
+            break;
+        }
+        case HitType::DisplacedTriangle:
+        {
+            const DisplacedTriangleHit displacedTriangleHit = hit.getDisplacedTriangleHit();
+            instanceID = displacedTriangleHit.instanceID.index;
+            break;
+        }
+        case HitType::Curve:
+        {
+            const CurveHit curveHit = hit.getCurveHit();
+            instanceID = curveHit.instanceID.index;
+            break;
+        }
+        case HitType::SDFGrid:
+        {
+            const SDFGridHit sdfGridHit = hit.getSDFGridHit();
+            instanceID = sdfGridHit.instanceID.index;
+            break;
+        }
+    }
+    return instanceID;
+}

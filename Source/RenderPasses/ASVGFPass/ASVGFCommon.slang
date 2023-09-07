@@ -40,7 +40,7 @@ struct FullScreenPassVsOut
 
 float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
 {
-    return (a_Color.rgb) / max(float3(0.001, 0.001, 0.001), a_Albedo.rgb);
+    return (a_Color.rgb - a_Emission.rgb) / max(float3(0.001, 0.001, 0.001), a_Albedo.rgb);
 }
 
 bool isPixelWithinScreenDimensions(float2 pixelPos, float2 screenDimensions)
