@@ -29,25 +29,25 @@
 #include "Utils/Logger.h"
 
 // Internal buffer names
-const char kInternalPrevWNormalBuffer[]     = "PrevWNormalBuffer";
-const char kInternalPrevLinearZBuffer[]     = "PrevLinearZBuffer";
-const char kInternalPrevVisibilityBuffer[]  = "PrevVisibilityBuffer";
-const char kInternalPrevWPositionBuffer[]   = "PrevWPositionBuffer";
-const char kInternalPrevWViewBuffer[]       = "PrevWVViewBuffer";
+const char kInternalPrevWNormalBuffer[]     = "InternalPrevWNormalBuffer";
+const char kInternalPrevLinearZBuffer[]     = "InternalPrevLinearZBuffer";
+const char kInternalPrevVisibilityBuffer[]  = "InternalPrevVisibilityBuffer";
+const char kInternalPrevWPositionBuffer[]   = "InternalPrevWPositionBuffer";
+const char kInternalPrevWViewBuffer[]       = "InternalPrevWVViewBuffer";
 
 // Input buffer names
-const char kInputVisibilityBuffer[]     = "VisibilityBuffer";
-const char kInputBufferWorldNormal[]    = "WorldNormal";
-const char kInputBufferLinearZ[]        = "LinearZ";
-const char kInputWPositionBuffer[]      = "WPos";
-const char kInputPositionNormalFWidth[] = "PosNormalFWidth";
-const char kInputWViewBuffer[]          = "WViewBuffer";
+const char kInputVisibilityBuffer[]     = "InVisibilityBuffer";
+const char kInputBufferWorldNormal[]    = "InWorldNormal";
+const char kInputBufferLinearZ[]        = "InLinearZ";
+const char kInputWPositionBuffer[]      = "InWPos";
+const char kInputPositionNormalFWidth[] = "InPosNormalFWidth";
+const char kInputWViewBuffer[]          = "InWViewBuffer";
 
 //Output buffer names
-const char kOutputVisibilityBuffer[]    = "VisibilityBuffer";
-const char kOutputRandomNumberBuffer[]  = "RandomNumberBuffer";
-const char kOutputGradientSamples[]     = "GradientSamplesBuffer";
-const char kOutputWViewBuffer[]         = "GradientWViewBuffer";
+const char kOutputVisibilityBuffer[]    = "OutGradVisibilityBuffer";
+const char kOutputRandomNumberBuffer[]  = "OutRandomNumberBuffer";
+const char kOutputGradientSamples[]     = "OutGradSamplesBuffer";
+const char kOutputWViewBuffer[]         = "OutGradWViewBuffer";
 
 const char kOutputColorTestBuffer[] = "ColorTestBuffer";
 
@@ -141,10 +141,10 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     //Output
-    reflector.addOutput(kOutputRandomNumberBuffer, "GradientRandomNumberBuffer").format(ResourceFormat::R32Uint);
-    reflector.addOutput(kOutputGradientSamples, "GradientSamples").texture2D(gradResWidth, gradResHeight).format(ResourceFormat::R32Uint);
-    reflector.addOutput(kOutputVisibilityBuffer, "GradientVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
-    reflector.addOutput(kOutputWViewBuffer, "GradientWViewBuffer").format(ResourceFormat::RGBA32Float);
+    reflector.addOutput(kOutputRandomNumberBuffer,  "OutGradientRandomNumberBuffer").format(ResourceFormat::R32Uint);
+    reflector.addOutput(kOutputGradientSamples,     "OutGradientSamples").texture2D(gradResWidth, gradResHeight).format(ResourceFormat::R32Uint);
+    reflector.addOutput(kOutputVisibilityBuffer,    "OutGradientVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
+    reflector.addOutput(kOutputWViewBuffer,         "OutGradientWViewBuffer").format(ResourceFormat::RGBA32Float);
 
     reflector.addOutput(kOutputColorTestBuffer, "kOutputColorTestBuffer");
     
@@ -233,11 +233,11 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     pRenderContext->blit(mpRandomNumberTexture->getSRV(), mpPrevRandomNumberTexture->getRTV());
 
     //Clear buffers
-    pRenderContext->clearUAV(mpGradientSamplesTexture->getUAV().get(), uint4(0, 0, 0, 0));
-    pRenderContext->clearUAV(mpRandomNumberTexture->getUAV().get(), uint4(0, 0, 0, 0));
+    pRenderContext->clearUAV(mpGradientSamplesTexture->getUAV().get(),  uint4(0, 0, 0, 0));
+    pRenderContext->clearUAV(mpRandomNumberTexture->getUAV().get(),     uint4(0, 0, 0, 0));
     pRenderContext->clearUAV(mpVisibilityBufferTexture->getUAV().get(), uint4(0, 0, 0, 0));
-    pRenderContext->clearUAV(mpColorTestTexture->getUAV().get(), uint4(0, 0, 0, 0));
-    pRenderContext->clearUAV(mpWViewBufferTexture->getUAV().get(), float4(0.0, 0.0, 0.0, 0.0));
+    pRenderContext->clearUAV(mpColorTestTexture->getUAV().get(),        uint4(0, 0, 0, 0));
+    pRenderContext->clearUAV(mpWViewBufferTexture->getUAV().get(),      float4(0.0, 0.0, 0.0, 0.0));
 }
 
 void GradForwardProjPass::renderUI(Gui::Widgets& widget)
