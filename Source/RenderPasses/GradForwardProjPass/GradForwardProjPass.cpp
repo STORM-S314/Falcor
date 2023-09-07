@@ -217,20 +217,20 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     mpPrgGradientForwardProjection->execute(pRenderContext, gradResWidth, gradResHeight);
 
     //Blit outputs
-    pRenderContext->blit(mpGradientSamplesTexture->getSRV(), pOutputGradientSamplesTexture->getRTV());
-    pRenderContext->blit(mpRandomNumberTexture->getSRV(), pOutputRandomNumberTexture->getRTV());
-    pRenderContext->blit(mpVisibilityBufferTexture->getSRV(), pOutputVisibilityBufferTexture->getRTV());
-    pRenderContext->blit(mpWViewBufferTexture->getSRV(), pOutputWViewBufferTexture->getRTV());
+    pRenderContext->blit(mpGradientSamplesTexture->getSRV(),    pOutputGradientSamplesTexture->getRTV());
+    pRenderContext->blit(mpRandomNumberTexture->getSRV(),       pOutputRandomNumberTexture->getRTV());
+    pRenderContext->blit(mpVisibilityBufferTexture->getSRV(),   pOutputVisibilityBufferTexture->getRTV());
+    pRenderContext->blit(mpWViewBufferTexture->getSRV(),        pOutputWViewBufferTexture->getRTV());
 
     pRenderContext->blit(mpColorTestTexture->getSRV(), renderData.getTexture(kOutputColorTestBuffer)->getRTV());
     
     //Swap buffers for next frame
-    pRenderContext->blit(pInputLinearZTexture->getSRV(), pInternalPrevLinearZTexture->getRTV());
-    pRenderContext->blit(pInputWorldNormalTexture->getSRV(), pInternalPrevWNormalTexture->getRTV());
-    pRenderContext->blit(pInputVisibilityBuffer->getSRV(), pInternalPrevVisibilityBuffer->getRTV());
-    pRenderContext->blit(pInputWPosBuffer->getSRV(), pInternalPrevWPositionBuffer->getRTV());
-    pRenderContext->blit(pInputWViewBuffer->getSRV(), pInternalPrevWViewBuffer->getRTV());
-    pRenderContext->blit(mpRandomNumberTexture->getSRV(), mpPrevRandomNumberTexture->getRTV());
+    pRenderContext->blit(pInputLinearZTexture->getSRV(),        pInternalPrevLinearZTexture->getRTV());
+    pRenderContext->blit(pInputWorldNormalTexture->getSRV(),    pInternalPrevWNormalTexture->getRTV());
+    pRenderContext->blit(pInputVisibilityBuffer->getSRV(),      pInternalPrevVisibilityBuffer->getRTV());
+    pRenderContext->blit(pInputWPosBuffer->getSRV(),            pInternalPrevWPositionBuffer->getRTV());
+    pRenderContext->blit(pInputWViewBuffer->getSRV(),           pInternalPrevWViewBuffer->getRTV());
+    pRenderContext->blit(mpRandomNumberTexture->getSRV(),       mpPrevRandomNumberTexture->getRTV());
 
     //Clear buffers
     pRenderContext->clearUAV(mpGradientSamplesTexture->getUAV().get(),  uint4(0, 0, 0, 0));
