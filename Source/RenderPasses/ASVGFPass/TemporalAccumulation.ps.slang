@@ -155,6 +155,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         float alphaColor   = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
 	    float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));               //histLen max used is 1.66
 
+        //Equation 15 as per the paper
 	    alphaColor   = lerp(alphaColor,   1.0, antilagAlpha);
 	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
 

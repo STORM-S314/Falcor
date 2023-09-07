@@ -80,6 +80,8 @@ void GradForwardProjPass::compile(RenderContext* pRenderContext, const CompileDa
 {
     int screenWidth = compileData.defaultTexDims.x;
     int screenHeight = compileData.defaultTexDims.y;
+
+    //logWarning("GradForwardProjPass::compile:: ScreenWidth : {}  , ScreenHeight : {}  ", screenWidth, screenHeight);
     
     mpGradientSamplesTexture = Texture::create2D(mpDevice, gradient_res(screenWidth), gradient_res(screenHeight), ResourceFormat::R32Uint, 1, 1, nullptr,
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
