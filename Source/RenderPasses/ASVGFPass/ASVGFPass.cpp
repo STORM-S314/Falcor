@@ -267,6 +267,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     float2 cameraJitter = float2(currentCamera.getJitterX(), currentCamera.getJitterY());
     float2 jitterOffset = (cameraJitter - mPrevFrameJitter);
 
+    //logWarning("jitterOffset  : {} , {} ", cameraJitter.x, cameraJitter.y);
+
     GraphicsState::Viewport vpGradRes(0, 0, gradResWidth, gradResHeight, 0, 1);
 
     // Gradient creation pass

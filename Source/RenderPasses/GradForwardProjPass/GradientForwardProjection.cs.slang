@@ -91,7 +91,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 		idx_prev = int2(ipos * gGradientDownsample + arg);
 	}
 
-    precise float4 posWCurrent = mul(gViewProjMat, float4(gPrevWPosTexture[idx_prev].xyz, 1.0));
+    float4 posWCurrent = mul(gViewProjMat, float4(gPrevWPosTexture[idx_prev].xyz, 1.0));
     
     if(any(posWCurrent.xyz <= -posWCurrent.www)
 	|| any(posWCurrent.xyz >= posWCurrent.www))

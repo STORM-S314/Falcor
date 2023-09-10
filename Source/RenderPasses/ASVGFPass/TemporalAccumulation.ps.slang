@@ -107,9 +107,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             float2 prevDepth        = gPrevLinearZTexture[offsetLoc].xy;
             float3 prevNormals      = gPrevNormalsTexture[offsetLoc].xyz;
 
-            bool isAccept = isReprojectionValid(iPrevPos, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
+            bool isAccept = isReprojectionValid(offsetLoc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
 
-            isAccept = isAccept && isPixelWithinScreenDimensions(offsetLoc, gScreenDimension.xy);
+            isAccept = isAccept && isPixelWithinScreenDimensions(iPrevPos, gScreenDimension.xy);
 
             HitInfo pHitInfo    = HitInfo(gPrevVisibilityBuffer[offsetLoc]);
             uint pMeshID = getMeshInstanceID(pHitInfo);
@@ -134,7 +134,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
 	    for(int yy = -r; yy <= r; yy++) {
 		    for(int xx = -r; xx <= r; xx++) {
-			    float4 gradientDifference = gGradientDifferenceTexture[iPos / gGradientDownsample + int2(xx, yy)];
+			    float4 gradientDifference = gGradientDifferenceTexture[(iPos / int2(gGradientDownsample, gGradientDownsample)) + int2(xx, yy)];
 			    float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 200.0);
 			    antilagAlpha = max(antilagAlpha, differenceProportion);
 		    }
@@ -162,14 +162,15 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         psOut.accumulated.a     =   min(64, histLen + 1.0);
 		psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
 		psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
+        
+        //gColorTest[iPos] = float4(0.0, antilagAlpha, 0.0 , 1.0);
     }
     else {
 		psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
+        //gColorTest[iPos] = float4(1.0, 0.0, 0.0 , 1.0);
     }
-
-    //gColorTest[iPos] = float4(0.0, weightedSum == 1.0 ? 1.0 : 0.0, 0.0 , 1.0);
 
     return psOut;
 }

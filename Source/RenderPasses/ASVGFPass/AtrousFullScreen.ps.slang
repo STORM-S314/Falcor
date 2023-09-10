@@ -115,7 +115,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     {
         for (int xx = -radius; xx <= radius; xx++)
         {
-            const int2 p     = ipos + int2(xx, yy) * gStepSize;
+            const int2 p     = ipos + int2(xx, yy) * int2(gStepSize, gStepSize);
             const bool inside = isPixelWithinScreenDimensions(p, gScreenDimension);
 
             const float kernel = 1.0;//kernelWeights[abs(xx)] * kernelWeights[abs(yy)];

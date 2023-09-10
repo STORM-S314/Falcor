@@ -99,7 +99,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float computedVarianceCenter = computeVarianceCenter(ipos);
 
     const float2 zCenter = color2.ba;
-    if (zCenter.x < 0)
+    if (zCenter.x < 0.0 || color1.b == 0.0)
     {
         // not a valid depth => must be envmap => do not filter
         psOut.gradientLuminanceAtrous   = color1;
@@ -114,12 +114,13 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float4  sumGradientDifference   = centerGradientDifference;
     float   sumVariance             = centerVariance;
     float   sumLuminance            = centerLuminance;
+    float   sumWGradientDifference  = 1.0;
 
     for (int yy = -1; yy <= 1; yy++)
     {
         for (int xx = -1; xx <= 1; xx++)
         {
-            const int2 p        = ipos + int2(xx, yy) * gStepSize;
+            const int2 p        = ipos + int2(xx, yy) * int2(gStepSize, gStepSize);
             const bool inside   = isPixelWithinScreenDimensions(p, gGradientResDimensions);
 
             const float kernel = 1.0;//kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
@@ -140,10 +141,14 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                 const float wIllumination = w * kernel;
 
                 // alpha channel contains the variance, therefore the weights need to be squared, see paper for the formula
-                sumWIllumination        +=  wIllumination;
-                sumGradientDifference   +=  wIllumination.xxxx * currentGradientDifferenceP;
-                sumVariance             +=  wIllumination * wIllumination * varianceP;
-                sumLuminance            +=  wIllumination * luminanceP;
+                if(currentGradientDifferenceP.b == 1.0)
+                {
+                    sumWIllumination        +=  wIllumination;
+                    sumGradientDifference   +=  wIllumination.xxxx * currentGradientDifferenceP;
+                    //sumWGradientDifference  +=  currentGradientDifferenceP.b == 1.0 ? wIllumination : 0.0;
+                    sumVariance             +=  wIllumination * wIllumination * varianceP;
+                    sumLuminance            +=  wIllumination * luminanceP;
+                }
             }
         }
     }
