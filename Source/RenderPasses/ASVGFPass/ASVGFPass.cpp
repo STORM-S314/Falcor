@@ -444,6 +444,8 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     pScene = a_pScene;
     auto sceneDefines = pScene->getSceneDefines();
 
+    IsClearBuffers = true;
+
     mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
     mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader, sceneDefines);
     mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);

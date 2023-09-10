@@ -129,7 +129,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
                 // compute the edge-stopping functions
                 const float w = computeWeight(
-                    zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize)),
+                    zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize) * float2(gStepSize, gStepSize)),
                     nCenter, nP, gPhiNormal,
                     lIlluminationCenter, lIlluminationP, phiLIllumination);
 

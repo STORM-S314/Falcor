@@ -134,7 +134,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
                 // compute the edge-stopping functions
                 const float w = computeWeight(
-                    zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize)),
+                    zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize) * float2(gStepSize, gStepSize)),
                     centerLuminance, luminanceP, phiLIllumination);
 
                 const float wIllumination = w * kernel;
