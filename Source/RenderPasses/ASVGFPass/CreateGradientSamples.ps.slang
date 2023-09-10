@@ -119,6 +119,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	psOut.fragGradientVariance.r  = moments[0];
 	psOut.fragGradientVariance.g  = variance;
 	psOut.fragGradientVariance.ba = currentDepth;
-    ////gColorTest[currentPos] = float4(psOut.fragGradientLuminance.g, 0.0, 0.0, 1.0);
+    //gColorTest[currentPos] = float4(abs(psOut.fragGradientLuminance.g), 0.0, 0.0, 1.0);
 	return psOut;
 }

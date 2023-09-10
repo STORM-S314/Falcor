@@ -34,6 +34,7 @@ cbuffer PerImageCB
     int         gStepSize;
     int         gGradientDownsample;
     float2      gGradientResDimensions;
+    RWTexture2D<float4>         gColorTest;
 };
 
 struct PS_OUT
@@ -49,19 +50,18 @@ float computeWeight(
     const float weightZ       = (phiDepth == 0) ? 0.0f : abs(depthCenter - depthP) / phiDepth;
     const float weightLillum  = abs(luminanceIllumCenter - luminanceIllumP) / phiIllum;
 
-    const float weightIllum   = exp((0.0 - max(weightLillum, 0.0) * max(weightLillum, 0.0)) - max(weightZ, 0.0));
+    const float weightIllum   = exp(0.0 - weightLillum * weightLillum - weightZ);
 
     return weightIllum;
 }
 
 float computeVarianceCenter(int2 ipos)
 {
-
     const float kernel[2][2] = {
         { 1.0 / 4.0, 1.0 / 8.0  },
         { 1.0 / 8.0, 1.0 / 16.0 }
     };
-    float sum = gGradientVariance[ipos].g * kernel[1][1];
+    float sum = gGradientVariance[ipos].g * kernel[0][0];
 
     const int radius = 1;
     for (int yy = -radius; yy <= radius; yy++)
@@ -96,7 +96,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float centerLuminance = color2.r;
     const float centerVariance = color2.g;
 
-    const float var = computeVarianceCenter(ipos);
+    const float computedVarianceCenter = computeVarianceCenter(ipos);
 
     const float2 zCenter = color2.ba;
     if (zCenter.x < 0)
@@ -107,8 +107,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         return psOut;
     }
 
-    const float phiLIllumination    = gPhiColor * sqrt(max(0.0, epsVariance + var.r));
-    const float phiDepth            = max(zCenter.y, 1e-8) * gStepSize * gGradientDownsample;
+    const float phiLIllumination    = gPhiColor * sqrt(max(0.0, epsVariance + computedVarianceCenter));
+    const float phiDepth            = max(zCenter.y, 1e-8) * gGradientDownsample;
 
     float   sumWIllumination        = 1.0;
     float4  sumGradientDifference   = centerGradientDifference;
@@ -134,7 +134,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
                 // compute the edge-stopping functions
                 const float w = computeWeight(
-                    zCenter.x, zP, phiDepth * length(float2(xx, yy)),
+                    zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize)),
                     centerLuminance, luminanceP, phiLIllumination);
 
                 const float wIllumination = w * kernel;

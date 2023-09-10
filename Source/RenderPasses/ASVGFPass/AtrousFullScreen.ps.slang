@@ -39,6 +39,7 @@ cbuffer PerImageCB
 	int 		gStepSize;
 	int 		gIsModulateAlbedo;
     int2        gScreenDimension;
+    RWTexture2D<float4>         gColorTest;
 };
 
 float computeWeight(
@@ -47,10 +48,10 @@ float computeWeight(
     float luminanceIllumCenter, float luminanceIllumP, float phiIllum)
 {
     const float weightNormal  = pow(saturate(dot(normalCenter, normalP)), phiNormal);
-    const float weightZ       = abs(depthCenter - depthP) / phiDepth;
+    const float weightZ       = 3.0 * abs(depthCenter - depthP) / phiDepth;
     const float weightLillum  = abs(luminanceIllumCenter - luminanceIllumP) / phiIllum;
 
-    const float weightIllum   = exp((0.0 - max(weightLillum, 0.0) * max(weightLillum, 0.0)) - max(weightZ, 0.0)) * weightNormal;
+    const float weightIllum   = exp((0.0 - weightLillum * weightLillum) - weightZ) * weightNormal;
 
     return weightIllum;
 }
@@ -62,7 +63,7 @@ float computeVarianceCenter(int2 ipos)
         { 1.0 / 8.0, 1.0 / 16.0 }
     };
 
-    float sum = gColorAndVariance[ipos].a * kernel[1][1];
+    float sum = gColorAndVariance[ipos].a * kernel[0][0];
 
     const int radius = 1;
     for (int yy = -radius; yy <= radius; yy++)
@@ -84,7 +85,6 @@ float computeVarianceCenter(int2 ipos)
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
-
     int2 ipos = int2(vsOut.posH.xy);
 
     const float epsVariance      = 1e-10;
@@ -96,7 +96,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float var = computeVarianceCenter(ipos);
 
     const float2 zCenter = gLinearZTexture[ipos].xy;
-    if (zCenter.x < 0)
+    if (zCenter.x < 0.0)
     {
         // not a valid depth => must be envmap => do not filter
         return illuminationCenter;
@@ -105,7 +105,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float3 nCenter = gNormalsTexture[ipos].xyz;
 
     const float phiLIllumination   = gPhiColor * sqrt(max(0.0, epsVariance + var.r));
-    const float phiDepth     = max(zCenter.y, 1e-8) * gStepSize;
+    const float phiDepth     = max(zCenter.y, 1e-8);
 
     float sumWIllumination   = 1.0;
     float4  sumIllumination  = illuminationCenter;
@@ -129,7 +129,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
                 // compute the edge-stopping functions
                 const float w = computeWeight(
-                    zCenter.x, zP, phiDepth * length(float2(xx, yy)),
+                    zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize)),
                     nCenter, nP, gPhiNormal,
                     lIlluminationCenter, lIlluminationP, phiLIllumination);
 

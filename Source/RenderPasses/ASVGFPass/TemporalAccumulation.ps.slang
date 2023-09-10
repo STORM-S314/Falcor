@@ -54,6 +54,7 @@ cbuffer PerImageCB
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
+    RWTexture2D<float4>         gColorTest;
 };
 
 struct PS_OUT
@@ -68,10 +69,10 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     PS_OUT psOut;
 
     int2 iPos = int2(vsOut.posH.xy);
-    float2 currentMotion = gMotionVectorsTexture[iPos].rg + gJitterOffset.xy;
+    float2 currentMotion = gMotionVectorsTexture[iPos].rg;
 
-    const int2 iPrevPos = int2(float2(iPos) + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5));
-    const float2 prevPos = floor(vsOut.posH.xy) + currentMotion.xy * gScreenDimension.xy;
+    const int2 iPrevPos = int2(float2(iPos) + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5) - gJitterOffset.xy);
+    const float2 prevPos = floor(vsOut.posH.xy) + currentMotion.xy * gScreenDimension.xy - gJitterOffset.xy;
 
     float4  currentColor            = gColor[iPos].xyzw;
     float2  currentDepth            = gLinearZTexture[iPos].xy;
@@ -93,10 +94,10 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const int2 offset[4] = { int2(0, 0), int2(1, 0), int2(0, 1), int2(1, 1) };
 
     // bilinear weights
-    const float bilinearWeights[4] = {  (1 - x) * (1 - y),
-                                        x       * (1 - y),
-                                        (1 - x) * y,
-                                        x       * y  };
+    const float bilinearWeights[4] = {  (1.0 - x)   * (1.0 - y),
+                                        x           * (1.0 - y),
+                                        (1.0 - x)   * y,
+                                        x           * y  };
 
     if(currentHitInfo.isValid())
     {
@@ -125,29 +126,27 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         }
     }
 
-    //if Antilag alpha
-
-    float antilagAlpha = 0.0;
-
-	const int r = gGradientFilterRadius;
-
-	for(int yy = -r; yy <= r; yy++) {
-		for(int xx = -r; xx <= r; xx++) {
-			float4 gradientDifference = gGradientDifferenceTexture[iPos / gGradientDownsample + int2(xx, yy)];
-			float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 200.0);
-			antilagAlpha = max(antilagAlpha, differenceProportion);
-		}
-	}
-
-    clamp(antilagAlpha, 0.0, 1.0);
-	if(isNaN(antilagAlpha))
-    {
-		antilagAlpha = 1.0;
-    }
-
-    //endif Antilag alpha
-
     if(weightedSum > 0.01) { /* found sufficiently reliable history information */
+
+        float antilagAlpha = 0.0;
+
+	    const int r = gGradientFilterRadius;
+
+	    for(int yy = -r; yy <= r; yy++) {
+		    for(int xx = -r; xx <= r; xx++) {
+			    float4 gradientDifference = gGradientDifferenceTexture[iPos / gGradientDownsample + int2(xx, yy)];
+			    float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 200.0);
+			    antilagAlpha = max(antilagAlpha, differenceProportion);
+		    }
+	    }
+
+        clamp(antilagAlpha, 0.0, 1.0);
+	    if(isNaN(antilagAlpha))
+        {
+		    //antilagAlpha = 1.0;
+        }
+
+
 		weightedColorPrev   /= weightedSum;
 		weightedMomentsPrev /= weightedSum;
 		histLen             /= weightedSum;
@@ -169,6 +168,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
     }
+
+    //gColorTest[iPos] = float4(0.0, weightedSum == 1.0 ? 1.0 : 0.0, 0.0 , 1.0);
 
     return psOut;
 }

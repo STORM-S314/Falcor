@@ -225,6 +225,12 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         return;
     }
 
+    if (IsClearBuffers)
+    {
+        clearBuffers(pRenderContext, renderData);
+        IsClearBuffers = false;
+    }
+
     ref<Texture> pInputColorTexture             = renderData.getTexture(kInputColorTexture);
     ref<Texture> pInputAlbedoTexture            = renderData.getTexture(kInputAlbedoTexture);
     ref<Texture> pInputEmissionTexture          = renderData.getTexture(kInputEmissionTexture);
@@ -245,12 +251,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
 
-    if (IsClearBuffers)
-    {
-        clearBuffers(pRenderContext, renderData);
-        IsClearBuffers = false;
-    }
-
     int screenWidth = pInputColorTexture->getWidth();
     int screenHeight = pInputColorTexture->getHeight();
 
@@ -270,89 +270,100 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     GraphicsState::Viewport vpGradRes(0, 0, gradResWidth, gradResHeight, 0, 1);
 
-    //Gradient creation pass
-    auto gradForwardGraphicState = mpPrgGradientForwardProjection->getState();
-    gradForwardGraphicState->setViewport(0, vpGradRes);
+    // Gradient creation pass
+    {
+        auto gradForwardGraphicState = mpPrgGradientForwardProjection->getState();
+        gradForwardGraphicState->setViewport(0, vpGradRes);
 
-    auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
-    perImageGradForwardProjCB["gColorTexture"]          =   pInputColorTexture;
-    perImageGradForwardProjCB["gPrevColorTexture"]      =   pInternalPrevColorTexture;
-    perImageGradForwardProjCB["gAlbedoTexture"]         =   pInputAlbedoTexture;
-    perImageGradForwardProjCB["gPrevAlbedoTexture"]     =   pInternalPrevAlbedoTexture;
-    perImageGradForwardProjCB["gEmissionTexture"]       =   pInputEmissionTexture;
-    perImageGradForwardProjCB["gPrevEmissionTexture"]   =   pInternalPrevEmissionTexture;
-    perImageGradForwardProjCB["gGradientSamples"]       =   pInputGradientSamples;
-    perImageGradForwardProjCB["gVisibilityBuffer"]      =   pInputCurrVisibilityBuffer;
-    perImageGradForwardProjCB["gLinearZTexture"]        =   pInputLinearZTexture;
-    perImageGradForwardProjCB["gGradientDownsample"]    =   gradientDownsample;
-    perImageGradForwardProjCB["gScreenWidth"]           =   screenWidth;
+        auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
+        perImageGradForwardProjCB["gColorTexture"]          = pInputColorTexture;
+        perImageGradForwardProjCB["gPrevColorTexture"]      = pInternalPrevColorTexture;
+        perImageGradForwardProjCB["gAlbedoTexture"]         = pInputAlbedoTexture;
+        perImageGradForwardProjCB["gPrevAlbedoTexture"]     = pInternalPrevAlbedoTexture;
+        perImageGradForwardProjCB["gEmissionTexture"]       = pInputEmissionTexture;
+        perImageGradForwardProjCB["gPrevEmissionTexture"]   = pInternalPrevEmissionTexture;
+        perImageGradForwardProjCB["gGradientSamples"]       = pInputGradientSamples;
+        perImageGradForwardProjCB["gVisibilityBuffer"]      = pInputCurrVisibilityBuffer;
+        perImageGradForwardProjCB["gLinearZTexture"]        = pInputLinearZTexture;
+        perImageGradForwardProjCB["gGradientDownsample"]    = gradientDownsample;
+        perImageGradForwardProjCB["gScreenWidth"]           = screenWidth;
 #if IS_DEBUG_PASS
-    perImageGradForwardProjCB["gColorTest"]             =   mpTestColorTexture;
+        perImageGradForwardProjCB["gColorTest"] = mpTestColorTexture;
 #endif
 
-    mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
+        mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
+    }
 
     //A-trous gradient
-    auto atrousGradCalcGraphicState = mpPrgAtrousGradientCalculation->getState();
-    atrousGradCalcGraphicState->setViewport(0, vpGradRes);
-
-    auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
-    perImageATrousGradientCB["gGradientResDimensions"]  = float2(gradResWidth, gradResHeight);
-    perImageATrousGradientCB["gGradientDownsample"]     = gradientDownsample;
-    perImageATrousGradientCB["gPhiColor"]               = weightPhiColor;
-
-    for (int indexAtrous = 0; indexAtrous < mDiffAtrousIterations; indexAtrous++)
     {
-        perImageATrousGradientCB["gGradientLuminance"]      = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
-        perImageATrousGradientCB["gGradientVariance"]       = mpGradientResultPingPongBuffer[0]->getColorTexture(1);
-        perImageATrousGradientCB["gStepSize"]               = (1 << indexAtrous);
+        auto atrousGradCalcGraphicState = mpPrgAtrousGradientCalculation->getState();
+        atrousGradCalcGraphicState->setViewport(0, vpGradRes);
 
-        mpPrgAtrousGradientCalculation->execute(pRenderContext, mpGradientResultPingPongBuffer[1], false);
-        std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
+        auto perImageATrousGradientCB = mpPrgAtrousGradientCalculation->getRootVar()["PerImageCB"];
+        perImageATrousGradientCB["gGradientResDimensions"] = float2(gradResWidth, gradResHeight);
+        perImageATrousGradientCB["gGradientDownsample"] = gradientDownsample;
+        perImageATrousGradientCB["gPhiColor"] = weightPhiColor;
+
+        for (int indexAtrous = 0; indexAtrous < mDiffAtrousIterations; indexAtrous++)
+        {
+            perImageATrousGradientCB["gGradientLuminance"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
+            perImageATrousGradientCB["gGradientVariance"] = mpGradientResultPingPongBuffer[0]->getColorTexture(1);
+            perImageATrousGradientCB["gStepSize"] = (1 << indexAtrous);
+
+            mpPrgAtrousGradientCalculation->execute(pRenderContext, mpGradientResultPingPongBuffer[1], false);
+            std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
+        }
     }
 
     //Temporal Accumulation
-    auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
-    perImageAccumulationCB["gColor"]                        = pInputColorTexture;
-    perImageAccumulationCB["gMotionVectorsTexture"]         = pInputMotionVectors;
-    perImageAccumulationCB["gPrevAccumColorTexture"]        = mpPrevAccumulationBuffer->getColorTexture(0);
-    perImageAccumulationCB["gPrevAccumMomentsTexture"]      = mpPrevAccumulationBuffer->getColorTexture(1);
-    perImageAccumulationCB["gPrevHistLenTexture"]           = mpPrevAccumulationBuffer->getColorTexture(2);
-    perImageAccumulationCB["gLinearZTexture"]               = pInputLinearZTexture;
-    perImageAccumulationCB["gPrevLinearZTexture"]           = pInternalPrevLinearZTexture;
-    perImageAccumulationCB["gNormalsTexture"]               = pInputNormalVectors;
-    perImageAccumulationCB["gPrevNormalsTexture"]           = pInternalPrevNormalsTexture;
-    perImageAccumulationCB["gPosNormalFWidth"]              = pInputPosNormalFWidth;
-    perImageAccumulationCB["gVisibilityBuffer"]             = pInputCurrVisibilityBuffer;
-    perImageAccumulationCB["gPrevVisibilityBuffer"]         = pInternalPrevVisBufferTexture;
-    perImageAccumulationCB["gAlbedoTexture"]                = pInputAlbedoTexture;
-    perImageAccumulationCB["gPrevAlbedoTexture"]            = pInternalPrevAlbedoTexture;
-    perImageAccumulationCB["gEmissionTexture"]              = pInputEmissionTexture;
-    perImageAccumulationCB["gPrevEmissionTexture"]          = pInternalPrevEmissionTexture;
-    perImageAccumulationCB["gGradientDifferenceTexture"]    = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
-    perImageAccumulationCB["gGradientDownsample"]           = gradientDownsample;
-    perImageAccumulationCB["gScreenDimension"]              = float2(screenWidth, screenHeight);
-    perImageAccumulationCB["gJitterOffset"]                 = jitterOffset;
-    perImageAccumulationCB["gTemporalColorAlpha"]           = mTemporalColorAlpha;
-    perImageAccumulationCB["gTemporalMomentsAlpha"]         = mTemporalMomentsAlpha;
-    perImageAccumulationCB["gGradientFilterRadius"]         = mGradientFilterRadius;
-    
-    mpPrgTemporalAccumulation->execute(pRenderContext, mpAccumulationBuffer);
+    {
+        auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
+        perImageAccumulationCB["gColor"] = pInputColorTexture;
+        perImageAccumulationCB["gMotionVectorsTexture"] = pInputMotionVectors;
+        perImageAccumulationCB["gPrevAccumColorTexture"] = mpPrevAccumulationBuffer->getColorTexture(0);
+        perImageAccumulationCB["gPrevAccumMomentsTexture"] = mpPrevAccumulationBuffer->getColorTexture(1);
+        perImageAccumulationCB["gPrevHistLenTexture"] = mpPrevAccumulationBuffer->getColorTexture(2);
+        perImageAccumulationCB["gLinearZTexture"] = pInputLinearZTexture;
+        perImageAccumulationCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
+        perImageAccumulationCB["gNormalsTexture"] = pInputNormalVectors;
+        perImageAccumulationCB["gPrevNormalsTexture"] = pInternalPrevNormalsTexture;
+        perImageAccumulationCB["gPosNormalFWidth"] = pInputPosNormalFWidth;
+        perImageAccumulationCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
+        perImageAccumulationCB["gPrevVisibilityBuffer"] = pInternalPrevVisBufferTexture;
+        perImageAccumulationCB["gAlbedoTexture"] = pInputAlbedoTexture;
+        perImageAccumulationCB["gPrevAlbedoTexture"] = pInternalPrevAlbedoTexture;
+        perImageAccumulationCB["gEmissionTexture"] = pInputEmissionTexture;
+        perImageAccumulationCB["gPrevEmissionTexture"] = pInternalPrevEmissionTexture;
+        perImageAccumulationCB["gGradientDifferenceTexture"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
+        perImageAccumulationCB["gGradientDownsample"] = gradientDownsample;
+        perImageAccumulationCB["gScreenDimension"] = float2(screenWidth, screenHeight);
+        perImageAccumulationCB["gJitterOffset"] = jitterOffset;
+        perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
+        perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
+        perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
+#if IS_DEBUG_PASS
+        perImageAccumulationCB["gColorTest"] = mpTestColorTexture;
+#endif
+
+        mpPrgTemporalAccumulation->execute(pRenderContext, mpAccumulationBuffer);
+    }
 
     // Estimate variance
-    auto perImageEstimateVarianceCB = mpPrgEstimateVariance->getRootVar()["PerImageCB"];
+    {
+        auto perImageEstimateVarianceCB = mpPrgEstimateVariance->getRootVar()["PerImageCB"];
 
-    perImageEstimateVarianceCB["gCurrentAccumColor"]    =   mpAccumulationBuffer->getColorTexture(0);
-    perImageEstimateVarianceCB["gCurrentAccumMoments"]  =   mpAccumulationBuffer->getColorTexture(1);
-    perImageEstimateVarianceCB["gCurrentAccumHistLen"]  =   mpAccumulationBuffer->getColorTexture(2);
-    perImageEstimateVarianceCB["gLinearZTexture"]       =   pInputLinearZTexture;
-    perImageEstimateVarianceCB["gNormalsTexture"]       =   pInputNormalVectors;
-    perImageEstimateVarianceCB["gVisibilityBuffer"]     =   pInputCurrVisibilityBuffer;
-    //perImageEstimateVarianceCB["gColorTest"]          =   mpTestColorTexture;
+        perImageEstimateVarianceCB["gCurrentAccumColor"] = mpAccumulationBuffer->getColorTexture(0);
+        perImageEstimateVarianceCB["gCurrentAccumMoments"] = mpAccumulationBuffer->getColorTexture(1);
+        perImageEstimateVarianceCB["gCurrentAccumHistLen"] = mpAccumulationBuffer->getColorTexture(2);
+        perImageEstimateVarianceCB["gLinearZTexture"] = pInputLinearZTexture;
+        perImageEstimateVarianceCB["gNormalsTexture"] = pInputNormalVectors;
+        perImageEstimateVarianceCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
+#if IS_DEBUG_PASS
+        perImageEstimateVarianceCB["gColorTest"] = mpTestColorTexture;
+#endif
 
-
-    mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
-
+        mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
+    }
 
     if (mNumIterations == 0)
     {
@@ -360,31 +371,33 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     }
 
     // Atrous full screen
-
-    auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
-    perImageAtrousFullScreenCB["gLinearZTexture"]   =   pInputLinearZTexture;
-    perImageAtrousFullScreenCB["gNormalsTexture"]   =   pInputNormalVectors;
-    perImageAtrousFullScreenCB["gAlbedoTexture"]    =   pInputAlbedoTexture;
-    perImageAtrousFullScreenCB["gEmissionTexture"]  =   pInputEmissionTexture;
-    perImageAtrousFullScreenCB["gPhiColor"]         =   weightPhiColor;
-    perImageAtrousFullScreenCB["gPhiNormal"]        =   weightPhiNormal;
-    perImageAtrousFullScreenCB["gScreenDimension"]  =   int2(screenWidth, screenHeight);
-    
-
-    for (int i = 0; i < mNumIterations; i++)
     {
-        if ((i - 1) == mHistoryTap)
+        auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
+        perImageAtrousFullScreenCB["gLinearZTexture"] = pInputLinearZTexture;
+        perImageAtrousFullScreenCB["gNormalsTexture"] = pInputNormalVectors;
+        perImageAtrousFullScreenCB["gAlbedoTexture"] = pInputAlbedoTexture;
+        perImageAtrousFullScreenCB["gEmissionTexture"] = pInputEmissionTexture;
+        perImageAtrousFullScreenCB["gPhiColor"] = weightPhiColor;
+        perImageAtrousFullScreenCB["gPhiNormal"] = weightPhiNormal;
+        perImageAtrousFullScreenCB["gScreenDimension"] = int2(screenWidth, screenHeight);
+
+        for (int i = 0; i < mNumIterations; i++)
         {
-            pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
+            if ((i - 1) == mHistoryTap)
+            {
+                pRenderContext->blit(
+                    mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV()
+                );
+            }
+
+            perImageAtrousFullScreenCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+            perImageAtrousFullScreenCB["gStepSize"] = (1 << i);
+            perImageAtrousFullScreenCB["gIsModulateAlbedo"] = int(i == (mNumIterations - 1));
+
+            mpPrgAtrousFullScreen->execute(pRenderContext, mpAtrousFullScreenResultPingPong[1]);
+
+            std::swap(mpAtrousFullScreenResultPingPong[0], mpAtrousFullScreenResultPingPong[1]);
         }
-
-        perImageAtrousFullScreenCB["gColorAndVariance"] =   mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
-        perImageAtrousFullScreenCB["gStepSize"]         =   (1 << i);
-        perImageAtrousFullScreenCB["gIsModulateAlbedo"] =   int(i == (mNumIterations - 1));
-
-        mpPrgAtrousFullScreen->execute(pRenderContext, mpAtrousFullScreenResultPingPong[1]);
-
-        std::swap(mpAtrousFullScreenResultPingPong[0], mpAtrousFullScreenResultPingPong[1]);
     }
 
     //Blit outputs
@@ -444,16 +457,15 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
 {
-    
     bool isDirty = widget.var("Temporal Color Alpha", mTemporalColorAlpha, 0.0f, 1.0f, 0.01f);
     isDirty |= widget.var("Temporal Moments Alpha", mTemporalMomentsAlpha, 0.0f, 1.0f, 0.01f);
     isDirty |= widget.var("# Iterations", mNumIterations, 0, 16, 1);
     isDirty |= widget.var("History Tap", mHistoryTap, -1, 16, 1);
 
-    Falcor::Gui::DropdownList filterKernels{
+   /* Falcor::Gui::DropdownList filterKernels{
         {0, "A-Trous"}, {1, "Box 3x3"}, {2, "Box 5x5"}, {3, "Sparse"}, {4, "Box3x3 / Sparse"}, {5, "Box5x5 / Sparse"},
     };
-    isDirty |= widget.dropdown("Kernel", filterKernels, mFilterKernel);
+    isDirty |= widget.dropdown("Kernel", filterKernels, mFilterKernel);*/
 
     //widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
     isDirty |= widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);

@@ -36,7 +36,7 @@ cbuffer PerImageCB
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
-    //RWTexture2D<float4>         gColorTest;
+    RWTexture2D<float4>         gColorTest;
 };
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
@@ -80,7 +80,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     float luminance_p = luminance(color_p.rgb);
 
 					float weightDepth = abs(depth_p - centerDepth.x) / (centerDepth.y * length(float2(xx, yy)) + 1e-2);
-                    float weightNormals = pow(max(0, dot(normals_p, centerNormals)), 128.0); 
+                    float weightNormals = pow(saturate(dot(normals_p, centerNormals)), 128.0); 
 
 					uint meshID_p =  getMeshInstanceID(HitInfo(gVisibilityBuffer[p]));
 
@@ -88,7 +88,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 					if(isNaN(weight))
                     {
-						weight = 0.0;
+						//weight = 0.0;
                     }
 
 					sumWeight += weight;

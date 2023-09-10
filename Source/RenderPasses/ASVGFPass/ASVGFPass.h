@@ -74,9 +74,9 @@ private:
     float mTemporalColorAlpha   = 0.1f;
     float mTemporalMomentsAlpha = 0.6f;
     int mDiffAtrousIterations   = 5;
-    int mGradientFilterRadius   = 2;
+    int mGradientFilterRadius   = 1;
     int gradientDownsample      = 3;
-    float weightPhiColor        = 10.0f;
+    float weightPhiColor        = 3.0f;
     float weightPhiNormal       = 128.0f;
 
     //Params frame
