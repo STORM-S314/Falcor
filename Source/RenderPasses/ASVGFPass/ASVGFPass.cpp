@@ -200,7 +200,6 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
-    formatAtrousFullScreenResult.setSampleCount(0);
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);

@@ -143,7 +143,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         clamp(antilagAlpha, 0.0, 1.0);
 	    if(isNaN(antilagAlpha))
         {
-		    //antilagAlpha = 1.0;
+		    antilagAlpha = 1.0;
         }
 
 
