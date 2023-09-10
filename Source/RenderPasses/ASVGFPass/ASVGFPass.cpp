@@ -44,11 +44,12 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 }
 
 // Shader source files
-const char kTemporalAccumulationShader[]    = "RenderPasses/ASVGFPass/TemporalAccumulation.ps.slang";
-const char kEstimateVarianceShader[]        = "RenderPasses/ASVGFPass/VarianceEstimation.ps.slang";
-const char kAtrousShader[]                  = "RenderPasses/ASVGFPass/AtrousFullScreen.ps.slang";
-const char kCreateGradientSamplesShader[]   = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
-const char kAtrousGradientShader[]          = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
+const char kTemporalAccumulationShader[]            = "RenderPasses/ASVGFPass/TemporalAccumulation.ps.slang";
+const char kEstimateVarianceShader[]                = "RenderPasses/ASVGFPass/VarianceEstimation.ps.slang";
+const char kAtrousShader[]                          = "RenderPasses/ASVGFPass/AtrousFullScreen.ps.slang";
+const char kCreateGradientSamplesShader[]           = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
+const char kAtrousGradientShader[]                  = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
+const char kMutualInfCalcShader[]                   = "RenderPasses/ASVGFPass/MutualInformationCalculation.cs.slang";
 
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
@@ -366,6 +367,13 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
     }
 
+    //Mutual information computation
+    {
+        auto perImageMutualInfCalcCB = mpPrgMutualInfCalc->getRootVar()["PerImageCB"];
+
+        mpPrgMutualInfCalc->execute(pRenderContext, screenWidth, screenHeight);
+    }
+
     if (mNumIterations == 0)
     {
         pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
@@ -447,11 +455,12 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
 
     IsClearBuffers = true;
 
-    mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
-    mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader, sceneDefines);
-    mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);
-    mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader, sceneDefines);
-    mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader, sceneDefines);
+    mpPrgGradientForwardProjection  =   FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
+    mpPrgAtrousGradientCalculation  =   FullScreenPass::create(mpDevice, kAtrousGradientShader, sceneDefines);
+    mpPrgTemporalAccumulation       =   FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);
+    mpPrgEstimateVariance           =   FullScreenPass::create(mpDevice, kEstimateVarianceShader, sceneDefines);
+    mpPrgAtrousFullScreen           =   FullScreenPass::create(mpDevice, kAtrousShader, sceneDefines);
+    mpPrgMutualInfCalc              =   ComputePass::create(mpDevice, kMutualInfCalcShader, "main", sceneDefines);
 
     #if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
