@@ -65,6 +65,7 @@ const char kTemporalColorAlpha[]    = "TemporalColorAlpha";
 const char kTemporalMomentsAlpha[]  = "TemporalMomentsAlpha";
 const char kDiffAtrousIterations[]  = "DiffAtrousIterations";
 const char kGradientFilterRadius[]  = "GradientFilterRadius";
+const char kFramesPerMICalc[]       = "FramesPerMICalc";
 const char kNormalizeGradient[]     = "NormalizeGradient";
 const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
 
@@ -120,6 +121,8 @@ Properties ASVGFPass::getProperties() const
     props[kTemporalMomentsAlpha]    = mTemporalMomentsAlpha;
     props[kDiffAtrousIterations]    = mDiffAtrousIterations;
     props[kGradientFilterRadius]    = mGradientFilterRadius;
+    props[kFramesPerMICalc]         = numFramesPerMICalc;
+    
     //props[kNormalizeGradient] = mNormalizeGradient;
     //props[kShowAntilagAlpha] = mShowAntilagAlpha;
     return props;
@@ -204,6 +207,11 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
     formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Color.rgb, variance
     mpAtrousFullScreenResultPingPong[0] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
     mpAtrousFullScreenResultPingPong[1] = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAtrousFullScreenResult);
+
+    // Texture
+    mpLuminanceSumTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::R32Float, 1, 1, nullptr,
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+    );
 
 #if IS_DEBUG_PASS
     Fbo::Desc formatDebugFullScreenResult;
@@ -343,6 +351,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
         perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
         perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
+        perImageAccumulationCB["gMutualInfBuffer"]      = mpMutualInformationCalcBuffer->asBuffer();
+        perImageAccumulationCB["gMutualInfFrameNum"]    = currFrameNumNumInMICalc;
+        perImageAccumulationCB["gLuminanceSumTexture"]  = mpLuminanceSumTexture;
+        
 #if IS_DEBUG_PASS
         perImageAccumulationCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -368,10 +380,18 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     }
 
     //Mutual information computation
+    if (currFrameNumNumInMICalc == (numFramesPerMICalc - 1))
     {
         auto perImageMutualInfCalcCB = mpPrgMutualInfCalc->getRootVar()["PerImageCB"];
-
+        perImageMutualInfCalcCB["gMutualInfBuffer"]     =   mpMutualInformationCalcBuffer->asBuffer();
+        perImageMutualInfCalcCB["gLuminanceSumTexture"] =   mpLuminanceSumTexture;
+        perImageMutualInfCalcCB["gNumFramesPerMICalc"]  =   numFramesPerMICalc;
+        perImageMutualInfCalcCB["gScreenDimension"]     =   float2(screenWidth, screenHeight);
+        
         mpPrgMutualInfCalc->execute(pRenderContext, screenWidth, screenHeight);
+
+        pRenderContext->clearTexture(mpLuminanceSumTexture.get());
+        currFrameNumNumInMICalc = 0;
     }
 
     if (mNumIterations == 0)
@@ -429,6 +449,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     mPrevFrameJitter = cameraJitter;
+    currFrameNumNumInMICalc++;
 }
 
 void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& renderData)
@@ -446,6 +467,11 @@ void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevLinearZTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevNormalsTexture).get());
     //pRenderContext->clearTexture(renderData.getTexture(kInternalPrevVisibilityBuffer).get());
+
+    currFrameNumNumInMICalc = 0;
+    pRenderContext->clearTexture(mpLuminanceSumTexture.get());
+    uint2 textureDims = renderData.getDefaultTextureDims();
+    mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * numFramesPerMICalc * sizeof(float));
 }
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
@@ -485,6 +511,8 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
 
     isDirty |= widget.var("Weight Phi", weightPhiColor, 0.0f, 100.0f, 1.0f);
     isDirty |= widget.var("Weight Normal", weightPhiNormal, 0.0f, 128.0f, 1.0f);
+
+    isDirty |= widget.var("Num Frames for MI Calc", numFramesPerMICalc, 300, 3000, 1);
 
     if (isDirty)
     {

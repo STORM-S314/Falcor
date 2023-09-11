@@ -79,6 +79,9 @@ private:
     float weightPhiColor        = 3.0f;
     float weightPhiNormal       = 128.0f;
 
+    int numFramesPerMICalc      = 360;
+    int currFrameNumNumInMICalc = 0;
+
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};
 
@@ -95,6 +98,10 @@ private:
     ref<Fbo> mpAtrousFullScreenResultPingPong[2];
     ref<Fbo> mpAccumulationBuffer;
     ref<Fbo> mpPrevAccumulationBuffer;
+
+    //Mutual Information
+    ref<Buffer> mpMutualInformationCalcBuffer;
+    ref<Texture> mpLuminanceSumTexture;
 
     //Debug
     #if IS_DEBUG_PASS

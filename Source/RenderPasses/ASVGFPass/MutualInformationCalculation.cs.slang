@@ -27,7 +27,10 @@
  **************************************************************************/
 
 cbuffer PerImageCB {
-    RWTexture2D<float4>         gColorTestTexture;
+    RWBuffer<float>         gMutualInfBuffer;
+    Texture2D<float>        gLuminanceSumTexture;
+    int                     gNumFramesPerMICalc;
+    float2                  gScreenDimension;
 };
 
 [numthreads(16, 16, 1)]
@@ -35,4 +38,9 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     uint2 ipos = uint2(dispatchThreadId.xy);
 
+    //Normalization
+    for(int frameIndex = 0; frameIndex < gNumFramesPerMICalc; frameIndex++)
+    {
+        gMutualInfBuffer[ipos.y * gScreenDimension.x + ipos.x + frameIndex * gScreenDimension.x * gScreenDimension.y] /= gLuminanceSumTexture[ipos];
+    }
 }

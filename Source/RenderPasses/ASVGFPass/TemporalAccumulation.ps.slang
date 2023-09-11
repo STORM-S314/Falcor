@@ -54,6 +54,9 @@ cbuffer PerImageCB
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
+    int         gMutualInfFrameNum;
+    RWBuffer<float>     gMutualInfBuffer;
+    RWTexture2D<float>  gLuminanceSumTexture;
     RWTexture2D<float4>         gColorTest;
 };
 
@@ -126,32 +129,32 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         }
     }
 
+    float antilagAlpha = 0.0;
+
+	const int r = gGradientFilterRadius;
+
+	for(int yy = -r; yy <= r; yy++) {
+		for(int xx = -r; xx <= r; xx++) {
+			float4 gradientDifference = gGradientDifferenceTexture[(iPos / int2(gGradientDownsample, gGradientDownsample)) + int2(xx, yy)];
+			float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 200.0);
+			antilagAlpha = max(antilagAlpha, differenceProportion);
+		}
+	}
+
+    clamp(antilagAlpha, 0.0, 1.0);
+	if(isNaN(antilagAlpha))
+    {
+		antilagAlpha = 1.0;
+    }
+
+    float alphaColor = 0;
     if(weightedSum > 0.01) { /* found sufficiently reliable history information */
-
-        float antilagAlpha = 0.0;
-
-	    const int r = gGradientFilterRadius;
-
-	    for(int yy = -r; yy <= r; yy++) {
-		    for(int xx = -r; xx <= r; xx++) {
-			    float4 gradientDifference = gGradientDifferenceTexture[(iPos / int2(gGradientDownsample, gGradientDownsample)) + int2(xx, yy)];
-			    float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 200.0);
-			    antilagAlpha = max(antilagAlpha, differenceProportion);
-		    }
-	    }
-
-        clamp(antilagAlpha, 0.0, 1.0);
-	    if(isNaN(antilagAlpha))
-        {
-		    antilagAlpha = 1.0;
-        }
-
 
 		weightedColorPrev   /= weightedSum;
 		weightedMomentsPrev /= weightedSum;
 		histLen             /= weightedSum;
 
-        float alphaColor   = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
+        alphaColor   = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
 	    float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));               //histLen max used is 1.66
 
         //Equation 15 as per the paper
@@ -169,8 +172,10 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
-        //gColorTest[iPos] = float4(1.0, 0.0, 0.0 , 1.0);
     }
+
+    gMutualInfBuffer[iPos.y * gScreenDimension.x + iPos.x + gMutualInfFrameNum * gScreenDimension.x * gScreenDimension.y] = currentLuminance;
+    gLuminanceSumTexture[iPos].r += currentLuminance;
 
     return psOut;
 }
