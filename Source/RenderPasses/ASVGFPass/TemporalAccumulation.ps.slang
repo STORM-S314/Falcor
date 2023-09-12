@@ -25,7 +25,6 @@
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
  import Utils.Math.MathHelpers;
- import ColorSpace;
  #include "ASVGFCommon.slang"
  #include "ASVGFUtils.slang"
 
@@ -54,10 +53,6 @@ cbuffer PerImageCB
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
-    int         gMutualInfFrameNum;
-    RWBuffer<float>     gMutualInfBuffer;
-    RWTexture2D<float>  gLuminanceSumTexture;
-    RWTexture2D<float4>         gColorTest;
 };
 
 struct PS_OUT
@@ -173,9 +168,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
     }
-
-    gMutualInfBuffer[iPos.y * gScreenDimension.x + iPos.x + gMutualInfFrameNum * gScreenDimension.x * gScreenDimension.y] = currentLuminance;
-    gLuminanceSumTexture[iPos].r += currentLuminance;
 
     return psOut;
 }

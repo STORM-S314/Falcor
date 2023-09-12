@@ -49,7 +49,7 @@ const char kEstimateVarianceShader[]                = "RenderPasses/ASVGFPass/Va
 const char kAtrousShader[]                          = "RenderPasses/ASVGFPass/AtrousFullScreen.ps.slang";
 const char kCreateGradientSamplesShader[]           = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
 const char kAtrousGradientShader[]                  = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
-const char kMutualInfCalcShader[]                   = "RenderPasses/ASVGFPass/MutualInformationCalculation.cs.slang";
+const char kMutualInfCalcShader[]                   = "RenderPasses/ASVGFPass/MutualInformationCalculation.ps.slang";
 
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
@@ -121,7 +121,7 @@ Properties ASVGFPass::getProperties() const
     props[kTemporalMomentsAlpha]    = mTemporalMomentsAlpha;
     props[kDiffAtrousIterations]    = mDiffAtrousIterations;
     props[kGradientFilterRadius]    = mGradientFilterRadius;
-    props[kFramesPerMICalc]         = numFramesPerMICalc;
+    props[kFramesPerMICalc]         = mNumFramesInMICalc;
     
     //props[kNormalizeGradient] = mNormalizeGradient;
     //props[kShowAntilagAlpha] = mShowAntilagAlpha;
@@ -213,6 +213,15 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
+    mpPrevLuminanceSumTexture = Texture::create2D(mpDevice, screenWidth, screenHeight, ResourceFormat::R32Float, 1, 1, nullptr,
+        ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+    );
+
+    // Mutual inf result
+    Fbo::Desc formatMutualInfDesc;
+    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::R32Float);
+    mpMutualInfResultBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatMutualInfDesc);
+
 #if IS_DEBUG_PASS
     Fbo::Desc formatDebugFullScreenResult;
     formatDebugFullScreenResult.setSampleCount(0);
@@ -235,7 +244,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     if (IsClearBuffers)
     {
-        clearBuffers(pRenderContext, renderData);
+        resetBuffers(pRenderContext, renderData);
         IsClearBuffers = false;
     }
 
@@ -325,6 +334,23 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         }
     }
 
+    // Mutual information computation
+    {
+        auto perImageMutualInfCalcCB = mpPrgMutualInfCalc->getRootVar()["PerImageCB"];
+        perImageMutualInfCalcCB["gSourceColor"]             = pInputColorTexture;
+        perImageMutualInfCalcCB["gAlbedoColor"]             = pInputAlbedoTexture;
+        perImageMutualInfCalcCB["gEmissionColor"]           = pInputEmissionTexture;
+        perImageMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
+        perImageMutualInfCalcCB["gLuminanceSumTexture"]     = mpLuminanceSumTexture;
+        perImageMutualInfCalcCB["gPrevLuminanceSumTexture"] = mpPrevLuminanceSumTexture;
+        perImageMutualInfCalcCB["gNumFramesInMICalc"]       = mNumFramesInMICalc;
+        perImageMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
+        perImageMutualInfCalcCB["gFrameNum"]                = mFrameNumber;
+
+        mpPrgMutualInfCalc->addDefine("FRAME_COUNT_IN_MI_CALC", std::to_string(mNumFramesInMICalc), true);
+        mpPrgMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
+    }
+
     //Temporal Accumulation
     {
         auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
@@ -351,9 +377,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
         perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
         perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
-        perImageAccumulationCB["gMutualInfBuffer"]      = mpMutualInformationCalcBuffer->asBuffer();
-        perImageAccumulationCB["gMutualInfFrameNum"]    = currFrameNumNumInMICalc;
-        perImageAccumulationCB["gLuminanceSumTexture"]  = mpLuminanceSumTexture;
         
 #if IS_DEBUG_PASS
         perImageAccumulationCB["gColorTest"] = mpTestColorTexture;
@@ -377,21 +400,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 #endif
 
         mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
-    }
-
-    //Mutual information computation
-    if (currFrameNumNumInMICalc == (numFramesPerMICalc - 1))
-    {
-        auto perImageMutualInfCalcCB = mpPrgMutualInfCalc->getRootVar()["PerImageCB"];
-        perImageMutualInfCalcCB["gMutualInfBuffer"]     =   mpMutualInformationCalcBuffer->asBuffer();
-        perImageMutualInfCalcCB["gLuminanceSumTexture"] =   mpLuminanceSumTexture;
-        perImageMutualInfCalcCB["gNumFramesPerMICalc"]  =   numFramesPerMICalc;
-        perImageMutualInfCalcCB["gScreenDimension"]     =   float2(screenWidth, screenHeight);
-        
-        mpPrgMutualInfCalc->execute(pRenderContext, screenWidth, screenHeight);
-
-        pRenderContext->clearTexture(mpLuminanceSumTexture.get());
-        currFrameNumNumInMICalc = 0;
     }
 
     if (mNumIterations == 0)
@@ -446,13 +454,14 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(pInputLinearZTexture->getSRV(),        pInternalPrevLinearZTexture->getRTV());
     pRenderContext->blit(pInputNormalVectors->getSRV(),         pInternalPrevNormalsTexture->getRTV());
     pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
+    pRenderContext->blit(mpLuminanceSumTexture->getSRV(), mpPrevLuminanceSumTexture->getRTV());
 
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     mPrevFrameJitter = cameraJitter;
-    currFrameNumNumInMICalc++;
+    mFrameNumber++;
 }
 
-void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& renderData)
+void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& renderData)
 {
     pRenderContext->clearFbo(mpGradientResultPingPongBuffer[0].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpGradientResultPingPongBuffer[1].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
@@ -460,7 +469,8 @@ void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearFbo(mpAtrousFullScreenResultPingPong[1].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpPrevAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
-
+    pRenderContext->clearFbo(mpMutualInfResultBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevColorTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevAlbedoTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevEmissionTexture).get());
@@ -468,10 +478,11 @@ void ASVGFPass::clearBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevNormalsTexture).get());
     //pRenderContext->clearTexture(renderData.getTexture(kInternalPrevVisibilityBuffer).get());
 
-    currFrameNumNumInMICalc = 0;
     pRenderContext->clearTexture(mpLuminanceSumTexture.get());
+    pRenderContext->clearTexture(mpPrevLuminanceSumTexture.get());
+    
     uint2 textureDims = renderData.getDefaultTextureDims();
-    mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * numFramesPerMICalc * sizeof(float));
+    mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
 }
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
@@ -479,15 +490,16 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     pScene = a_pScene;
     auto sceneDefines = pScene->getSceneDefines();
 
-    IsClearBuffers = true;
+    mFrameNumber = 0;
+    IsClearBuffers  = true;
 
     mpPrgGradientForwardProjection  =   FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
     mpPrgAtrousGradientCalculation  =   FullScreenPass::create(mpDevice, kAtrousGradientShader, sceneDefines);
     mpPrgTemporalAccumulation       =   FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);
     mpPrgEstimateVariance           =   FullScreenPass::create(mpDevice, kEstimateVarianceShader, sceneDefines);
     mpPrgAtrousFullScreen           =   FullScreenPass::create(mpDevice, kAtrousShader, sceneDefines);
-    mpPrgMutualInfCalc              =   ComputePass::create(mpDevice, kMutualInfCalcShader, "main", sceneDefines);
-
+    mpPrgMutualInfCalc              =   FullScreenPass::create(mpDevice, kMutualInfCalcShader, sceneDefines);
+    
     #if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
     #endif IS_DEBUG_PASS
@@ -512,7 +524,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.var("Weight Phi", weightPhiColor, 0.0f, 100.0f, 1.0f);
     isDirty |= widget.var("Weight Normal", weightPhiNormal, 0.0f, 128.0f, 1.0f);
 
-    isDirty |= widget.var("Num Frames for MI Calc", numFramesPerMICalc, 300, 3000, 1);
+    isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 300, 3000, 1);
 
     if (isDirty)
     {

@@ -11,7 +11,7 @@ target_sources(ASVGFPass PRIVATE
 	TemporalAccumulation.ps.slang
 	VarianceEstimation.ps.slang
 	AtrousFullScreen.ps.slang
-	MutualInformationCalculation.cs.slang
+	MutualInformationCalculation.ps.slang
 	DebugPass.ps.slang
 )
 

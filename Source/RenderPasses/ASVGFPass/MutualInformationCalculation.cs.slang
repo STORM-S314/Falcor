@@ -31,16 +31,22 @@ cbuffer PerImageCB {
     Texture2D<float>        gLuminanceSumTexture;
     int                     gNumFramesPerMICalc;
     float2                  gScreenDimension;
+    int                     gIsBufferFull;
 };
 
-[numthreads(16, 16, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     uint2 ipos = uint2(dispatchThreadId.xy);
 
+    float binFrames[gNumFramesPerMICalc];
+    float binLuminance[gNumFramesPerMICalc];
+
     //Normalization
     for(int frameIndex = 0; frameIndex < gNumFramesPerMICalc; frameIndex++)
     {
-        gMutualInfBuffer[ipos.y * gScreenDimension.x + ipos.x + frameIndex * gScreenDimension.x * gScreenDimension.y] /= gLuminanceSumTexture[ipos];
+        int indexInBuffer = ipos.y * gScreenDimension.x + ipos.x + frameIndex * gScreenDimension.x * gScreenDimension.y;
+        gMutualInfBuffer[indexInBuffer] /= gLuminanceSumTexture[ipos];
+
+        binFrames[frameIndex] = gMutualInfBuffer[indexInBuffer];
     }
 }

@@ -57,7 +57,7 @@ public:
     virtual bool onKeyEvent(const KeyboardEvent& a_keyEvent) override { return false; }
     int gradient_res(int x);
     void allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWidth, int a_ScreenHeight);
-    void clearBuffers(RenderContext* pRenderContext, const RenderData& renderData);
+    void resetBuffers(RenderContext* pRenderContext, const RenderData& renderData);
 
     #if IS_DEBUG_PASS
     void debugPass(RenderContext* pRenderContext, const RenderData& );
@@ -78,9 +78,9 @@ private:
     int gradientDownsample      = 3;
     float weightPhiColor        = 3.0f;
     float weightPhiNormal       = 128.0f;
+    int mFrameNumber            = 0;
 
-    int numFramesPerMICalc      = 360;
-    int currFrameNumNumInMICalc = 0;
+    int mNumFramesInMICalc      = 360;
 
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};
@@ -91,17 +91,19 @@ private:
     ref<FullScreenPass> mpPrgTemporalAccumulation;
     ref<FullScreenPass> mpPrgEstimateVariance;
     ref<FullScreenPass> mpPrgAtrousFullScreen;
-    ref<ComputePass>    mpPrgMutualInfCalc;
+    ref<FullScreenPass> mpPrgMutualInfCalc;
 
     //FBOs
     ref<Fbo> mpGradientResultPingPongBuffer[2];
     ref<Fbo> mpAtrousFullScreenResultPingPong[2];
     ref<Fbo> mpAccumulationBuffer;
     ref<Fbo> mpPrevAccumulationBuffer;
+    ref<Fbo> mpMutualInfResultBuffer;
 
     //Mutual Information
     ref<Buffer> mpMutualInformationCalcBuffer;
     ref<Texture> mpLuminanceSumTexture;
+    ref<Texture> mpPrevLuminanceSumTexture;
 
     //Debug
     #if IS_DEBUG_PASS
