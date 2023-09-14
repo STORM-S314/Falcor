@@ -337,7 +337,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageMutualInfCalcCB["gEmissionColor"]           = pInputEmissionTexture;
         perImageMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
         perImageMutualInfCalcCB["gLuminanceSumTexture"]     = mpMutualInfResultBuffer->getColorTexture(1);
-        perImageMutualInfCalcCB["gNumFramesInMICalc"]       = mNumFramesInMICalc;
         perImageMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
         perImageMutualInfCalcCB["gFrameNum"]                = mFrameNumber;
         perImageMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
@@ -477,6 +476,11 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     {
         uint2 textureDims = renderData.getDefaultTextureDims();
         mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
+
+        auto sceneDefines = pScene->getSceneDefines();
+        DefineList newDefines(sceneDefines);
+        newDefines.add("BIN_COUNT", std::to_string(mNumFramesInMICalc));
+        mpPrgMutualInfCalc = FullScreenPass::create(mpDevice, kMutualInfCalcShader, newDefines);
         mFrameNumber = 0;
     }
 }
@@ -485,7 +489,7 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
 {
     pScene = a_pScene;
     auto sceneDefines = pScene->getSceneDefines();
-
+    
     IsClearBuffers  = true;
 
     mpPrgGradientForwardProjection  =   FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
@@ -493,7 +497,8 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     mpPrgTemporalAccumulation       =   FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);
     mpPrgEstimateVariance           =   FullScreenPass::create(mpDevice, kEstimateVarianceShader, sceneDefines);
     mpPrgAtrousFullScreen           =   FullScreenPass::create(mpDevice, kAtrousShader, sceneDefines);
-    mpPrgMutualInfCalc              =   FullScreenPass::create(mpDevice, kMutualInfCalcShader, sceneDefines);
+    //mpPrgMutualInfCalc              =   FullScreenPass::create(mpDevice, kMutualInfCalcShader, sceneDefines);
+
     
     #if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);

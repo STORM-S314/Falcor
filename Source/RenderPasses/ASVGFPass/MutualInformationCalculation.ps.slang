@@ -33,7 +33,6 @@ cbuffer PerImageCB {
     Texture2D               gEmissionColor;
     RWBuffer<float>         gMutualInfBuffer;
     Texture2D<float>        gLuminanceSumTexture;
-    int                     gNumFramesInMICalc;
     float2                  gScreenDimension;
     int                     gFrameNum;
     int                     gTotalPixelsInFrame;
@@ -58,24 +57,24 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     int2 iPos = int2(vsOut.posH.xy);
     PS_OUT psOut;
 
-    float binLuminance[60];
-    float binFrames[60]   ;
+    float binLuminance[BIN_COUNT];
+    float binFrames[BIN_COUNT]   ;
 
-    for(int frameIndex = 0; frameIndex < gNumFramesInMICalc; frameIndex++)
+    for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
     {
         binLuminance[frameIndex] = 0.0;
     }
 
     float currentLuminance =    luminance(getIllumination(gSourceColor[iPos].rgb, gAlbedoColor[iPos].rgb, gEmissionColor[iPos].rgb));
 
-    int bufferFrameIdx = gFrameNum % gNumFramesInMICalc;
+    int bufferFrameIdx = gFrameNum % BIN_COUNT;
     int pixelIndexInFrame = iPos.y * gScreenDimension.x + iPos.x;
     int bufferPixelValueIndex = pixelIndexInFrame + bufferFrameIdx * gTotalPixelsInFrame;
 
     float totalSumLuminance = gLuminanceSumTexture[iPos];
 
     //If frames are greater or equal than required to calculate the MI.
-    if(gFrameNum >= gNumFramesInMICalc)
+    if(gFrameNum >= BIN_COUNT)
     {
         totalSumLuminance -= gMutualInfBuffer[bufferPixelValueIndex];
     }
@@ -85,18 +84,18 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float mutualInf = 0.0;
 
     //1st time the buffer is completely filled up
-    if(gFrameNum >= (gNumFramesInMICalc - 1))
+    if(gFrameNum >= (BIN_COUNT - 1))
     {
-        for(int frameIndex = 0; frameIndex < gNumFramesInMICalc; frameIndex++)
+        for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
         {
             int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
             
             float bufferPixelLuminance  =   gMutualInfBuffer[indexInBuffer].r;
             binFrames[frameIndex] =  bufferPixelLuminance / totalSumLuminance;
-            binLuminance[getLuminanceBuckedID(bufferPixelLuminance, gNumFramesInMICalc)] += bufferPixelLuminance;
+            binLuminance[getLuminanceBuckedID(bufferPixelLuminance, BIN_COUNT)] += bufferPixelLuminance;
         }
 
-        for (int binIdx = 0; binIdx < gNumFramesInMICalc; binIdx++)
+        for (int binIdx = 0; binIdx < BIN_COUNT; binIdx++)
         {
             float p_x = binFrames[binIdx];
             float p_y = binLuminance[binIdx];
