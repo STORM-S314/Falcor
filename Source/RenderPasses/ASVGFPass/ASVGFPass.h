@@ -80,7 +80,7 @@ private:
     float weightPhiNormal       = 128.0f;
     bool mUseMutualInformation  = false;
     int mFrameNumber            = 0;
-    int mNumFramesInMICalc      = 360;
+    int mNumFramesInMICalc      = 60;
 
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};
@@ -102,8 +102,6 @@ private:
 
     //Mutual Information
     ref<Buffer> mpMutualInformationCalcBuffer;
-    ref<Texture> mpLuminanceSumTexture;
-    ref<Texture> mpPrevLuminanceSumTexture;
 
     //Debug
     #if IS_DEBUG_PASS
