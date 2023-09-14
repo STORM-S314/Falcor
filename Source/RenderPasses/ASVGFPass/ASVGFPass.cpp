@@ -66,6 +66,7 @@ const char kTemporalMomentsAlpha[]  = "TemporalMomentsAlpha";
 const char kDiffAtrousIterations[]  = "DiffAtrousIterations";
 const char kGradientFilterRadius[]  = "GradientFilterRadius";
 const char kFramesPerMICalc[]       = "FramesPerMICalc";
+const char kUseMutualInfCalc[]      = "UseMutualInfCalc";
 const char kNormalizeGradient[]     = "NormalizeGradient";
 const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
 
@@ -122,6 +123,7 @@ Properties ASVGFPass::getProperties() const
     props[kDiffAtrousIterations]    = mDiffAtrousIterations;
     props[kGradientFilterRadius]    = mGradientFilterRadius;
     props[kFramesPerMICalc]         = mNumFramesInMICalc;
+    props[kUseMutualInfCalc]        = mUseMutualInformation;
     
     //props[kNormalizeGradient] = mNormalizeGradient;
     //props[kShowAntilagAlpha] = mShowAntilagAlpha;
@@ -219,7 +221,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Mutual inf result
     Fbo::Desc formatMutualInfDesc;
-    formatAtrousFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::R32Float);
+    formatMutualInfDesc.setColorTarget(0, Falcor::ResourceFormat::R32Float);
     mpMutualInfResultBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatMutualInfDesc);
 
 #if IS_DEBUG_PASS
@@ -335,6 +337,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     }
 
     // Mutual information computation
+    if (mUseMutualInformation)
     {
         auto perImageMutualInfCalcCB = mpPrgMutualInfCalc->getRootVar()["PerImageCB"];
         perImageMutualInfCalcCB["gSourceColor"]             = pInputColorTexture;
@@ -346,8 +349,9 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageMutualInfCalcCB["gNumFramesInMICalc"]       = mNumFramesInMICalc;
         perImageMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
         perImageMutualInfCalcCB["gFrameNum"]                = mFrameNumber;
-
-        mpPrgMutualInfCalc->addDefine("FRAME_COUNT_IN_MI_CALC", std::to_string(mNumFramesInMICalc), true);
+        #if IS_DEBUG_PASS
+            perImageMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
+        #endif
         mpPrgMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
     }
 
@@ -480,9 +484,13 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 
     pRenderContext->clearTexture(mpLuminanceSumTexture.get());
     pRenderContext->clearTexture(mpPrevLuminanceSumTexture.get());
-    
-    uint2 textureDims = renderData.getDefaultTextureDims();
-    mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
+
+    if (mUseMutualInformation)
+    {
+        uint2 textureDims = renderData.getDefaultTextureDims();
+        mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
+        mFrameNumber = 0;
+    }
 }
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
@@ -490,7 +498,6 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     pScene = a_pScene;
     auto sceneDefines = pScene->getSceneDefines();
 
-    mFrameNumber = 0;
     IsClearBuffers  = true;
 
     mpPrgGradientForwardProjection  =   FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
@@ -524,7 +531,11 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.var("Weight Phi", weightPhiColor, 0.0f, 100.0f, 1.0f);
     isDirty |= widget.var("Weight Normal", weightPhiNormal, 0.0f, 128.0f, 1.0f);
 
-    isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 300, 3000, 1);
+    isDirty |= widget.checkbox("Use Mutual Information", mUseMutualInformation);
+    if (mUseMutualInformation)
+    {
+        isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 300, 3000, 1);
+    }
 
     if (isDirty)
     {

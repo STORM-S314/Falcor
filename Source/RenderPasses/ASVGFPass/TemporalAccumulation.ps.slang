@@ -53,6 +53,7 @@ cbuffer PerImageCB
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
+    RWTexture2D<float4>     gColorTest;
 };
 
 struct PS_OUT
@@ -168,6 +169,5 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
     }
-
     return psOut;
 }

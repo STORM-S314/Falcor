@@ -37,9 +37,8 @@ cbuffer PerImageCB {
     int                     gNumFramesInMICalc;
     float2                  gScreenDimension;
     int                     gFrameNum;
+    RWTexture2D<float4>     gColorTest;
 };
-
-
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be withing 0.0 and 1.0
@@ -51,7 +50,6 @@ int getLuminanceBuckedID(float luminance, int luminanceBcketCount)
 float main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
     int2 iPos = int2(vsOut.posH.xy);
-    float resultOut = 0.0;
 
     float binLuminance[360];
     for(int frameIndex = 0; frameIndex < gNumFramesInMICalc; frameIndex++)
@@ -108,12 +106,32 @@ float main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 
     //Calculate MI
+    float mutualInf = 0.0;
     if(gFrameNum >= (gNumFramesInMICalc - 1))
     {
+        for (int binIdx = 0; binIdx < gNumFramesInMICalc; binIdx++)
+        {
+            //int bufferPixelValueIndex = iPos.y * gScreenDimension.x + iPos.x + bufferFrameIdx * gScreenDimension.x * gScreenDimension.y;
+            //float p_x = gMutualInfBuffer[bufferPixelValueIndex];
+            float p_y = binLuminance[binIdx];
+            //float p_xy = gMutualInfBuffer[bufferPixelValueIndex];
+            //mutualInf -= p_x * log(p_x);
+            mutualInf -= p_y * log(p_y);
+            //mutualInf += p_xy * log(p_xy);
+        }
         
+        //for (int binIdx0 = 0; binIdx0 < numBins; binIdx0++)
+        //{
+        //    for (int binIdx1 = 0; binIdx1 < numBins; binIdx1++)
+        //    {
+        //        float p_xy = histogram2d[binIdx0 * numBins + binIdx1];
+        //        if (p_xy > EPSILON_2D)
+        //        {
+        //            mutualInf += p_xy * log(p_xy);
+        //        }
+        //    }
+        //}
     }
-
-    
-
-    return resultOut;
+    gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+    return mutualInf;
 }

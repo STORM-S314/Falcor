@@ -78,8 +78,8 @@ private:
     int gradientDownsample      = 3;
     float weightPhiColor        = 3.0f;
     float weightPhiNormal       = 128.0f;
+    bool mUseMutualInformation  = false;
     int mFrameNumber            = 0;
-
     int mNumFramesInMICalc      = 360;
 
     //Params frame
