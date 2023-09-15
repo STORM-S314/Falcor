@@ -372,6 +372,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
         perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
         perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
+        perImageAccumulationCB["gIsUseMutualInf"] = mUseMutualInformation && mFrameNumber >= (mNumFramesInMICalc - 1);
+        perImageAccumulationCB["gMutualInfTexture"] = mpMutualInfResultBuffer->getColorTexture(1);
         
 #if IS_DEBUG_PASS
         perImageAccumulationCB["gColorTest"] = mpTestColorTexture;

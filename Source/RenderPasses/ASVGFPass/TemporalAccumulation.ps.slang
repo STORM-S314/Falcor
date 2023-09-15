@@ -53,6 +53,8 @@ cbuffer PerImageCB
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
+    bool        gIsUseMutualInf;
+    Texture2D<float>    gMutualInfTexture;
     RWTexture2D<float4>     gColorTest;
 };
 
@@ -143,15 +145,19 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		antilagAlpha = 1.0;
     }
 
-    float alphaColor = 0;
     if(weightedSum > 0.01) { /* found sufficiently reliable history information */
 
 		weightedColorPrev   /= weightedSum;
 		weightedMomentsPrev /= weightedSum;
 		histLen             /= weightedSum;
 
-        alphaColor   = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
+        float alphaColor = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
 	    float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));               //histLen max used is 1.66
+
+        if(gIsUseMutualInf)
+        {
+            antilagAlpha = gMutualInfTexture[iPos];
+        }
 
         //Equation 15 as per the paper
 	    alphaColor   = lerp(alphaColor,   1.0, antilagAlpha);

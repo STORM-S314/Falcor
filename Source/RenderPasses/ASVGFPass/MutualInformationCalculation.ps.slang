@@ -40,7 +40,7 @@ cbuffer PerImageCB {
 };
 
 //Calculates the Luminance bucket id where the luminance would go into
-//Assuming luminance would always be withing 0.0 and 1.0
+//Assuming luminance would always be within 0.0 and 1.0
 int getLuminanceBuckedID(float luminance, int luminanceBcketCount)
 {
     return int(luminance * float(luminanceBcketCount));
@@ -91,8 +91,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
             
             float bufferPixelLuminance  =   gMutualInfBuffer[indexInBuffer].r;
-            binFrames[frameIndex] =  bufferPixelLuminance / totalSumLuminance;
-            binLuminance[getLuminanceBuckedID(bufferPixelLuminance, BIN_COUNT)] += bufferPixelLuminance;
+            float pixelLuminanceProbability  = bufferPixelLuminance / totalSumLuminance;
+            binFrames[frameIndex] =  pixelLuminanceProbability;
+            binLuminance[getLuminanceBuckedID(bufferPixelLuminance, BIN_COUNT)] += pixelLuminanceProbability;
         }
 
         for (int binIdx = 0; binIdx < BIN_COUNT; binIdx++)
@@ -100,9 +101,21 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             float p_x = binFrames[binIdx];
             float p_y = binLuminance[binIdx];
             float p_xy = binFrames[binIdx];
-            mutualInf -= p_x * log(p_x);
-            mutualInf -= p_y * log(p_y);
-            mutualInf += p_xy * log(p_xy);
+
+            if(p_x > 1e-8)
+            {
+                mutualInf -= p_x * log(p_x);
+            }
+
+            if(p_y > 1e-8)
+            {
+                mutualInf -= p_y * log(p_y);
+            }
+
+            if(p_xy > 1e-8)
+            {
+                mutualInf += p_xy * log(p_xy);
+            }
         }
     }
 
