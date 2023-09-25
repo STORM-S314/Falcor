@@ -159,6 +159,8 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
         return;
     }
 
+
+
     ref<Texture> pInputWorldNormalTexture       = renderData.getTexture(kInputBufferWorldNormal);
     ref<Texture> pInputLinearZTexture           = renderData.getTexture(kInputBufferLinearZ);
     ref<Texture> pInputVisibilityBuffer         = renderData.getTexture(kInputVisibilityBuffer);
@@ -207,7 +209,7 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     perImageGradForwardProjCB["gPositionNormalFwidth"]          = pInputPosNormalFWidthBuffer;
     perImageGradForwardProjCB["gWViewBuffer"]                   = mpWViewBufferTexture;
     perImageGradForwardProjCB["gPrevWViewBuffer"]               = pInternalPrevWViewBuffer;
-    perImageGradForwardProjCB["gViewProjMat"]                   = m_pScene->getCamera()->getViewProjMatrixNoJitter();
+    perImageGradForwardProjCB["gViewProjMat"]                   = m_pScene->getCamera()->getViewProjMatrix();
     perImageGradForwardProjCB["gTextureWidth"]                  = screenWidth;
     perImageGradForwardProjCB["gTextureHeight"]                 = screenHeight;
     perImageGradForwardProjCB["gGradientDownsample"]            = gradientDownsample;

@@ -39,6 +39,8 @@ cbuffer PerImageCB
 	int 		gStepSize;
 	int 		gIsModulateAlbedo;
     int2        gScreenDimension;
+    bool        gIsUseMutualInf;
+    Texture2D<float>    gMutualInfTexture;
     RWTexture2D<float4>         gColorTest;
 };
 
@@ -104,7 +106,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     const float3 nCenter = gNormalsTexture[ipos].xyz;
 
-    const float phiLIllumination   = gPhiColor * sqrt(max(0.0, epsVariance + var.r));
+    const float phiLIllumination   = gPhiColor * (gIsUseMutualInf ? (1.0 / (epsVariance + gMutualInfTexture[ipos])) : sqrt(max(0.0, epsVariance + var.r)));
     const float phiDepth     = max(zCenter.y, 1e-8);
 
     float sumWIllumination   = 1.0;

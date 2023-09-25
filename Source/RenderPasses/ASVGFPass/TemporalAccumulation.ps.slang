@@ -53,8 +53,6 @@ cbuffer PerImageCB
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
-    bool        gIsUseMutualInf;
-    Texture2D<float>    gMutualInfTexture;
     RWTexture2D<float4>     gColorTest;
 };
 
@@ -134,8 +132,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	for(int yy = -r; yy <= r; yy++) {
 		for(int xx = -r; xx <= r; xx++) {
 			float4 gradientDifference = gGradientDifferenceTexture[(iPos / int2(gGradientDownsample, gGradientDownsample)) + int2(xx, yy)];
-			float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 200.0);
-			antilagAlpha = max(antilagAlpha, differenceProportion);
+            if(gradientDifference.b > 0.0)
+            {
+			    float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 1.0);
+			    antilagAlpha = max(antilagAlpha, differenceProportion);
+            }
 		}
 	}
 
@@ -153,11 +154,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
         float alphaColor = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
 	    float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));               //histLen max used is 1.66
-
-        if(gIsUseMutualInf)
-        {
-            antilagAlpha = gMutualInfTexture[iPos];
-        }
 
         //Equation 15 as per the paper
 	    alphaColor   = lerp(alphaColor,   1.0, antilagAlpha);

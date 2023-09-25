@@ -41,9 +41,9 @@ cbuffer PerImageCB {
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
-int getLuminanceBuckedID(float luminance, int luminanceBcketCount)
+int getLuminanceBuckedID(float luminanceP, int luminanceBcketCount)
 {
-    return int(luminance * float(luminanceBcketCount));
+    return int((luminanceP / (0.299 + 0.587 + 0.114)) * float(luminanceBcketCount - 1));
 }
 
 struct PS_OUT
@@ -102,26 +102,32 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             float p_y = binLuminance[binIdx];
             float p_xy = binFrames[binIdx];
 
-            if(p_x > 1e-8)
+            if(p_x > 0.0)
             {
-                mutualInf -= p_x * log(p_x);
+                float result = p_x * log(p_x);
+                if(isnan(result)){result = 0.0;}
+                mutualInf -= result;
             }
 
-            if(p_y > 1e-8)
+            if(p_y > 0.0)
             {
-                mutualInf -= p_y * log(p_y);
+                float result = p_y * log(p_y);
+                if(isnan(result)){result = 0.0;}
+                mutualInf -= result;
             }
 
-            if(p_xy > 1e-8)
+            if(p_xy > 0.0)
             {
-                mutualInf += p_xy * log(p_xy);
+                float result = p_xy * log(p_xy);
+                if(isnan(result)){result = 0.0;}
+                mutualInf += result;
             }
         }
     }
 
-    //gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+    //gColorTest[iPos] = float4(0.0, abs(mutualInf), 0.0, 1.0);
 
     psOut.sumLuminance  =   totalSumLuminance;
-    psOut.mutualInfVal  =   mutualInf;
+    psOut.mutualInfVal  =   abs(mutualInf);
     return psOut;
 }

@@ -145,7 +145,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                 {
                     sumWIllumination        +=  wIllumination;
                     sumGradientDifference   +=  wIllumination.xxxx * currentGradientDifferenceP;
-                    //sumWGradientDifference  +=  currentGradientDifferenceP.b == 1.0 ? wIllumination : 0.0;
                     sumVariance             +=  wIllumination * wIllumination * varianceP;
                     sumLuminance            +=  wIllumination * luminanceP;
                 }
