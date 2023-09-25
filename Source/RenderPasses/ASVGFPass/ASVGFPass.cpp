@@ -212,8 +212,8 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Mutual inf result
     Fbo::Desc formatMutualInfDesc;
-    formatMutualInfDesc.setColorTarget(0, Falcor::ResourceFormat::R32Float);
-    formatMutualInfDesc.setColorTarget(1, Falcor::ResourceFormat::R32Float);
+    formatMutualInfDesc.setColorTarget(0, Falcor::ResourceFormat::R32Float);    //Luminance Sum
+    formatMutualInfDesc.setColorTarget(1, Falcor::ResourceFormat::R32Float);    //Mutual Information
     mpMutualInfResultBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatMutualInfDesc);
 
 #if IS_DEBUG_PASS
@@ -336,7 +336,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageMutualInfCalcCB["gAlbedoColor"]             = pInputAlbedoTexture;
         perImageMutualInfCalcCB["gEmissionColor"]           = pInputEmissionTexture;
         perImageMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
-        perImageMutualInfCalcCB["gLuminanceSumTexture"]     = mpMutualInfResultBuffer->getColorTexture(1);
+        perImageMutualInfCalcCB["gLuminanceSumTexture"]     = mpMutualInfResultBuffer->getColorTexture(0);
         perImageMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
         perImageMutualInfCalcCB["gFrameNum"]                = mFrameNumber;
         perImageMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
@@ -372,8 +372,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
         perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
         perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
-        perImageAccumulationCB["gIsUseMutualInf"] = mUseMutualInformation && mFrameNumber >= (mNumFramesInMICalc - 1);
-        perImageAccumulationCB["gMutualInfTexture"] = mpMutualInfResultBuffer->getColorTexture(1);
         
 #if IS_DEBUG_PASS
         perImageAccumulationCB["gColorTest"] = mpTestColorTexture;
@@ -414,6 +412,11 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gPhiColor"] = weightPhiColor;
         perImageAtrousFullScreenCB["gPhiNormal"] = weightPhiNormal;
         perImageAtrousFullScreenCB["gScreenDimension"] = int2(screenWidth, screenHeight);
+        perImageAtrousFullScreenCB["gIsUseMutualInf"] = mUseMutualInformation && mFrameNumber >= (mNumFramesInMICalc - 1);
+        perImageAtrousFullScreenCB["gMutualInfTexture"] = mpMutualInfResultBuffer->getColorTexture(1);
+#if IS_DEBUG_PASS
+        perImageAtrousFullScreenCB["gColorTest"] = mpTestColorTexture;
+#endif
 
         for (int i = 0; i < mNumIterations; i++)
         {
@@ -478,7 +481,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     {
         uint2 textureDims = renderData.getDefaultTextureDims();
         mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
-
+        
         auto sceneDefines = pScene->getSceneDefines();
         DefineList newDefines(sceneDefines);
         newDefines.add("BIN_COUNT", std::to_string(mNumFramesInMICalc));
@@ -529,7 +532,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.checkbox("Use Mutual Information", mUseMutualInformation);
     if (mUseMutualInformation)
     {
-        isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 20, 3000, 1);
+        isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);
     }
 
     if (isDirty)
