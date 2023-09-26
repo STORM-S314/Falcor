@@ -36,7 +36,9 @@ cbuffer PerImageCB {
     float2                  gScreenDimension;
     int                     gFrameNum;
     int                     gTotalPixelsInFrame;
-    RWTexture2D<float4>     gColorTest;
+#if IS_DEBUG_PASS
+    RWTexture2D<float4>         gColorTest;
+#endif
 };
 
 //Calculates the Luminance bucket id where the luminance would go into
@@ -125,7 +127,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         }
     }
 
-    //gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+#if IS_DEBUG_PASS
+    gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+#endif
 
     psOut.sumLuminance  =   totalSumLuminance;
     psOut.mutualInfVal  =   mutualInf > 0.0 ? mutualInf : 0.0;

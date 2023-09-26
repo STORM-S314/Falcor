@@ -485,6 +485,10 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         auto sceneDefines = pScene->getSceneDefines();
         DefineList newDefines(sceneDefines);
         newDefines.add("BIN_COUNT", std::to_string(mNumFramesInMICalc));
+    #if IS_DEBUG_PASS
+            newDefines.add("IS_DEBUG_PASS", std::to_string(1));
+    #endif IS_DEBUG_PASS
+
         mpPrgMutualInfCalc = FullScreenPass::create(mpDevice, kMutualInfCalcShader, newDefines);
         mFrameNumber = 0;
     }
@@ -493,21 +497,26 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
 {
     pScene = a_pScene;
-    auto sceneDefines = pScene->getSceneDefines();
-    
     IsClearBuffers  = true;
 
-    mpPrgGradientForwardProjection  =   FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, sceneDefines);
-    mpPrgAtrousGradientCalculation  =   FullScreenPass::create(mpDevice, kAtrousGradientShader, sceneDefines);
-    mpPrgTemporalAccumulation       =   FullScreenPass::create(mpDevice, kTemporalAccumulationShader, sceneDefines);
-    mpPrgEstimateVariance           =   FullScreenPass::create(mpDevice, kEstimateVarianceShader, sceneDefines);
-    mpPrgAtrousFullScreen           =   FullScreenPass::create(mpDevice, kAtrousShader, sceneDefines);
-    //mpPrgMutualInfCalc              =   FullScreenPass::create(mpDevice, kMutualInfCalcShader, sceneDefines);
+    auto sceneDefines = pScene->getSceneDefines();
+    
+    DefineList newDefines(sceneDefines);
+#if IS_DEBUG_PASS
+    newDefines.add("IS_DEBUG_PASS", std::to_string(1));
+#endif IS_DEBUG_PASS
+
+    mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, newDefines);
+    mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader, newDefines);
+    mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, newDefines);
+    mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader, newDefines);
+    mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader, newDefines);
+    //mpPrgMutualInfCalc              =   FullScreenPass::create(mpDevice, kMutualInfCalcShader, newDefines);
 
     
-    #if IS_DEBUG_PASS
+#if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
-    #endif IS_DEBUG_PASS
+#endif IS_DEBUG_PASS
 }
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)

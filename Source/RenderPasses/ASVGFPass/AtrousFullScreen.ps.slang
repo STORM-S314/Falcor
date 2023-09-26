@@ -41,7 +41,9 @@ cbuffer PerImageCB
     int2        gScreenDimension;
     bool        gIsUseMutualInf;
     Texture2D<float>    gMutualInfTexture;
+#if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
+#endif
 };
 
 float computeWeight(

@@ -34,7 +34,9 @@ cbuffer PerImageCB
     int         gStepSize;
     int         gGradientDownsample;
     float2      gGradientResDimensions;
+#if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
+#endif
 };
 
 struct PS_OUT

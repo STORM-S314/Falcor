@@ -35,7 +35,9 @@ cbuffer PerImageCB
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
+#if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
+#endif
 };
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0

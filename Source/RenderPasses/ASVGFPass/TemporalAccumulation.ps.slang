@@ -53,7 +53,9 @@ cbuffer PerImageCB
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     float       gGradientFilterRadius;
-    RWTexture2D<float4>     gColorTest;
+#if IS_DEBUG_PASS
+    RWTexture2D<float4>         gColorTest;
+#endif
 };
 
 struct PS_OUT
