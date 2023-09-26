@@ -80,7 +80,7 @@ private:
     float weightPhiNormal       = 128.0f;
     bool mUseMutualInformation  = false;
     int mFrameNumber            = 0;
-    int mNumFramesInMICalc      = 60;
+    int mNumFramesInMICalc      = 5;
 
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};

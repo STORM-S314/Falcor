@@ -106,7 +106,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     const float3 nCenter = gNormalsTexture[ipos].xyz;
 
-    const float phiLIllumination   = gPhiColor * (gIsUseMutualInf ? (1.0 / (epsVariance + gMutualInfTexture[ipos])) : sqrt(max(0.0, epsVariance + var.r)));
+    const float phiLIllumination   = gPhiColor * (gIsUseMutualInf ? (1.0 / (epsVariance + gMutualInfTexture[ipos] * gStepSize * gStepSize)) : sqrt(max(0.0, epsVariance + var.r)));
     const float phiDepth     = max(zCenter.y, 1e-8);
 
     float sumWIllumination   = 1.0;
@@ -139,12 +139,12 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
                 // alpha channel contains the variance, therefore the weights need to be squared, see paper for the formula
                 sumWIllumination  += wIllumination;
-                sumIllumination   += float4(wIllumination.xxx, wIllumination * wIllumination) * illuminationP;
+                sumIllumination   += float4(wIllumination.xxx, gIsUseMutualInf ? wIllumination : wIllumination * wIllumination) * illuminationP;
             }
         }
     }
 
-    float4 filteredIllumination = float4(sumIllumination / float4(sumWIllumination.xxx, sumWIllumination * sumWIllumination));
+    float4 filteredIllumination = float4(sumIllumination / float4(sumWIllumination.xxx, gIsUseMutualInf ? sumWIllumination : sumWIllumination * sumWIllumination));
 
     if(gIsModulateAlbedo == 1)
     {

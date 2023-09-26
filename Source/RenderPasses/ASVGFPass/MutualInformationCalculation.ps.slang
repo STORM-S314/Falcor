@@ -100,7 +100,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         {
             float p_x = binFrames[binIdx];
             float p_y = binLuminance[binIdx];
-            float p_xy = binFrames[binIdx];
+            float p_xy = p_x * p_y;
 
             if(p_x > 0.0)
             {
@@ -125,9 +125,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         }
     }
 
-    //gColorTest[iPos] = float4(0.0, abs(mutualInf), 0.0, 1.0);
+    //gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
 
     psOut.sumLuminance  =   totalSumLuminance;
-    psOut.mutualInfVal  =   abs(mutualInf);
+    psOut.mutualInfVal  =   mutualInf > 0.0 ? mutualInf : 0.0;
     return psOut;
 }
