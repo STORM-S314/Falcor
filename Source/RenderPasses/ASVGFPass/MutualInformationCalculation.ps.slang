@@ -43,9 +43,9 @@ cbuffer PerImageCB {
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
-int getLuminanceBuckedID(float luminanceP, int luminanceBcketCount)
+int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
 {
-    return int((luminanceP / (0.299 + 0.587 + 0.114)) * float(luminanceBcketCount - 1));
+    return int((luminanceP / (0.299 + 0.587 + 0.114)) * float(luminanceBucketCount - 1));
 }
 
 struct PS_OUT
@@ -132,6 +132,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 #endif
 
     psOut.sumLuminance  =   totalSumLuminance;
-    psOut.mutualInfVal  =   isnan(mutualInf) ? 0.0 : saturate(mutualInf);
+    psOut.mutualInfVal  =   saturate(mutualInf);
     return psOut;
 }

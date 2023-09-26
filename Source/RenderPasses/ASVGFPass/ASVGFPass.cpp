@@ -485,9 +485,11 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         auto sceneDefines = pScene->getSceneDefines();
         DefineList newDefines(sceneDefines);
         newDefines.add("BIN_COUNT", std::to_string(mNumFramesInMICalc));
-    #if IS_DEBUG_PASS
-            newDefines.add("IS_DEBUG_PASS", std::to_string(1));
-    #endif IS_DEBUG_PASS
+#if IS_DEBUG_PASS
+    newDefines.add("IS_DEBUG_PASS", std::to_string(1));
+#else
+    newDefines.add("IS_DEBUG_PASS", std::to_string(0));
+#endif IS_DEBUG_PASS
 
         mpPrgMutualInfCalc = FullScreenPass::create(mpDevice, kMutualInfCalcShader, newDefines);
         mFrameNumber = 0;
@@ -504,6 +506,8 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     DefineList newDefines(sceneDefines);
 #if IS_DEBUG_PASS
     newDefines.add("IS_DEBUG_PASS", std::to_string(1));
+#else
+    newDefines.add("IS_DEBUG_PASS", std::to_string(0));
 #endif IS_DEBUG_PASS
 
     mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, newDefines);
