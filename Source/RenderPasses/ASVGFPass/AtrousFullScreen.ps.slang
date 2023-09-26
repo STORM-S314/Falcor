@@ -97,7 +97,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float4 illuminationCenter = gColorAndVariance[ipos].rgba;
     const float lIlluminationCenter = luminance(illuminationCenter.rgb);
 
-    const float var = computeVarianceCenter(ipos);
+    //const float var = computeVarianceCenter(ipos);
 
     const float2 zCenter = gLinearZTexture[ipos].xy;
     if (zCenter.x < 0.0)
@@ -108,7 +108,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     const float3 nCenter = gNormalsTexture[ipos].xyz;
 
-    const float phiLIllumination   = gPhiColor * (gIsUseMutualInf ? (1.0 / (epsVariance + gMutualInfTexture[ipos] * gStepSize * gStepSize)) : sqrt(max(0.0, epsVariance + var.r)));
+    const float phiLIllumination   = gPhiColor * (gIsUseMutualInf ? (1.0 / (gMutualInfTexture[ipos] * gStepSize * gStepSize)) : sqrt(max(0.0, epsVariance + computeVarianceCenter(ipos))));
     const float phiDepth     = max(zCenter.y, 1e-8);
 
     float sumWIllumination   = 1.0;

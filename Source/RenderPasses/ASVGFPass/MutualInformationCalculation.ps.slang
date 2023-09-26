@@ -132,6 +132,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 #endif
 
     psOut.sumLuminance  =   totalSumLuminance;
-    psOut.mutualInfVal  =   mutualInf > 0.0 ? mutualInf : 0.0;
+    psOut.mutualInfVal  =   isnan(mutualInf) ? 0.0 : saturate(mutualInf);
     return psOut;
 }
