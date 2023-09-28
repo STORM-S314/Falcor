@@ -98,12 +98,10 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             binLuminance[getLuminanceBuckedID(bufferPixelLuminance, BIN_COUNT)] += pixelLuminanceProbability;
         }
 
-        for (int binIdx = 0; binIdx < BIN_COUNT; binIdx++)
+        for (int binIdx0 = 0; binIdx0 < BIN_COUNT; binIdx0++)
         {
-            float p_x = binFrames[binIdx];
-            float p_y = binLuminance[binIdx];
-            float p_xy = p_x * p_y;
-
+            float p_x = binFrames[binIdx0];
+            float p_y = binLuminance[binIdx0];
             if(p_x > 0.0)
             {
                 float result = p_x * log(p_x);
@@ -118,11 +116,15 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                 mutualInf -= result;
             }
 
-            if(p_xy > 0.0)
+            for (int binIdx1 = 0; binIdx1 < BIN_COUNT; binIdx1++)
             {
-                float result = p_xy * log(p_xy);
-                if(isnan(result)){result = 0.0;}
-                mutualInf += result;
+                float p_xy = p_x * binLuminance[binIdx1];
+                if(p_xy > 0.0)
+                {
+                    float result = p_xy * log(p_xy);
+                    if(isnan(result)){result = 0.0;}
+                    mutualInf += result;
+                }
             }
         }
     }

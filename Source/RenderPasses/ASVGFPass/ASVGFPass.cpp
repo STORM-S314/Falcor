@@ -93,7 +93,6 @@ const char kInternalPrevVisibilityBuffer[]  = "PrevVisBuffer";
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
 
-
 ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
@@ -106,8 +105,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kTemporalMomentsAlpha)  mTemporalMomentsAlpha = value;
         else if (key == kDiffAtrousIterations)  mDiffAtrousIterations = value;
         else if (key == kGradientFilterRadius)  mGradientFilterRadius = value;
-        //else if (key == kNormalizeGradient)     mNormalizeGradient = value;
-        //else if (key == kShowAntilagAlpha)      mShowAntilagAlpha = value;
+        
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 }
@@ -124,9 +122,6 @@ Properties ASVGFPass::getProperties() const
     props[kGradientFilterRadius]    = mGradientFilterRadius;
     props[kFramesPerMICalc]         = mNumFramesInMICalc;
     props[kUseMutualInfCalc]        = mUseMutualInformation;
-    
-    //props[kNormalizeGradient] = mNormalizeGradient;
-    //props[kShowAntilagAlpha] = mShowAntilagAlpha;
     return props;
 }
 
@@ -270,7 +265,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         mpAccumulationBuffer->getWidth() == screenWidth &&
         mpAccumulationBuffer->getHeight() == screenHeight
     );
-
 
     float gradResWidth = gradient_res(screenWidth);
     float gradResHeight = gradient_res(screenHeight);
@@ -446,7 +440,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
     #endif
 
-
     // Swap buffers for next frame}
     pRenderContext->blit(pInputColorTexture->getSRV(),          pInternalPrevColorTexture->getRTV());
     pRenderContext->blit(pInputAlbedoTexture->getSRV(),         pInternalPrevAlbedoTexture->getRTV());
@@ -502,8 +495,8 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     IsClearBuffers  = true;
 
     auto sceneDefines = pScene->getSceneDefines();
-    
     DefineList newDefines(sceneDefines);
+
 #if IS_DEBUG_PASS
     newDefines.add("IS_DEBUG_PASS", std::to_string(1));
 #else
@@ -515,8 +508,6 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, newDefines);
     mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader, newDefines);
     mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader, newDefines);
-    //mpPrgMutualInfCalc              =   FullScreenPass::create(mpDevice, kMutualInfCalcShader, newDefines);
-
     
 #if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
@@ -530,12 +521,6 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.var("# Iterations", mNumIterations, 0, 16, 1);
     isDirty |= widget.var("History Tap", mHistoryTap, -1, 16, 1);
 
-   /* Falcor::Gui::DropdownList filterKernels{
-        {0, "A-Trous"}, {1, "Box 3x3"}, {2, "Box 5x5"}, {3, "Sparse"}, {4, "Box3x3 / Sparse"}, {5, "Box5x5 / Sparse"},
-    };
-    isDirty |= widget.dropdown("Kernel", filterKernels, mFilterKernel);*/
-
-    //widget.checkbox("Show Antilag Alpha", mShowAntilagAlpha);
     isDirty |= widget.var("# Diff Iterations", mDiffAtrousIterations, 0, 16, 1);
     isDirty |= widget.var("Gradient Filter Radius", mGradientFilterRadius, 0, 16, 1);
 
