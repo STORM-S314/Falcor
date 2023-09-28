@@ -41,11 +41,13 @@ cbuffer PerImageCB {
 #endif
 };
 
+static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
+
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
 int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
 {
-    return int((luminanceP / (0.299 + 0.587 + 0.114)) * float(luminanceBucketCount - 1));
+    return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
 }
 
 struct PS_OUT
