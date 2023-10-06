@@ -52,7 +52,7 @@ namespace
         { kInputMotionVectors,  "gMotionVectors",   "Motion vector buffer (float format)", true /* optional */ },
         { kInputViewDir,        "gViewW",           "World-space view direction (xyz float format)", true /* optional */ },
         { kInputSampleCount,    "gSampleCount",     "Sample count buffer (integer format)", true /* optional */, ResourceFormat::R8Uint },
-        { kInputRandomNumbers,  "gRndNumbers",      "Random Numbers", true /* optional */, ResourceFormat::R32Uint}
+        { kInputRandomNumbers,  "gRndNumbers",      "Random Numbers", false, ResourceFormat::R32Uint}
     };
 
     const std::string kOutputColor = "color";
