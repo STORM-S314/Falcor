@@ -31,24 +31,14 @@ cbuffer PerImageCB {
     Texture2D               gSourceColor;
     Texture2D               gAlbedoColor;
     Texture2D               gEmissionColor;
-    RWBuffer<float>         gMutualInfBuffer;
-    Texture2D<float>        gLuminanceSumTexture;
     float2                  gScreenDimension;
-    int                     gFrameNum;
-    int                     gTotalPixelsInFrame;
+    Texture2D<float>        gMutualInfTexture;
+    Texture2D<float>        gHistoryCount;
+    int                     gMinHistoryCount;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
 #endif
 };
-
-static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
-
-//Calculates the Luminance bucket id where the luminance would go into
-//Assuming luminance would always be within 0.0 and 1.0
-int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
-{
-    return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
-}
 
 struct PS_OUT
 {
@@ -58,84 +48,9 @@ struct PS_OUT
 
 PS_OUT main(FullScreenPassVsOut vsOut)
 {
-    int2 iPos = int2(vsOut.posH.xy);
     PS_OUT psOut;
 
-    float binLuminance[BIN_COUNT];
-    float binFrames[BIN_COUNT]   ;
-
-    for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
-    {
-        binLuminance[frameIndex] = 0.0;
-    }
-
-    float currentLuminance =    luminance(getIllumination(gSourceColor[iPos].rgb, gAlbedoColor[iPos].rgb, gEmissionColor[iPos].rgb));
-
-    int bufferFrameIdx = gFrameNum % BIN_COUNT;
-    int pixelIndexInFrame = iPos.y * gScreenDimension.x + iPos.x;
-    int bufferPixelValueIndex = pixelIndexInFrame + bufferFrameIdx * gTotalPixelsInFrame;
-
-    float totalSumLuminance = gLuminanceSumTexture[iPos];
-
-    //If frames are greater or equal than required to calculate the MI.
-    if(gFrameNum >= BIN_COUNT)
-    {
-        totalSumLuminance -= gMutualInfBuffer[bufferPixelValueIndex];
-    }
-
-    totalSumLuminance += currentLuminance;
-    gMutualInfBuffer[bufferPixelValueIndex] = currentLuminance;
-    float mutualInf = 0.0;
-
-    //1st time the buffer is completely filled up
-    if(gFrameNum >= (BIN_COUNT - 1))
-    {
-        for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
-        {
-            int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
-            
-            float bufferPixelLuminance  =   gMutualInfBuffer[indexInBuffer].r;
-            float pixelLuminanceProbability  = bufferPixelLuminance / totalSumLuminance;
-            binFrames[frameIndex] =  pixelLuminanceProbability;
-            binLuminance[getLuminanceBuckedID(bufferPixelLuminance, BIN_COUNT)] += pixelLuminanceProbability;
-        }
-
-        for (int binIdx0 = 0; binIdx0 < BIN_COUNT; binIdx0++)
-        {
-            float p_x = binFrames[binIdx0];
-            float p_y = binLuminance[binIdx0];
-            if(p_x > 0.0)
-            {
-                float result = p_x * log(p_x);
-                if(isnan(result)){result = 0.0;}
-                mutualInf -= result;
-            }
-
-            if(p_y > 0.0)
-            {
-                float result = p_y * log(p_y);
-                if(isnan(result)){result = 0.0;}
-                mutualInf -= result;
-            }
-
-            for (int binIdx1 = 0; binIdx1 < BIN_COUNT; binIdx1++)
-            {
-                float p_xy = p_x * binLuminance[binIdx1];
-                if(p_xy > 0.0)
-                {
-                    float result = p_xy * log(p_xy);
-                    if(isnan(result)){result = 0.0;}
-                    mutualInf += result;
-                }
-            }
-        }
-    }
-
-#if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
-#endif
-
-    psOut.sumLuminance  =   totalSumLuminance;
-    psOut.mutualInfVal  =   saturate(mutualInf);
+    psOut.sumLuminance  =   0.0;
+    psOut.mutualInfVal  =   0.0;
     return psOut;
 }

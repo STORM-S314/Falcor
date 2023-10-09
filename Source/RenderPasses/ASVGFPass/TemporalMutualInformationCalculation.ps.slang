@@ -32,7 +32,7 @@ cbuffer PerImageCB {
     Texture2D               gAlbedoColor;
     Texture2D               gEmissionColor;
     RWBuffer<float>         gMutualInfBuffer;
-    Texture2D<float>        gLuminanceSumTexture;
+    Texture2D<float4>       gMutualInfResult;
     float2                  gScreenDimension;
     int                     gFrameNum;
     int                     gTotalPixelsInFrame;
@@ -50,16 +50,9 @@ int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
     return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
 }
 
-struct PS_OUT
-{
-    float  sumLuminance : SV_TARGET0;
-    float  mutualInfVal : SV_TARGET1;
-}
-
-PS_OUT main(FullScreenPassVsOut vsOut)
+float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
     int2 iPos = int2(vsOut.posH.xy);
-    PS_OUT psOut;
 
     float binLuminance[BIN_COUNT];
     float binFrames[BIN_COUNT]   ;
@@ -75,7 +68,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     int pixelIndexInFrame = iPos.y * gScreenDimension.x + iPos.x;
     int bufferPixelValueIndex = pixelIndexInFrame + bufferFrameIdx * gTotalPixelsInFrame;
 
-    float totalSumLuminance = gLuminanceSumTexture[iPos];
+    float totalSumLuminance = gMutualInfResult[iPos].r;
 
     //If frames are greater or equal than required to calculate the MI.
     if(gFrameNum >= BIN_COUNT)
@@ -135,7 +128,5 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
 #endif
 
-    psOut.sumLuminance  =   totalSumLuminance;
-    psOut.mutualInfVal  =   saturate(mutualInf);
-    return psOut;
+    return float4(totalSumLuminance, saturate(mutualInf), 0.0, 0.0);
 }

@@ -92,7 +92,8 @@ private:
     ref<FullScreenPass> mpPrgTemporalAccumulation;
     ref<FullScreenPass> mpPrgEstimateVariance;
     ref<FullScreenPass> mpPrgAtrousFullScreen;
-    ref<FullScreenPass> mpPrgMutualInfCalc;
+    ref<FullScreenPass> mpPrgTemporalMutualInfCalc;
+    ref<FullScreenPass> mpPrgSpatialMutualInfCalc;
 
     //FBOs
     ref<Fbo> mpGradientResultPingPongBuffer[2];
