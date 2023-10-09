@@ -32,25 +32,24 @@ cbuffer PerImageCB {
     Texture2D               gAlbedoColor;
     Texture2D               gEmissionColor;
     float2                  gScreenDimension;
-    Texture2D<float>        gMutualInfTexture;
-    Texture2D<float>        gHistoryCount;
+    Texture2D<float4>       gMutualInfResult;
     int                     gMinHistoryCount;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
 #endif
 };
 
-struct PS_OUT
-{
-    float  sumLuminance : SV_TARGET0;
-    float  mutualInfVal : SV_TARGET1;
-}
 
-PS_OUT main(FullScreenPassVsOut vsOut)
+float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
-    PS_OUT psOut;
+    int2 iPos = int2(vsOut.posH.xy);
+    float4 mutualInfResultBuf = gMutualInfResult[iPos].rgba;
+    float mutualInfResult = mutualInfResultBuf.g;
 
-    psOut.sumLuminance  =   0.0;
-    psOut.mutualInfVal  =   0.0;
-    return psOut;
+    if(mutualInfResultBuf.b < gMinHistoryCount)
+    {
+        
+    }
+
+    return float4(mutualInfResultBuf.r, mutualInfResult, mutualInfResultBuf.b, 0.0);
 }

@@ -394,21 +394,20 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             mpPrgTemporalMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
         }
 
-//        // Spatial Mutual information calculation
-//        {
-//            auto perImageSpatialMutualInfCalcCB = mpPrgSpatialMutualInfCalc->getRootVar()["PerImageCB"];
-//            perImageSpatialMutualInfCalcCB["gSourceColor"] = pInputColorTexture;
-//            perImageSpatialMutualInfCalcCB["gAlbedoColor"] = pInputAlbedoTexture;
-//            perImageSpatialMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
-//            perImageSpatialMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
-//            perImageSpatialMutualInfCalcCB["gMutualInfTexture"] = mpMutualInfResultBuffer->getColorTexture(1);
-//            perImageSpatialMutualInfCalcCB["gHistoryCount"] = mpMutualInfResultBuffer->getColorTexture(2);
-//            perImageSpatialMutualInfCalcCB["gMinHistoryCount"] = mNumFramesInMICalc;
-//#if IS_DEBUG_PASS
-//            perImageMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
-//#endif
-//            mpPrgSpatialMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
-//        }
+        // Spatial Mutual information calculation
+        {
+            auto perImageSpatialMutualInfCalcCB = mpPrgSpatialMutualInfCalc->getRootVar()["PerImageCB"];
+            perImageSpatialMutualInfCalcCB["gSourceColor"] = pInputColorTexture;
+            perImageSpatialMutualInfCalcCB["gAlbedoColor"] = pInputAlbedoTexture;
+            perImageSpatialMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
+            perImageSpatialMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
+            perImageSpatialMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
+            perImageSpatialMutualInfCalcCB["gMinHistoryCount"] = mNumFramesInMICalc;
+#if IS_DEBUG_PASS
+            perImageMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
+#endif
+            mpPrgSpatialMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
+        }
     }
 
     if (mNumIterations == 0)
@@ -426,7 +425,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gPhiColor"] = weightPhiColor;
         perImageAtrousFullScreenCB["gPhiNormal"] = weightPhiNormal;
         perImageAtrousFullScreenCB["gScreenDimension"] = int2(screenWidth, screenHeight);
-        perImageAtrousFullScreenCB["gIsUseMutualInf"] = mUseMutualInformation && (mFrameNumber >= (mNumFramesInMICalc - 1));
+        perImageAtrousFullScreenCB["gIsUseMutualInf"] = mUseMutualInformation;
         perImageAtrousFullScreenCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
 #if IS_DEBUG_PASS
         perImageAtrousFullScreenCB["gColorTest"] = mpTestColorTexture;

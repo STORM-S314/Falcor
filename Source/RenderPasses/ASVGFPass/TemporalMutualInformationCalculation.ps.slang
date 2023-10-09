@@ -128,5 +128,5 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
 #endif
 
-    return float4(totalSumLuminance, saturate(mutualInf), 0.0, 0.0);
+    return float4(totalSumLuminance, saturate(mutualInf), gFrameNum, 0.0);
 }
