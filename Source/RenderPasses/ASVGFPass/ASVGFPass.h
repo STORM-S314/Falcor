@@ -79,6 +79,7 @@ private:
     float weightPhiColor        = 3.0f;
     float weightPhiNormal       = 128.0f;
     bool mUseMutualInformation  = false;
+    bool mUseOnlySpatialMutualInformation = false;
     int mFrameNumber            = 0;
     int mNumFramesInMICalc      = 15;
 

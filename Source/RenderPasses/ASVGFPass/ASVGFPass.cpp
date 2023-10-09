@@ -49,7 +49,8 @@ const char kEstimateVarianceShader[]                = "RenderPasses/ASVGFPass/Va
 const char kAtrousShader[]                          = "RenderPasses/ASVGFPass/AtrousFullScreen.ps.slang";
 const char kCreateGradientSamplesShader[]           = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
 const char kAtrousGradientShader[]                  = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
-const char kMutualInfCalcShader[]                   = "RenderPasses/ASVGFPass/MutualInformationCalculation.ps.slang";
+const char kTemporalMutualInfCalcShader[]           = "RenderPasses/ASVGFPass/TemporalMutualInformationCalculation.ps.slang";
+const char kSpatialMutualInfCalcShader[]                = "RenderPasses/ASVGFPass/SpatialMutualInformationCalculation.ps.slang";
 
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
@@ -322,24 +323,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         }
     }
 
-    // Mutual information computation
-    if (mUseMutualInformation)
-    {
-        auto perImageMutualInfCalcCB = mpPrgMutualInfCalc->getRootVar()["PerImageCB"];
-        perImageMutualInfCalcCB["gSourceColor"]             = pInputColorTexture;
-        perImageMutualInfCalcCB["gAlbedoColor"]             = pInputAlbedoTexture;
-        perImageMutualInfCalcCB["gEmissionColor"]           = pInputEmissionTexture;
-        perImageMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
-        perImageMutualInfCalcCB["gLuminanceSumTexture"]     = mpMutualInfResultBuffer->getColorTexture(0);
-        perImageMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
-        perImageMutualInfCalcCB["gFrameNum"]                = mFrameNumber;
-        perImageMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
-        #if IS_DEBUG_PASS
-            perImageMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
-        #endif
-        mpPrgMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
-    }
-
     //Temporal Accumulation
     {
         auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
@@ -391,6 +374,33 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         mpPrgEstimateVariance->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
     }
 
+    // Mutual information computation
+    if (mUseMutualInformation)
+    {
+        //Temporal Mutual information calculation
+        if (!mUseOnlySpatialMutualInformation)
+        {
+            auto perImageMutualInfCalcCB = mpPrgMutualInfCalc->getRootVar()["PerImageCB"];
+            perImageMutualInfCalcCB["gSourceColor"] = pInputColorTexture;
+            perImageMutualInfCalcCB["gAlbedoColor"] = pInputAlbedoTexture;
+            perImageMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
+            perImageMutualInfCalcCB["gMutualInfBuffer"] = mpMutualInformationCalcBuffer->asBuffer();
+            perImageMutualInfCalcCB["gLuminanceSumTexture"] = mpMutualInfResultBuffer->getColorTexture(0);
+            perImageMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
+            perImageMutualInfCalcCB["gFrameNum"] = mFrameNumber;
+            perImageMutualInfCalcCB["gTotalPixelsInFrame"] = screenWidth * screenHeight;
+#if IS_DEBUG_PASS
+            perImageMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
+#endif
+            mpPrgMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
+        }
+
+        // Spatial Mutual information calculation
+        {
+
+        }
+    }
+
     if (mNumIterations == 0)
     {
         pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
@@ -406,7 +416,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gPhiColor"] = weightPhiColor;
         perImageAtrousFullScreenCB["gPhiNormal"] = weightPhiNormal;
         perImageAtrousFullScreenCB["gScreenDimension"] = int2(screenWidth, screenHeight);
-        perImageAtrousFullScreenCB["gIsUseMutualInf"] = mUseMutualInformation && mFrameNumber >= (mNumFramesInMICalc - 1);
+        perImageAtrousFullScreenCB["gIsUseMutualInf"] = mUseMutualInformation && (mFrameNumber >= (mNumFramesInMICalc - 1));
         perImageAtrousFullScreenCB["gMutualInfTexture"] = mpMutualInfResultBuffer->getColorTexture(1);
 #if IS_DEBUG_PASS
         perImageAtrousFullScreenCB["gColorTest"] = mpTestColorTexture;
@@ -484,7 +494,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     newDefines.add("IS_DEBUG_PASS", std::to_string(0));
 #endif IS_DEBUG_PASS
 
-        mpPrgMutualInfCalc = FullScreenPass::create(mpDevice, kMutualInfCalcShader, newDefines);
+        mpPrgMutualInfCalc = FullScreenPass::create(mpDevice, kTemporalMutualInfCalcShader, newDefines);
         mFrameNumber = 0;
     }
 }
@@ -530,7 +540,11 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.checkbox("Use Mutual Information", mUseMutualInformation);
     if (mUseMutualInformation)
     {
-        isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);
+        isDirty |= widget.checkbox("Use Only Spatial Mutual Information", mUseOnlySpatialMutualInformation);
+        if (!mUseOnlySpatialMutualInformation)
+        {
+            isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);
+        }
     }
 
     if (isDirty)
