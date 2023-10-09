@@ -29,15 +29,13 @@
 #include "ASVGFUtils.slang"
 
 cbuffer PerImageCB {
-    Texture2D               gSourceColor;
-    Texture2D               gAlbedoColor;
-    Texture2D               gEmissionColor;
     Texture2D               gLinearZTexture;
     Texture2D               gNormalsTexture;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
     float2                  gScreenDimension;
     Texture2D<float4>       gMutualInfResult;
     int                     gMinHistoryCount;
+    Texture2D<float4>       gColorAndVariance;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
 #endif
@@ -45,7 +43,7 @@ cbuffer PerImageCB {
 
 static const int SPATIAL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
 
-const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
+static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
@@ -69,7 +67,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         if(!centerHitInfoP.isValid())
         {
-            return mutualInfResultBuf;
+            return float4(gColorAndVariance[iPos].rgb, mutualInfResultBuf.g);
         }
 
         float binPixel[SPATIAL_BIN_COUNT];
@@ -77,6 +75,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         for(int frameIndex = 0; frameIndex < SPATIAL_BIN_COUNT; frameIndex++)
         {
             binLuminance[frameIndex] = 0.0;
+            binPixel[frameIndex] = 0.0;
         }
 
         int acceptedPixelCount = 0;
@@ -86,28 +85,32 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 			for(int xx = -SPATIAL_RADIUS; xx <= SPATIAL_RADIUS; xx++)
             {
                 int2 currentP = iPos + int2(xx,yy);
+                bool accept  = true;
 
-                HitInfo hitInfoP    = HitInfo(gVisibilityBuffer[currentP]);
-                float2 depthP       = gLinearZTexture[currentP].xy;
-                float3 normalP      = gNormalsTexture[currentP].xyz;
+                if(all(currentP != iPos))
+                {
+                    HitInfo hitInfoP    = HitInfo(gVisibilityBuffer[currentP]);
+                    float2 depthP       = gLinearZTexture[currentP].xy;
+                    float3 normalP      = gNormalsTexture[currentP].xyz;
 
-                //check if inside screen
-                bool accept = isPixelWithinScreenDimensions(currentP, gScreenDimension.xy);
+                    //check if inside screen
+                    accept = isPixelWithinScreenDimensions(currentP, gScreenDimension.xy);
 
-                //vis buffer check
-                accept = accept && hitInfoP.isValid();
-                uint    meshIDP    = getMeshInstanceID(hitInfoP);
-                accept = accept && (meshIDP == centerMeshID);
+                    //vis buffer check
+                    accept = accept && hitInfoP.isValid();
+                    uint    meshIDP    = getMeshInstanceID(hitInfoP);
+                    accept = accept && (meshIDP == centerMeshID);
 
-                // check if deviation of depths is acceptable
-                accept = accept && ((abs(depthP.x - centerDepthP.x) / (centerDepthP.y + 1e-2f)) < 10.f);
+                    // check if deviation of depths is acceptable
+                    accept = accept && ((abs(depthP.x - centerDepthP.x) / (centerDepthP.y + 1e-2f)) < 10.f);
 
-                // check normals for compatibility
-                accept = accept && (dot(normalP, centerNormalP) > 0.9);
+                    // check normals for compatibility
+                    accept = accept && (dot(normalP, centerNormalP) > 0.9);
+                }
 
                 if(accept)
                 {
-                    float luminanceP = luminance(getIllumination(gSourceColor[currentP].rgb, gAlbedoColor[currentP].rgb, gEmissionColor[currentP].rgb));
+                    float luminanceP = luminance(gColorAndVariance[currentP].rgb);
                     binLuminance[getLuminanceBuckedID(luminanceP, SPATIAL_BIN_COUNT)] += luminanceP;
                     binPixel[acceptedPixelCount]    =   luminanceP;
                     sumLuminance += luminanceP;
@@ -156,5 +159,5 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         }
     }
 
-    return float4(mutualInfResultBuf.r, saturate(mutualInfResult), mutualInfResultBuf.b, 0.0);
+    return float4(gColorAndVariance[iPos].rgb, mutualInfResult);
 }

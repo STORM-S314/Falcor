@@ -397,19 +397,17 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         // Spatial Mutual information calculation
         {
             auto perImageSpatialMutualInfCalcCB = mpPrgSpatialMutualInfCalc->getRootVar()["PerImageCB"];
-            perImageSpatialMutualInfCalcCB["gSourceColor"] = pInputColorTexture;
-            perImageSpatialMutualInfCalcCB["gAlbedoColor"] = pInputAlbedoTexture;
-            perImageSpatialMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
             perImageSpatialMutualInfCalcCB["gLinearZTexture"] = pInputLinearZTexture;
             perImageSpatialMutualInfCalcCB["gNormalsTexture"] = pInputNormalVectors;
             perImageSpatialMutualInfCalcCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
             perImageSpatialMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
             perImageSpatialMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
+            perImageSpatialMutualInfCalcCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
             perImageSpatialMutualInfCalcCB["gMinHistoryCount"] = mNumFramesInMICalc;
 #if IS_DEBUG_PASS
             perImageMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
 #endif
-            mpPrgSpatialMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
+            mpPrgSpatialMutualInfCalc->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
         }
     }
 
