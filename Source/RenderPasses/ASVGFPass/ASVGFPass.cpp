@@ -498,15 +498,22 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
         
         auto sceneDefines = pScene->getSceneDefines();
-        DefineList newDefines(sceneDefines);
-        newDefines.add("BIN_COUNT", std::to_string(mNumFramesInMICalc));
+        DefineList temporalDefines(sceneDefines);
+        temporalDefines.add("BIN_COUNT", std::to_string(mNumFramesInMICalc));
+
+        DefineList spatialDefines(sceneDefines);
+        spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
+
 #if IS_DEBUG_PASS
-    newDefines.add("IS_DEBUG_PASS", std::to_string(1));
+    temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
+    spatialDefines.add("IS_DEBUG_PASS", std::to_string(1));
 #else
-    newDefines.add("IS_DEBUG_PASS", std::to_string(0));
+    temporalDefines.add("IS_DEBUG_PASS", std::to_string(0));
+    spatialDefines.add("IS_DEBUG_PASS", std::to_string(0));
 #endif IS_DEBUG_PASS
 
-        mpPrgTemporalMutualInfCalc = FullScreenPass::create(mpDevice, kTemporalMutualInfCalcShader, newDefines);
+        mpPrgTemporalMutualInfCalc = FullScreenPass::create(mpDevice, kTemporalMutualInfCalcShader, temporalDefines);
+        mpPrgSpatialMutualInfCalc = FullScreenPass::create(mpDevice, kSpatialMutualInfCalcShader, spatialDefines);
         mFrameNumber = 0;
     }
 }
@@ -530,7 +537,6 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, newDefines);
     mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader, newDefines);
     mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader, newDefines);
-    mpPrgSpatialMutualInfCalc       = FullScreenPass::create(mpDevice, kSpatialMutualInfCalcShader, newDefines);
     
 #if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
@@ -554,6 +560,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     if (mUseMutualInformation)
     {
         isDirty |= widget.checkbox("Use Only Spatial Mutual Information", mUseOnlySpatialMutualInformation);
+        isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
         if (!mUseOnlySpatialMutualInformation)
         {
             isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);

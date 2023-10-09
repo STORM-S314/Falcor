@@ -43,9 +43,9 @@ cbuffer PerImageCB {
 #endif
 };
 
-static const int BIN_COUNT = 25;
+static const int SPATIAL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
 
-static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
+const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
@@ -72,19 +72,18 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             return mutualInfResultBuf;
         }
 
-        float binPixel[BIN_COUNT];
-        float binLuminance[BIN_COUNT];
-        for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
+        float binPixel[SPATIAL_BIN_COUNT];
+        float binLuminance[SPATIAL_BIN_COUNT];
+        for(int frameIndex = 0; frameIndex < SPATIAL_BIN_COUNT; frameIndex++)
         {
             binLuminance[frameIndex] = 0.0;
         }
 
-        int radius = 2;
-        int pixelIndex = 0;
+        int acceptedPixelCount = 0;
         float sumLuminance = 0.0;
 
-        for(int yy = -radius; yy <= radius; yy++) {
-			for(int xx = -radius; xx <= radius; xx++)
+        for(int yy = -SPATIAL_RADIUS; yy <= SPATIAL_RADIUS; yy++) {
+			for(int xx = -SPATIAL_RADIUS; xx <= SPATIAL_RADIUS; xx++)
             {
                 int2 currentP = iPos + int2(xx,yy);
 
@@ -109,16 +108,16 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 if(accept)
                 {
                     float luminanceP = luminance(getIllumination(gSourceColor[currentP].rgb, gAlbedoColor[currentP].rgb, gEmissionColor[currentP].rgb));
-                    binLuminance[getLuminanceBuckedID(luminanceP, BIN_COUNT)] += luminanceP;
-                    binPixel[pixelIndex]    =   luminanceP;
+                    binLuminance[getLuminanceBuckedID(luminanceP, SPATIAL_BIN_COUNT)] += luminanceP;
+                    binPixel[acceptedPixelCount]    =   luminanceP;
                     sumLuminance += luminanceP;
 
-                    pixelIndex++;
+                    acceptedPixelCount++;
                 }
             }
         }
 
-        for(int pixelIndex = 0; pixelIndex < BIN_COUNT; pixelIndex++)
+        for(int pixelIndex = 0; pixelIndex < SPATIAL_BIN_COUNT; pixelIndex++)
         {
             binLuminance[pixelIndex ] /= sumLuminance;
             binPixel[pixelIndex]    /=   sumLuminance;
@@ -126,7 +125,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         //Calculate mutual information
         mutualInfResult = 0.0;
-        for (int binIdx = 0; binIdx < pixelIndex; binIdx++)
+        for (int binIdx = 0; binIdx < SPATIAL_BIN_COUNT; binIdx++)
         {
             float p_x = binPixel[binIdx];
             float p_y = binLuminance[binIdx];
@@ -144,7 +143,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 mutualInfResult -= result;
             }
 
-            for (int binIdx1 = 0; binIdx1 < BIN_COUNT; binIdx1++)
+            for (int binIdx1 = 0; binIdx1 < SPATIAL_BIN_COUNT; binIdx1++)
             {
                 float p_xy = p_x * binLuminance[binIdx1];
                 if(p_xy > 0.0)
