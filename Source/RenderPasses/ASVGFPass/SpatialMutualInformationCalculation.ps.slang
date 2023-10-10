@@ -29,6 +29,9 @@
 #include "ASVGFUtils.slang"
 
 cbuffer PerImageCB {
+    Texture2D               gSourceColor;
+    Texture2D               gAlbedoColor;
+    Texture2D               gEmissionColor;
     Texture2D               gLinearZTexture;
     Texture2D               gNormalsTexture;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
@@ -67,7 +70,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         if(!centerHitInfoP.isValid())
         {
-            return float4(gColorAndVariance[iPos].rgb, mutualInfResultBuf.g);
+            return float4(gColorAndVariance[iPos].rgb, mutualInfResult);
         }
 
         float binPixel[SPATIAL_BIN_COUNT];
@@ -105,12 +108,12 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     accept = accept && ((abs(depthP.x - centerDepthP.x) / (centerDepthP.y + 1e-2f)) < 10.f);
 
                     // check normals for compatibility
-                    accept = accept && (dot(normalP, centerNormalP) > 0.9);
+                    accept = accept && (dot(normalP, centerNormalP) > 0.9f);
                 }
 
                 if(accept)
                 {
-                    float luminanceP = luminance(gColorAndVariance[currentP].rgb);
+                    float luminanceP = luminance(getIllumination(gSourceColor[currentP].rgb, gAlbedoColor[currentP].rgb, gEmissionColor[currentP].rgb));
                     binLuminance[getLuminanceBuckedID(luminanceP, SPATIAL_BIN_COUNT)] += luminanceP;
                     binPixel[acceptedPixelCount]    =   luminanceP;
                     sumLuminance += luminanceP;
@@ -158,6 +161,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             }
         }
     }
+#if IS_DEBUG_PASS
+    gColorTest[iPos] = float4(0.0, saturate(mutualInfResult), 0.0, 1.0);
+#endif
 
-    return float4(gColorAndVariance[iPos].rgb, mutualInfResult);
+    return float4(gColorAndVariance[iPos].rgb, saturate(mutualInfResult));
 }
