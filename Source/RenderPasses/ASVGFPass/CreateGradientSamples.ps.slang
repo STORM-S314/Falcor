@@ -48,8 +48,8 @@ cbuffer PerImageCB
 
 struct PS_OUT
 {
-    float4 fragGradientLuminance    : SV_TARGET0;
-	float4 fragGradientVariance     : SV_TARGET1;
+    float4 fragGradLuminanceDifference  : SV_TARGET0;
+	float4 fragGradientVariance         : SV_TARGET1;
 };
 
 PS_OUT main(FullScreenPassVsOut vsOut)
@@ -75,13 +75,13 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         float3 prevIllumination = getIllumination(gPrevColorTexture[prevPos].rgb, gPrevEmissionTexture[prevPos].rgb, gPrevAlbedoTexture[prevPos].rgb);
 		float prevLuminance = luminance(prevIllumination);
     
-		psOut.fragGradientLuminance.r = max(currentLuminance, prevLuminance);
-		psOut.fragGradientLuminance.g = (currentLuminance - prevLuminance);
-		psOut.fragGradientLuminance.b = 1.0;
-		psOut.fragGradientLuminance.a = 0.0;
+		psOut.fragGradLuminanceDifference.r = max(currentLuminance, prevLuminance);
+		psOut.fragGradLuminanceDifference.g = (currentLuminance - prevLuminance);
+		psOut.fragGradLuminanceDifference.b = 1.0;
+		psOut.fragGradLuminanceDifference.a = 0.0;
 	}
 	else {
-		psOut.fragGradientLuminance.rgba = float4(0);
+		psOut.fragGradLuminanceDifference.rgba = float4(0);
 	}
     
 	float2 moments = float2(currentLuminance, currentLuminance * currentLuminance);
@@ -121,6 +121,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	psOut.fragGradientVariance.r  = moments[0];
 	psOut.fragGradientVariance.g  = variance;
 	psOut.fragGradientVariance.ba = currentDepth;
-    //gColorTest[currentPos] = float4(abs(psOut.fragGradientLuminance.g), 0.0, 0.0, 1.0);
+#if IS_DEBUG_PASS
+    //gColorTest[currentPos] = float4(0.0, abs(psOut.fragGradLuminanceDifference.g) / psOut.fragGradLuminanceDifference.r, 0.0, 1.0);
+#endif
 	return psOut;
 }

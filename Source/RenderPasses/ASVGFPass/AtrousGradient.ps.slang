@@ -143,10 +143,10 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                 const float wIllumination = w * kernel;
 
                 // alpha channel contains the variance, therefore the weights need to be squared, see paper for the formula
-                if(currentGradientDifferenceP.b == 1.0)
+                if(currentGradientDifferenceP.b > 0.0)
                 {
                     sumWIllumination        +=  wIllumination;
-                    sumGradientDifference   +=  wIllumination.xxxx * currentGradientDifferenceP;
+                    sumGradientDifference   +=  float4(wIllumination.xx, 0.0, 0.0) * float4(currentGradientDifferenceP.xy, 1.0, 1.0);
                     sumVariance             +=  wIllumination * wIllumination * varianceP;
                     sumLuminance            +=  wIllumination * luminanceP;
                 }
@@ -154,7 +154,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         }
     }
 
-    psOut.gradientLuminanceAtrous   = sumGradientDifference / sumWIllumination;
+    psOut.gradientLuminanceAtrous   = sumGradientDifference / float4(sumWIllumination.xx, 1.0, 1.0);
     psOut.gradientVarianceAtrous    = float4(sumLuminance, sumVariance, zCenter.r, zCenter.g) / float4(sumWIllumination.x, sumWIllumination.x * sumWIllumination.x, 1.0, 1.0);
 
     return psOut;

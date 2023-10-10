@@ -46,7 +46,7 @@ cbuffer PerImageCB
     Texture2D   gAlbedoTexture;
 	Texture2D   gPrevAlbedoTexture;
     Texture2D   gPosNormalFWidth;
-    Texture2D   gGradientDifferenceTexture;
+    Texture2D<float4>   gGradientDifferenceTexture;
     int         gGradientDownsample;
     float2      gScreenDimension;
     float2      gJitterOffset;
@@ -143,7 +143,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	}
 
     clamp(antilagAlpha, 0.0, 1.0);
-	if(isNaN(antilagAlpha))
+	if(isnan(antilagAlpha))
     {
 		antilagAlpha = 1.0;
     }
@@ -165,8 +165,9 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         psOut.accumulated.a     =   min(64, histLen + 1.0);
 		psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
 		psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
-        
+#if IS_DEBUG_PASS
         //gColorTest[iPos] = float4(0.0, antilagAlpha, 0.0 , 1.0);
+#endif     
     }
     else {
 		psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);

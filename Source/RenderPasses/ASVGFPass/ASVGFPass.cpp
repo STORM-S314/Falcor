@@ -185,7 +185,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
 
     // Gradient
     Fbo::Desc formatDescGradientResult;
-    formatDescGradientResult.setSampleCount(0);
+    //formatDescGradientResult.setSampleCount(0);
     formatDescGradientResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // gradients :: luminance max, luminance differece, 1.0 or 0.0, 0.0
     formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
     mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
@@ -298,7 +298,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageGradForwardProjCB["gColorTest"] = mpTestColorTexture;
 #endif
 
-        mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], false);
+        mpPrgGradientForwardProjection->execute(pRenderContext, mpGradientResultPingPongBuffer[0], true);
     }
 
     //A-trous gradient
@@ -317,7 +317,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageATrousGradientCB["gGradientVariance"] = mpGradientResultPingPongBuffer[0]->getColorTexture(1);
             perImageATrousGradientCB["gStepSize"] = (1 << indexAtrous);
 
-            mpPrgAtrousGradientCalculation->execute(pRenderContext, mpGradientResultPingPongBuffer[1], false);
+            mpPrgAtrousGradientCalculation->execute(pRenderContext, mpGradientResultPingPongBuffer[1], true);
             std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
         }
     }
@@ -459,6 +459,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         debugPass(pRenderContext, renderData);
         pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
         pRenderContext->clearTexture(mpTestColorTexture.get());
+        pRenderContext->clearFbo(mpDebugBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     #else
         pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
     #endif
@@ -609,6 +610,7 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     perImageDebugFullScreenCB["gAlbedo"] = pInputAlbedoTexture;
     perImageDebugFullScreenCB["gEmission"] = pInputEmissionTexture;
     perImageDebugFullScreenCB["gGradientSample"] = pInputGradientSamples;
+    perImageDebugFullScreenCB["gGradLuminanceDiff"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
 
     perImageDebugFullScreenCB["gLinearZTexture"] = pInputLinearZTexture;
     perImageDebugFullScreenCB["gNormalsTexture"] = pInputNormalVectors;
