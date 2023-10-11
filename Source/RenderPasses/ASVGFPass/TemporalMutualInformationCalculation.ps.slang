@@ -31,13 +31,21 @@ cbuffer PerImageCB {
     Texture2D               gSourceColor;
     Texture2D               gAlbedoColor;
     Texture2D               gEmissionColor;
+    Texture2D               gColorAndVariance;
+    Texture2D               gLinearZTexture;
+    Texture2D               gPrevLinearZTexture;
+    Texture2D               gNormalsTexture;
+    Texture2D               gPrevNormalsTexture;
+    Texture2D               gMotionVectorsTexture;
+    Buffer<float>           gPrevMutualInfBuffer;
     RWBuffer<float>         gMutualInfBuffer;
+    Texture2D<float4>       gPrevMutualInfResult;
     Texture2D<float4>       gMutualInfResult;
     float2                  gScreenDimension;
     int                     gFrameNum;
     int                     gTotalPixelsInFrame;
 #if IS_DEBUG_PASS
-    RWTexture2D<float4>         gColorTest;
+    RWTexture2D<float4>     gColorTest;
 #endif
 };
 
@@ -53,6 +61,42 @@ int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
     int2 iPos = int2(vsOut.posH.xy);
+    float2 motionVec = gMotionVectorsTexture[iPos].rg;
+    
+    //const int2 iPrevPos = int2(float2(iPos) + motionVec.xy * gScreenDimension.xy + float2(0.5,0.5));
+    //
+    //float x = frac(prevPos.x);
+    //float y = frac(prevPos.y);
+    //const int2 offset[4] = { int2(0, 0), int2(1, 0), int2(0, 1), int2(1, 1) };
+    //int historyNeighbors[4] = {};
+    //
+    //// bilinear weights
+    //const float bilinearWeights[4] = {  (1.0 - x)   * (1.0 - y),
+    //                                    x           * (1.0 - y),
+    //                                    (1.0 - x)   * y,
+    //                                    x           * y  };
+    //
+    //for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
+    //{
+    //    int2 offsetPixel = iPrevPos + offset[sampleIdx];
+    //
+    //    
+    //
+    //    historyNeighbors[sampleIdx] = gPrevMutualInfResult[iPrevPos + offset[sampleIdx]].b;
+    //}
+    //
+    //
+    //float4 currMutualInfResult = gPrevMutualInfResult[iPrevPos];
+
+
+
+
+
+
+
+
+
+
 
     float binLuminance[BIN_COUNT];
     float binFrames[BIN_COUNT]   ;
@@ -62,7 +106,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         binLuminance[frameIndex] = 0.0;
     }
 
-    float currentLuminance =    luminance(getIllumination(gSourceColor[iPos].rgb, gAlbedoColor[iPos].rgb, gEmissionColor[iPos].rgb));
+    float currentLuminance =    luminance(gColorAndVariance[iPos].rgb);
 
     int bufferFrameIdx = gFrameNum % BIN_COUNT;
     int pixelIndexInFrame = iPos.y * gScreenDimension.x + iPos.x;

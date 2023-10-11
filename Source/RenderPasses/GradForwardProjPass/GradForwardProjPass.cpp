@@ -159,8 +159,6 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
         return;
     }
 
-
-
     ref<Texture> pInputWorldNormalTexture       = renderData.getTexture(kInputBufferWorldNormal);
     ref<Texture> pInputLinearZTexture           = renderData.getTexture(kInputBufferLinearZ);
     ref<Texture> pInputVisibilityBuffer         = renderData.getTexture(kInputVisibilityBuffer);
@@ -232,9 +230,9 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     //Swap buffers for next frame
     pRenderContext->blit(pInputLinearZTexture->getSRV(),        pInternalPrevLinearZTexture->getRTV());
     pRenderContext->blit(pInputWorldNormalTexture->getSRV(),    pInternalPrevWNormalTexture->getRTV());
-    pRenderContext->blit(pInputVisibilityBuffer->getSRV(),      pInternalPrevVisibilityBuffer->getRTV());
+    pRenderContext->blit(mpVisibilityBufferTexture->getSRV(),   pInternalPrevVisibilityBuffer->getRTV());
     pRenderContext->blit(pInputWPosBuffer->getSRV(),            pInternalPrevWPositionBuffer->getRTV());
-    pRenderContext->blit(pInputWViewBuffer->getSRV(),           pInternalPrevWViewBuffer->getRTV());
+    pRenderContext->blit(mpWViewBufferTexture->getSRV(),        pInternalPrevWViewBuffer->getRTV());
     pRenderContext->blit(mpRandomNumberTexture->getSRV(),       mpPrevRandomNumberTexture->getRTV());
 
     //Clear buffers

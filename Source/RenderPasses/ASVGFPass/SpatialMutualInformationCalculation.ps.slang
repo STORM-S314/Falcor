@@ -113,7 +113,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
                 if(accept)
                 {
-                    float luminanceP = luminance(getIllumination(gSourceColor[currentP].rgb, gAlbedoColor[currentP].rgb, gEmissionColor[currentP].rgb));
+                    float luminanceP = luminance(gColorAndVariance[currentP].rgb);
                     binLuminance[getLuminanceBuckedID(luminanceP, SPATIAL_BIN_COUNT)] += luminanceP;
                     binPixel[acceptedPixelCount]    =   luminanceP;
                     sumLuminance += luminanceP;

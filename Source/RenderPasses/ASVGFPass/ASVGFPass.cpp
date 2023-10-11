@@ -50,14 +50,13 @@ const char kAtrousShader[]                          = "RenderPasses/ASVGFPass/At
 const char kCreateGradientSamplesShader[]           = "RenderPasses/ASVGFPass/CreateGradientSamples.ps.slang";
 const char kAtrousGradientShader[]                  = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
 const char kTemporalMutualInfCalcShader[]           = "RenderPasses/ASVGFPass/TemporalMutualInformationCalculation.ps.slang";
-const char kSpatialMutualInfCalcShader[]                = "RenderPasses/ASVGFPass/SpatialMutualInformationCalculation.ps.slang";
+const char kSpatialMutualInfCalcShader[]            = "RenderPasses/ASVGFPass/SpatialMutualInformationCalculation.ps.slang";
 
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
 
 // Names of valid entries in the parameter dictionary.
-const char kEnable[]                = "Enable";
 const char kModulateAlbedo[]        = "ModulateAlbedo";
 const char kNumIterations[]         = "NumIterations";
 const char kHistoryTap[]            = "HistoryTap";
@@ -68,8 +67,6 @@ const char kDiffAtrousIterations[]  = "DiffAtrousIterations";
 const char kGradientFilterRadius[]  = "GradientFilterRadius";
 const char kFramesPerMICalc[]       = "FramesPerMICalc";
 const char kUseMutualInfCalc[]      = "UseMutualInfCalc";
-const char kNormalizeGradient[]     = "NormalizeGradient";
-const char kShowAntilagAlpha[]      = "ShowAntilagAlpha";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -90,6 +87,7 @@ const char kInternalPrevEmissionTexture[]   = "PrevEmission";
 const char kInternalPrevLinearZTexture[]    = "PrevLinearZ";
 const char kInternalPrevNormalsTexture[]    = "PrevNormals";
 const char kInternalPrevVisibilityBuffer[]  = "PrevVisBuffer";
+const char kInternalPrevMutualInfResult[]   = "PrevMutInfResult";
 
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
@@ -139,7 +137,7 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
 
-    //Input
+    // Input
     reflector.addInput(kInputColorTexture, "Color");
     reflector.addInput(kInputAlbedoTexture, "Albedo");
     reflector.addInput(kInputEmissionTexture, "Emission");
@@ -150,26 +148,34 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputMotionVectors, "MotionVectors");
     reflector.addInput(kInputPosNormalFWidth, "PosNormalFWidth");
     reflector.addInput(kInputGradientSamplesTexture, "GradSamples").format(ResourceFormat::R32Uint);
-    
-    //Internal buffers
-    reflector.addInternal(kInternalPrevColorTexture, "Previous Color").format(ResourceFormat::RGBA32Float)
+
+    // Internal buffers
+    reflector.addInternal(kInternalPrevColorTexture, "Previous Color")
+        .format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
-    reflector.addInternal(kInternalPrevAlbedoTexture, "Previous Albedo").format(ResourceFormat::RGBA32Float).
-        bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
-
-    reflector.addInternal(kInternalPrevEmissionTexture, "Previous Emission").format(ResourceFormat::RGBA32Float)
+    reflector.addInternal(kInternalPrevAlbedoTexture, "Previous Albedo")
+        .format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
-    reflector.addInternal(kInternalPrevLinearZTexture, "Previous LinearZ").format(ResourceFormat::RG32Float)
+    reflector.addInternal(kInternalPrevEmissionTexture, "Previous Emission")
+        .format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
-    reflector.addInternal(kInternalPrevNormalsTexture, "Previous Normals").format(ResourceFormat::RGBA32Float)
+    reflector.addInternal(kInternalPrevLinearZTexture, "Previous LinearZ")
+        .format(ResourceFormat::RG32Float)
+        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+
+    reflector.addInternal(kInternalPrevNormalsTexture, "Previous Normals")
+        .format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     reflector.addInternal(kInternalPrevVisibilityBuffer, "Previous Visibility Buffer").format(ResourceFormat::RGBA32Uint)
-        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess);
 
+    reflector.addInternal(kInternalPrevMutualInfResult, "Previous Mutual Inf Result")
+        .format(ResourceFormat::RGBA32Float).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+    
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
     reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA32Float);
 
@@ -254,6 +260,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInternalPrevLinearZTexture    = renderData.getTexture(kInternalPrevLinearZTexture);
     ref<Texture> pInternalPrevNormalsTexture    = renderData.getTexture(kInternalPrevNormalsTexture);
     ref<Texture> pInternalPrevVisBufferTexture  = renderData.getTexture(kInternalPrevVisibilityBuffer);
+    ref<Texture> pInternalPrevMutualInfTexture  = renderData.getTexture(kInternalPrevMutualInfResult);
     
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
 
@@ -383,7 +390,15 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gSourceColor"] = pInputColorTexture;
             perImageTemporalMutualInfCalcCB["gAlbedoColor"] = pInputAlbedoTexture;
             perImageTemporalMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
+            perImageTemporalMutualInfCalcCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+            perImageTemporalMutualInfCalcCB["gLinearZTexture"] = pInputLinearZTexture;
+            perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
+            perImageTemporalMutualInfCalcCB["gNormalsTexture"] = pInputNormalVectors;
+            perImageTemporalMutualInfCalcCB["gPrevNormalsTexture"] = pInternalPrevNormalsTexture;
+            perImageTemporalMutualInfCalcCB["gMotionVectorsTexture"] = pInputMotionVectors;
+            perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"] = mpPrevMutualInformationCalcBuffer->asBuffer();
             perImageTemporalMutualInfCalcCB["gMutualInfBuffer"] = mpMutualInformationCalcBuffer->asBuffer();
+            perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"] = pInternalPrevMutualInfTexture;
             perImageTemporalMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
             perImageTemporalMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
             perImageTemporalMutualInfCalcCB["gFrameNum"] = mFrameNumber;
@@ -471,8 +486,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(pInputLinearZTexture->getSRV(),        pInternalPrevLinearZTexture->getRTV());
     pRenderContext->blit(pInputNormalVectors->getSRV(),         pInternalPrevNormalsTexture->getRTV());
     pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
-
+    pRenderContext->blit(mpMutualInfResultBuffer->getColorTexture(0)->getSRV(), pInternalPrevMutualInfTexture->getRTV());
+    
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
+    std::swap(mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
     mPrevFrameJitter = cameraJitter;
     mFrameNumber++;
 }
@@ -492,12 +509,14 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevEmissionTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevLinearZTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevNormalsTexture).get());
-    //pRenderContext->clearTexture(renderData.getTexture(kInternalPrevVisibilityBuffer).get());
-
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevMutualInfResult).get());
+    pRenderContext->clearUAV(renderData.getTexture(kInternalPrevVisibilityBuffer)->getUAV().get(), uint4(0, 0, 0, 0));
+    
     if (mUseMutualInformation)
     {
         uint2 textureDims = renderData.getDefaultTextureDims();
         mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
+        mpPrevMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
         
         auto sceneDefines = pScene->getSceneDefines();
         DefineList temporalDefines(sceneDefines);

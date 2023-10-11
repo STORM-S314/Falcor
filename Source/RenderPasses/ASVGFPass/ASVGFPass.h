@@ -105,6 +105,7 @@ private:
 
     //Mutual Information
     ref<Buffer> mpMutualInformationCalcBuffer;
+    ref<Buffer> mpPrevMutualInformationCalcBuffer;
 
     //Debug
     #if IS_DEBUG_PASS
