@@ -417,6 +417,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageSpatialMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
             perImageSpatialMutualInfCalcCB["gLinearZTexture"] = pInputLinearZTexture;
             perImageSpatialMutualInfCalcCB["gNormalsTexture"] = pInputNormalVectors;
+            perImageSpatialMutualInfCalcCB["gPosNormalFWidth"] = pInputPosNormalFWidth;
             perImageSpatialMutualInfCalcCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
             perImageSpatialMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
             perImageSpatialMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);

@@ -34,6 +34,7 @@ cbuffer PerImageCB {
     Texture2D               gEmissionColor;
     Texture2D               gLinearZTexture;
     Texture2D               gNormalsTexture;
+    Texture2D               gPosNormalFWidth;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
     float2                  gScreenDimension;
     Texture2D<float4>       gMutualInfResult;
@@ -67,6 +68,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         float2 centerDepthP     = gLinearZTexture[iPos].xy;
         float3 centerNormalP    = gNormalsTexture[iPos].xyz;
         uint    centerMeshID    = getMeshInstanceID(centerHitInfoP);
+        float fWidthNormal = gPosNormalFWidth[iPos].y;
 
         if(!centerHitInfoP.isValid())
         {
@@ -108,7 +110,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     accept = accept && ((abs(depthP.x - centerDepthP.x) / (centerDepthP.y + 1e-2f)) < 10.f);
 
                     // check normals for compatibility
-                    accept = accept && (dot(normalP, centerNormalP) > 0.9f);
+                    accept = accept && ((distance(centerNormalP, normalP) / (fWidthNormal + 1e-2)) < 16.0);
                 }
 
                 if(accept)
@@ -162,7 +164,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         }
         //If mutual inf is 0, then either sumLuminance == 0 or no info about neighboring pixels
         //In both cases, we need to sample less of the color from neighboring pixels and use more from this current pixel
-        mutualInfResult = mutualInfResult == 0.0 ? exp(sumLuminance) : mutualInfResult;
+        //we can do exp(sumLuminance) for all cases 
+        //or (1.0 - mutualInfResult) for when mutualInfResult == 0.0
+        mutualInfResult = exp(-mutualInfResult);
     }
 #if IS_DEBUG_PASS
     //gColorTest[iPos] = float4(0.0, saturate(mutualInfResult), 0.0, 1.0);

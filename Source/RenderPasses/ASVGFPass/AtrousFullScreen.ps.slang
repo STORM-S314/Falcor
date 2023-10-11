@@ -86,6 +86,32 @@ float computeVarianceCenter(int2 ipos)
     return sum;
 }
 
+float computeMutualInfCenter(int2 ipos)
+{
+    const float kernel[2][2] = {
+        { 1.0 / 4.0, 1.0 / 8.0  },
+        { 1.0 / 8.0, 1.0 / 16.0 }
+    };
+
+    float sum = gColorAndVariance[ipos].a * kernel[0][0];
+
+    const int radius = 1;
+    for (int yy = -radius; yy <= radius; yy++)
+    {
+        for (int xx = -radius; xx <= radius; xx++)
+        {
+            if(xx != 0 || yy != 0)
+            {
+                const int2 p = ipos + int2(xx, yy);
+                const float k = kernel[abs(xx)][abs(yy)];
+                sum += gColorAndVariance[p].a * k;
+            }
+        }
+    }
+
+    return sum;
+}
+
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
@@ -108,7 +134,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     const float3 nCenter = gNormalsTexture[ipos].xyz;
 
-    const float phiLIllumination   = gPhiColor * (gIsUseMutualInf ? (1.0 / (epsVariance + gColorAndVariance[ipos].a * gStepSize * gStepSize)) : sqrt(max(0.0, epsVariance + computeVarianceCenter(ipos))));
+    const float phiLIllumination   = gPhiColor * (gIsUseMutualInf ? (1.0 / (epsVariance + computeMutualInfCenter(ipos) * gStepSize * gStepSize)) : sqrt(max(0.0, epsVariance + computeVarianceCenter(ipos))));
     const float phiDepth     = max(zCenter.y, 1e-8);
 
     float sumWIllumination   = 1.0;
