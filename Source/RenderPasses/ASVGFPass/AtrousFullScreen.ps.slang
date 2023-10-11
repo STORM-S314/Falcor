@@ -34,6 +34,8 @@ cbuffer PerImageCB
     Texture2D   gNormalsTexture;
     Texture2D   gAlbedoTexture;
     Texture2D   gEmissionTexture;
+    Texture2D   gSpecularAlbedo;
+    Texture2D   gIndirectAlbedo;
     float       gPhiColor;
     float       gPhiNormal;
 	int 		gStepSize;
@@ -176,7 +178,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     if(gIsModulateAlbedo == 1)
     {
-        filteredIllumination.rgba = float4((filteredIllumination.rgb * gAlbedoTexture[ipos].rgb + gEmissionTexture[ipos].rgb), 1.0);
+        filteredIllumination.rgba = float4((filteredIllumination.rgb * (gAlbedoTexture[ipos].rgb + gIndirectAlbedo[ipos].rgb + gSpecularAlbedo[ipos].rgb) + gEmissionTexture[ipos].rgb), 1.0);
 	}
 
     return filteredIllumination;

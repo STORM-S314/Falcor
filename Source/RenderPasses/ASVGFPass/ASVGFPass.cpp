@@ -71,6 +71,8 @@ const char kUseMutualInfCalc[]      = "UseMutualInfCalc";
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
 const char kInputAlbedoTexture[]                = "Albedo";
+const char kInputSpecularAlbedoTexture[]        = "SpecularAlbedo";
+const char kInputIndirectAlbedoTexture[]        = "IndirectAlbedo";
 const char kInputEmissionTexture[]              = "Emission";
 const char kInputLinearZTexture[]               = "LinearZ";
 const char kInputNormalsTexture[]               = "Normals";
@@ -88,6 +90,8 @@ const char kInternalPrevLinearZTexture[]    = "PrevLinearZ";
 const char kInternalPrevNormalsTexture[]    = "PrevNormals";
 const char kInternalPrevVisibilityBuffer[]  = "PrevVisBuffer";
 const char kInternalPrevMutualInfResult[]   = "PrevMutInfResult";
+const char kInternalPrevSpecularAlbedoTexture[] = "PrevSpecularAlbedo";
+const char kInternalPrevIndirectAlbedoTexture[] = "PrevIndirectAlbedo";
 
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
@@ -140,6 +144,8 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     // Input
     reflector.addInput(kInputColorTexture, "Color");
     reflector.addInput(kInputAlbedoTexture, "Albedo");
+    reflector.addInput(kInputSpecularAlbedoTexture, "SpecularAlbedo");
+    reflector.addInput(kInputIndirectAlbedoTexture, "IndirectAlbedo");
     reflector.addInput(kInputEmissionTexture, "Emission");
     reflector.addInput(kInputLinearZTexture, "LinearZ");
     reflector.addInput(kInputNormalsTexture, "Normals");
@@ -175,6 +181,12 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 
     reflector.addInternal(kInternalPrevMutualInfResult, "Previous Mutual Inf Result")
         .format(ResourceFormat::RGBA32Float).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+
+    reflector.addInternal(kInternalPrevSpecularAlbedoTexture, "Previous Specular Albedo")
+        .format(ResourceFormat::RGBA8Unorm).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
+
+    reflector.addInternal(kInternalPrevIndirectAlbedoTexture, "Previous Indirect Albedo")
+        .format(ResourceFormat::RGBA8Unorm).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
     
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
     reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA32Float);
@@ -253,6 +265,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInputMotionVectors            = renderData.getTexture(kInputMotionVectors);
     ref<Texture> pInputNormalVectors            = renderData.getTexture(kInputNormalsTexture);
     ref<Texture> pInputPosNormalFWidth          = renderData.getTexture(kInputPosNormalFWidth);
+    ref<Texture> pInputSpecularAlbedo           = renderData.getTexture(kInputSpecularAlbedoTexture);
+    ref<Texture> pInputIndirectAlbedo           = renderData.getTexture(kInputIndirectAlbedoTexture);
     
     ref<Texture> pInternalPrevColorTexture      = renderData.getTexture(kInternalPrevColorTexture);
     ref<Texture> pInternalPrevAlbedoTexture     = renderData.getTexture(kInternalPrevAlbedoTexture);
@@ -261,6 +275,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInternalPrevNormalsTexture    = renderData.getTexture(kInternalPrevNormalsTexture);
     ref<Texture> pInternalPrevVisBufferTexture  = renderData.getTexture(kInternalPrevVisibilityBuffer);
     ref<Texture> pInternalPrevMutualInfTexture  = renderData.getTexture(kInternalPrevMutualInfResult);
+    ref<Texture> pInternalPrevSpecularAlbedo    = renderData.getTexture(kInternalPrevSpecularAlbedoTexture);
+    ref<Texture> pInternalPrevIndirectAlbedo    = renderData.getTexture(kInternalPrevIndirectAlbedoTexture);
     
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
 
@@ -296,6 +312,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageGradForwardProjCB["gPrevAlbedoTexture"]     = pInternalPrevAlbedoTexture;
         perImageGradForwardProjCB["gEmissionTexture"]       = pInputEmissionTexture;
         perImageGradForwardProjCB["gPrevEmissionTexture"]   = pInternalPrevEmissionTexture;
+        perImageGradForwardProjCB["gSpecularAlbedo"]        = pInputSpecularAlbedo;
+        perImageGradForwardProjCB["gPrevSpecularAlbedo"]    = pInternalPrevSpecularAlbedo;
+        perImageGradForwardProjCB["gIndirectAlbedo"]        = pInputIndirectAlbedo;
+        perImageGradForwardProjCB["gPrevIndirectAlbedo"]    = pInternalPrevIndirectAlbedo;
         perImageGradForwardProjCB["gGradientSamples"]       = pInputGradientSamples;
         perImageGradForwardProjCB["gVisibilityBuffer"]      = pInputCurrVisibilityBuffer;
         perImageGradForwardProjCB["gLinearZTexture"]        = pInputLinearZTexture;
@@ -348,6 +368,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gPrevAlbedoTexture"] = pInternalPrevAlbedoTexture;
         perImageAccumulationCB["gEmissionTexture"] = pInputEmissionTexture;
         perImageAccumulationCB["gPrevEmissionTexture"] = pInternalPrevEmissionTexture;
+        perImageAccumulationCB["gSpecularAlbedo"] = pInputSpecularAlbedo;
+        perImageAccumulationCB["gPrevSpecularAlbedo"] = pInternalPrevSpecularAlbedo;
+        perImageAccumulationCB["gIndirectAlbedo"] = pInputIndirectAlbedo;
+        perImageAccumulationCB["gPrevIndirectAlbedo"] = pInternalPrevIndirectAlbedo;
         perImageAccumulationCB["gGradientDifferenceTexture"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
         perImageAccumulationCB["gGradientDownsample"] = gradientDownsample;
         perImageAccumulationCB["gScreenDimension"] = float2(screenWidth, screenHeight);
@@ -387,9 +411,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         if (!mUseOnlySpatialMutualInformation)
         {
             auto perImageTemporalMutualInfCalcCB = mpPrgTemporalMutualInfCalc->getRootVar()["PerImageCB"];
-            perImageTemporalMutualInfCalcCB["gSourceColor"]             = pInputColorTexture;
-            perImageTemporalMutualInfCalcCB["gAlbedoColor"]             = pInputAlbedoTexture;
-            perImageTemporalMutualInfCalcCB["gEmissionColor"]           = pInputEmissionTexture;
             perImageTemporalMutualInfCalcCB["gColorAndVariance"]        = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
             perImageTemporalMutualInfCalcCB["gLinearZTexture"]          = pInputLinearZTexture;
             perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"]      = pInternalPrevLinearZTexture;
@@ -405,6 +426,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gMutualInfResult"]         = mpMutualInfResultBuffer->getColorTexture(0);
             perImageTemporalMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
             perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
+            perImageTemporalMutualInfCalcCB["gSpatialMIThreshold"]      = mSpatialMIThreshold;
+            
 #if IS_DEBUG_PASS
             perImageTemporalMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -414,16 +437,13 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         // Spatial Mutual information calculation
         {
             auto perImageSpatialMutualInfCalcCB = mpPrgSpatialMutualInfCalc->getRootVar()["PerImageCB"];
-            perImageSpatialMutualInfCalcCB["gSourceColor"] = pInputColorTexture;
-            perImageSpatialMutualInfCalcCB["gAlbedoColor"] = pInputAlbedoTexture;
-            perImageSpatialMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
+            perImageSpatialMutualInfCalcCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
             perImageSpatialMutualInfCalcCB["gLinearZTexture"] = pInputLinearZTexture;
             perImageSpatialMutualInfCalcCB["gNormalsTexture"] = pInputNormalVectors;
             perImageSpatialMutualInfCalcCB["gPosNormalFWidth"] = pInputPosNormalFWidth;
             perImageSpatialMutualInfCalcCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
             perImageSpatialMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
             perImageSpatialMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
-            perImageSpatialMutualInfCalcCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
             perImageSpatialMutualInfCalcCB["gMinHistoryCount"] = mNumFramesInMICalc;
 #if IS_DEBUG_PASS
             perImageSpatialMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
@@ -440,15 +460,17 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     // Atrous full screen
     {
         auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
-        perImageAtrousFullScreenCB["gLinearZTexture"] = pInputLinearZTexture;
-        perImageAtrousFullScreenCB["gNormalsTexture"] = pInputNormalVectors;
-        perImageAtrousFullScreenCB["gAlbedoTexture"] = pInputAlbedoTexture;
-        perImageAtrousFullScreenCB["gEmissionTexture"] = pInputEmissionTexture;
-        perImageAtrousFullScreenCB["gPhiColor"] = weightPhiColor;
-        perImageAtrousFullScreenCB["gPhiNormal"] = weightPhiNormal;
-        perImageAtrousFullScreenCB["gScreenDimension"] = int2(screenWidth, screenHeight);
-        perImageAtrousFullScreenCB["gIsUseMutualInf"] = mUseMutualInformation;
-        perImageAtrousFullScreenCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
+        perImageAtrousFullScreenCB["gLinearZTexture"]       = pInputLinearZTexture;
+        perImageAtrousFullScreenCB["gNormalsTexture"]       = pInputNormalVectors;
+        perImageAtrousFullScreenCB["gAlbedoTexture"]        = pInputAlbedoTexture;
+        perImageAtrousFullScreenCB["gEmissionTexture"]      = pInputEmissionTexture;
+        perImageAtrousFullScreenCB["gSpecularAlbedo"]       = pInputSpecularAlbedo;
+        perImageAtrousFullScreenCB["gIndirectAlbedo"]       = pInputIndirectAlbedo;
+        perImageAtrousFullScreenCB["gPhiColor"]             = weightPhiColor;
+        perImageAtrousFullScreenCB["gPhiNormal"]            = weightPhiNormal;
+        perImageAtrousFullScreenCB["gScreenDimension"]      = int2(screenWidth, screenHeight);
+        perImageAtrousFullScreenCB["gIsUseMutualInf"]       = mUseMutualInformation;
+        perImageAtrousFullScreenCB["gMutualInfResult"]      = mpMutualInfResultBuffer->getColorTexture(0);
 #if IS_DEBUG_PASS
         perImageAtrousFullScreenCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -489,6 +511,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(pInputLinearZTexture->getSRV(),        pInternalPrevLinearZTexture->getRTV());
     pRenderContext->blit(pInputNormalVectors->getSRV(),         pInternalPrevNormalsTexture->getRTV());
     pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
+    pRenderContext->blit(pInputIndirectAlbedo->getSRV(),        pInternalPrevIndirectAlbedo->getRTV());
+    pRenderContext->blit(pInputSpecularAlbedo->getSRV(),        pInternalPrevSpecularAlbedo->getRTV());
     pRenderContext->blit(mpMutualInfResultBuffer->getColorTexture(0)->getSRV(), pInternalPrevMutualInfTexture->getRTV());
     
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
@@ -512,6 +536,9 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevLinearZTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevNormalsTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevMutualInfResult).get());
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevIndirectAlbedoTexture).get());
+    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevSpecularAlbedoTexture).get());
+
     pRenderContext->clearUAV(renderData.getTexture(kInternalPrevVisibilityBuffer)->getUAV().get(), uint4(0, 0, 0, 0));
     
     if (mUseMutualInformation)
@@ -586,6 +613,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         if (!mUseOnlySpatialMutualInformation)
         {
             isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);
+            isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 1.0f, 0.01f);
         }
     }
 

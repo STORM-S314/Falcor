@@ -29,9 +29,6 @@
 #include "ASVGFUtils.slang"
 
 cbuffer PerImageCB {
-    Texture2D               gSourceColor;
-    Texture2D               gAlbedoColor;
-    Texture2D               gEmissionColor;
     Texture2D               gColorAndVariance;
     Texture2D               gLinearZTexture;
     Texture2D               gPrevLinearZTexture;
@@ -47,6 +44,7 @@ cbuffer PerImageCB {
     Texture2D<float4>       gMutualInfResult;
     float2                  gScreenDimension;
     int                     gTotalPixelsInFrame;
+    float                   gSpatialMIThreshold;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>     gColorTest;
 #endif
@@ -195,7 +193,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 
     float saturatedMutualInf = saturate(mutualInf);
-    if(saturatedMutualInf < 0.1 && (historyLength == BIN_COUNT))
+    if(saturatedMutualInf < gSpatialMIThreshold && (historyLength == BIN_COUNT))
     {
         historyLength = 1.0;
     }

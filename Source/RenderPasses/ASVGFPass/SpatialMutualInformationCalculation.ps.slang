@@ -29,9 +29,6 @@
 #include "ASVGFUtils.slang"
 
 cbuffer PerImageCB {
-    Texture2D               gSourceColor;
-    Texture2D               gAlbedoColor;
-    Texture2D               gEmissionColor;
     Texture2D               gLinearZTexture;
     Texture2D               gNormalsTexture;
     Texture2D               gPosNormalFWidth;

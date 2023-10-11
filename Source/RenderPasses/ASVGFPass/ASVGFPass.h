@@ -81,7 +81,8 @@ private:
     bool mUseMutualInformation  = false;
     bool mUseOnlySpatialMutualInformation = false;
     int mSpatialMutualInfRadius = 1;
-    int mNumFramesInMICalc      = 15;
+    int mNumFramesInMICalc      = 20;
+    float mSpatialMIThreshold = 0.05f;
 
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};
