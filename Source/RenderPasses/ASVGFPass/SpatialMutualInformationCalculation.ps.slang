@@ -160,6 +160,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 }
             }
         }
+        //If mutual inf is 0, then either sumLuminance == 0 or no info about neighboring pixels
+        //In both cases, we need to sample less of the color from neighboring pixels and use more from this current pixel
+        mutualInfResult = mutualInfResult == 0.0 ? exp(sumLuminance) : mutualInfResult;
     }
 #if IS_DEBUG_PASS
     //gColorTest[iPos] = float4(0.0, saturate(mutualInfResult), 0.0, 1.0);

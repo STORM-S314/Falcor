@@ -169,7 +169,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     }
 
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(0.0, saturate(mutualInf), 0.0, 1.0);
+    //gColorTest[iPos] = float4(0.0, saturate(mutualInf), 0.0, 1.0);
 #endif
 
     return float4(totalSumLuminance, saturate(mutualInf), gFrameNum, 0.0);
