@@ -26,6 +26,7 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 #include "ASVGFCommon.slang"
+#include "ASVGFUtils.slang"
 
 cbuffer PerImageCB {
     Texture2D               gSourceColor;
@@ -36,13 +37,15 @@ cbuffer PerImageCB {
     Texture2D               gPrevLinearZTexture;
     Texture2D               gNormalsTexture;
     Texture2D               gPrevNormalsTexture;
+    Texture2D               gPosNormalFWidth;
+    Texture2D<PackedHitInfo>   gVisibilityBuffer;
+    Texture2D<PackedHitInfo>   gPrevVisibilityBuffer;
     Texture2D               gMotionVectorsTexture;
     Buffer<float>           gPrevMutualInfBuffer;
     RWBuffer<float>         gMutualInfBuffer;
     Texture2D<float4>       gPrevMutualInfResult;
     Texture2D<float4>       gMutualInfResult;
     float2                  gScreenDimension;
-    int                     gFrameNum;
     int                     gTotalPixelsInFrame;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>     gColorTest;
@@ -61,72 +64,94 @@ int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
     int2 iPos = int2(vsOut.posH.xy);
+    float historyLength = 1.0;
+    float mutualInf = 0.0;
+    float totalSumLuminance = 0.0;
+
     float2 motionVec = gMotionVectorsTexture[iPos].rg;
     
-    //const int2 iPrevPos = int2(float2(iPos) + motionVec.xy * gScreenDimension.xy + float2(0.5,0.5));
-    //
-    //float x = frac(prevPos.x);
-    //float y = frac(prevPos.y);
-    //const int2 offset[4] = { int2(0, 0), int2(1, 0), int2(0, 1), int2(1, 1) };
-    //int historyNeighbors[4] = {};
-    //
-    //// bilinear weights
-    //const float bilinearWeights[4] = {  (1.0 - x)   * (1.0 - y),
-    //                                    x           * (1.0 - y),
-    //                                    (1.0 - x)   * y,
-    //                                    x           * y  };
-    //
-    //for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
-    //{
-    //    int2 offsetPixel = iPrevPos + offset[sampleIdx];
-    //
-    //    
-    //
-    //    historyNeighbors[sampleIdx] = gPrevMutualInfResult[iPrevPos + offset[sampleIdx]].b;
-    //}
-    //
-    //
-    //float4 currMutualInfResult = gPrevMutualInfResult[iPrevPos];
-
-
-
-
-
-
-
-
-
-
-
-    float binLuminance[BIN_COUNT];
-    float binFrames[BIN_COUNT]   ;
-
-    for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
-    {
-        binLuminance[frameIndex] = 0.0;
-    }
+    const float2 prevPos = floor(vsOut.posH.xy) + motionVec.xy * gScreenDimension.xy;
+    const int2 iPrevPos = int2(prevPos);// + motionVec.xy * gScreenDimension.xy + float2(0.5,0.5));
 
     float currentLuminance =    luminance(gColorAndVariance[iPos].rgb);
 
-    int bufferFrameIdx = gFrameNum % BIN_COUNT;
+    float x = frac(prevPos.x);
+    float y = frac(prevPos.y);
+    const int2 offset[4] = { int2(0, 0), int2(1, 0), int2(0, 1), int2(1, 1) };
+    
+    // bilinear weights
+    const float bilinearWeights[4] = {  (1.0 - x)   * (1.0 - y),
+                                        x           * (1.0 - y),
+                                        (1.0 - x)   * y,
+                                        x           * y  };
+
     int pixelIndexInFrame = iPos.y * gScreenDimension.x + iPos.x;
-    int bufferPixelValueIndex = pixelIndexInFrame + bufferFrameIdx * gTotalPixelsInFrame;
+    int prevPixelIndexInFrame  = iPrevPos.y * gScreenDimension.x + iPrevPos.x;
 
-    float totalSumLuminance = gMutualInfResult[iPos].r;
+    gMutualInfBuffer[pixelIndexInFrame] = currentLuminance;
+    totalSumLuminance = currentLuminance;
 
-    //If frames are greater or equal than required to calculate the MI.
-    if(gFrameNum >= BIN_COUNT)
+//Check for validity of prev and surrounding previous pixels with the current
+    float3 currentNormal = gNormalsTexture[iPos].xyz;
+    float2 currentDepth = gLinearZTexture[iPos].xy;
+    float currentPosNormalFWidth   = gPosNormalFWidth[iPos].y;
+    HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);
+	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
+ 
+    bool offsetPixelValid[4] = {false, false, false, false};
+    for(int offsetIndex = 0; offsetIndex < 4; offsetIndex++)
     {
-        totalSumLuminance -= gMutualInfBuffer[bufferPixelValueIndex];
+        int2 offsetPixel =  iPrevPos + offset[offsetIndex];
+        float3 prevNormal   = gPrevNormalsTexture[offsetPixel].xyz;
+        float2 prevDepth    = gPrevLinearZTexture[offsetPixel].xy;
+
+        bool isPrevPixelAccepted = isReprojectionValid(offsetPixel, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormal.xyz, currentPosNormalFWidth);
+
+        HitInfo prevHitInfo             = HitInfo(gPrevVisibilityBuffer[offsetPixel]);
+        offsetPixelValid[offsetIndex]   = isPrevPixelAccepted && prevHitInfo.isValid() && (currentMeshID == getMeshInstanceID(prevHitInfo));
     }
 
-    totalSumLuminance += currentLuminance;
-    gMutualInfBuffer[bufferPixelValueIndex] = currentLuminance;
-    float mutualInf = 0.0;
-
-    //1st time the buffer is completely filled up
-    if(gFrameNum >= (BIN_COUNT - 1))
+//Add history to current buffer based on 4 offsets of prev pixels
+    bool isHistorySet = false;
+    for(int historyIndex = 1; historyIndex < BIN_COUNT; historyIndex++)
     {
+        float weightedSum = 0.0;
+        float luminanceSum = 0.0;
+        for (int sampleIdx = 0; sampleIdx < 4; sampleIdx++)
+        {
+            int2 offsetPixel = iPrevPos + offset[sampleIdx];
+            if(offsetPixelValid[sampleIdx] && (gPrevMutualInfResult[offsetPixel].b >= historyIndex))
+            {
+                luminanceSum += gPrevMutualInfBuffer[(prevPixelIndexInFrame + gTotalPixelsInFrame * (historyIndex - 1)) + offset[sampleIdx].x + offset[sampleIdx].y * gScreenDimension.x] * bilinearWeights[sampleIdx];
+                weightedSum += bilinearWeights[sampleIdx];
+            }
+        }
+
+        if((weightedSum > 0.01) && !isHistorySet)
+        {
+            float addluminance = luminanceSum / weightedSum;
+            gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
+            totalSumLuminance += addluminance;
+            historyLength += 1.0;
+        }
+        else
+        {
+            isHistorySet = true;
+        }
+    }
+
+
+    //If history length is enough for temporal mutual information calculation
+    if(historyLength >= BIN_COUNT)
+    {
+        float binLuminance[BIN_COUNT];
+        float binFrames[BIN_COUNT]   ;
+
+        for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
+        {
+            binLuminance[frameIndex] = 0.0;
+        }
+
         for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
         {
             int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
@@ -168,9 +193,21 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         }
     }
 
+
+    float saturatedMutualInf = saturate(mutualInf);
+    if(saturatedMutualInf < 0.1 && (historyLength == BIN_COUNT))
+    {
+        historyLength = 1.0;
+    }
+
 #if IS_DEBUG_PASS
-    //gColorTest[iPos] = float4(0.0, saturate(mutualInf), 0.0, 1.0);
+    //gColorTest[iPos] = float4(0.0, saturatedMutualInf, 0.0, 1.0);
 #endif
 
-    return float4(totalSumLuminance, saturate(mutualInf), gFrameNum, 0.0);
+    float4 mutualInfResult = float4(0.0);
+    mutualInfResult.r = totalSumLuminance;
+    mutualInfResult.g = saturatedMutualInf;
+    mutualInfResult.b = historyLength;
+
+    return mutualInfResult;
 }

@@ -387,22 +387,24 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         if (!mUseOnlySpatialMutualInformation)
         {
             auto perImageTemporalMutualInfCalcCB = mpPrgTemporalMutualInfCalc->getRootVar()["PerImageCB"];
-            perImageTemporalMutualInfCalcCB["gSourceColor"] = pInputColorTexture;
-            perImageTemporalMutualInfCalcCB["gAlbedoColor"] = pInputAlbedoTexture;
-            perImageTemporalMutualInfCalcCB["gEmissionColor"] = pInputEmissionTexture;
-            perImageTemporalMutualInfCalcCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
-            perImageTemporalMutualInfCalcCB["gLinearZTexture"] = pInputLinearZTexture;
-            perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
-            perImageTemporalMutualInfCalcCB["gNormalsTexture"] = pInputNormalVectors;
-            perImageTemporalMutualInfCalcCB["gPrevNormalsTexture"] = pInternalPrevNormalsTexture;
-            perImageTemporalMutualInfCalcCB["gMotionVectorsTexture"] = pInputMotionVectors;
-            perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"] = mpPrevMutualInformationCalcBuffer->asBuffer();
-            perImageTemporalMutualInfCalcCB["gMutualInfBuffer"] = mpMutualInformationCalcBuffer->asBuffer();
-            perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"] = pInternalPrevMutualInfTexture;
-            perImageTemporalMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
-            perImageTemporalMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
-            perImageTemporalMutualInfCalcCB["gFrameNum"] = mFrameNumber;
-            perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"] = screenWidth * screenHeight;
+            perImageTemporalMutualInfCalcCB["gSourceColor"]             = pInputColorTexture;
+            perImageTemporalMutualInfCalcCB["gAlbedoColor"]             = pInputAlbedoTexture;
+            perImageTemporalMutualInfCalcCB["gEmissionColor"]           = pInputEmissionTexture;
+            perImageTemporalMutualInfCalcCB["gColorAndVariance"]        = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+            perImageTemporalMutualInfCalcCB["gLinearZTexture"]          = pInputLinearZTexture;
+            perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"]      = pInternalPrevLinearZTexture;
+            perImageTemporalMutualInfCalcCB["gNormalsTexture"]          = pInputNormalVectors;
+            perImageTemporalMutualInfCalcCB["gPrevNormalsTexture"]      = pInternalPrevNormalsTexture;
+            perImageTemporalMutualInfCalcCB["gPosNormalFWidth"]         = pInputPosNormalFWidth;
+            perImageTemporalMutualInfCalcCB["gVisibilityBuffer"]        = pInputCurrVisibilityBuffer;
+            perImageTemporalMutualInfCalcCB["gPrevVisibilityBuffer"]    = pInternalPrevVisBufferTexture;
+            perImageTemporalMutualInfCalcCB["gMotionVectorsTexture"]    = pInputMotionVectors;
+            perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"]     = mpPrevMutualInformationCalcBuffer->asBuffer();
+            perImageTemporalMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
+            perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"]     = pInternalPrevMutualInfTexture;
+            perImageTemporalMutualInfCalcCB["gMutualInfResult"]         = mpMutualInfResultBuffer->getColorTexture(0);
+            perImageTemporalMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
+            perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
 #if IS_DEBUG_PASS
             perImageTemporalMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -492,7 +494,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     std::swap(mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
     mPrevFrameJitter = cameraJitter;
-    mFrameNumber++;
 }
 
 void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& renderData)
@@ -536,7 +537,6 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 
         mpPrgTemporalMutualInfCalc = FullScreenPass::create(mpDevice, kTemporalMutualInfCalcShader, temporalDefines);
         mpPrgSpatialMutualInfCalc = FullScreenPass::create(mpDevice, kSpatialMutualInfCalcShader, spatialDefines);
-        mFrameNumber = 0;
     }
 }
 

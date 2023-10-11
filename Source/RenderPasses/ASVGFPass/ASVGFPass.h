@@ -81,7 +81,6 @@ private:
     bool mUseMutualInformation  = false;
     bool mUseOnlySpatialMutualInformation = false;
     int mSpatialMutualInfRadius = 1;
-    int mFrameNumber            = 0;
     int mNumFramesInMICalc      = 15;
 
     //Params frame
