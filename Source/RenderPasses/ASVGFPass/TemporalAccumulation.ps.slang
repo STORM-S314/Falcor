@@ -49,7 +49,6 @@ cbuffer PerImageCB
     Texture2D   gPrevSpecularAlbedo;
     Texture2D   gIndirectAlbedo;
     Texture2D   gPrevIndirectAlbedo;
-    Texture2D   gPosNormalFWidth;
     Texture2D<float4>   gGradientDifferenceTexture;
     int         gGradientDownsample;
     float2      gScreenDimension;
@@ -87,7 +86,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);
 	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
     float3  currentNormal           = gNormalsTexture[iPos].xyz;
-    float   currentPosNormalFWidth  = gPosNormalFWidth[iPos].y;
 
     float4 weightedColorPrev    = float4(0);
 	float2 weightedMomentsPrev  = float2(0);
@@ -112,7 +110,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             float2 prevDepth        = gPrevLinearZTexture[offsetLoc].xy;
             float3 prevNormals      = gPrevNormalsTexture[offsetLoc].xyz;
 
-            bool isAccept = isReprojectionValid(offsetLoc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
+            bool isAccept = isReprojectionValid(offsetLoc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz);
 
             isAccept = isAccept && isPixelWithinScreenDimensions(iPrevPos, gScreenDimension.xy);
 
@@ -169,14 +167,14 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         psOut.accumulated.a     =   min(64, histLen + 1.0);
 		psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
 		psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
+#if IS_DEBUG_PASS
+    //gColorTest[iPos] = float4(antilagAlpha, 0.0 , 0.0 , 1.0);
+#endif     
     }
     else {
 		psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
     }
-#if IS_DEBUG_PASS
-    //gColorTest[iPos] = float4(luminance(psOut.accumulated.rgb), 0.0 , 0.0 , 1.0);
-#endif     
     return psOut;
 }

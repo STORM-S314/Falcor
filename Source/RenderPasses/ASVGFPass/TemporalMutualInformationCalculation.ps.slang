@@ -34,14 +34,12 @@ cbuffer PerImageCB {
     Texture2D               gPrevLinearZTexture;
     Texture2D               gNormalsTexture;
     Texture2D               gPrevNormalsTexture;
-    Texture2D               gPosNormalFWidth;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
     Texture2D<PackedHitInfo>   gPrevVisibilityBuffer;
     Texture2D               gMotionVectorsTexture;
     Buffer<float>           gPrevMutualInfBuffer;
     RWBuffer<float>         gMutualInfBuffer;
     Texture2D<float4>       gPrevMutualInfResult;
-    Texture2D<float4>       gMutualInfResult;
     float2                  gScreenDimension;
     int                     gTotalPixelsInFrame;
     float                   gSpatialMIThreshold;
@@ -92,7 +90,6 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 //Check for validity of prev and surrounding previous pixels with the current
     float3 currentNormal = gNormalsTexture[iPos].xyz;
     float2 currentDepth = gLinearZTexture[iPos].xy;
-    float currentPosNormalFWidth   = gPosNormalFWidth[iPos].y;
     HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);
 	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
  
@@ -103,7 +100,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         float3 prevNormal   = gPrevNormalsTexture[offsetPixel].xyz;
         float2 prevDepth    = gPrevLinearZTexture[offsetPixel].xy;
 
-        bool isPrevPixelAccepted = isReprojectionValid(offsetPixel, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormal.xyz, currentPosNormalFWidth);
+        bool isPrevPixelAccepted = isReprojectionValid(offsetPixel, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormal.xyz);
 
         HitInfo prevHitInfo             = HitInfo(gPrevVisibilityBuffer[offsetPixel]);
         offsetPixelValid[offsetIndex]   = isPrevPixelAccepted && prevHitInfo.isValid() && (currentMeshID == getMeshInstanceID(prevHitInfo));
@@ -130,14 +127,13 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             float addluminance = luminanceSum / weightedSum;
             gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
             totalSumLuminance += addluminance;
-            historyLength += 1.0;
+            historyLength = min(int(historyLength + 1.0), BIN_COUNT);
         }
         else
         {
             isHistorySet = true;
         }
     }
-
 
     //If history length is enough for temporal mutual information calculation
     if(historyLength >= BIN_COUNT)
@@ -193,7 +189,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 
     float saturatedMutualInf = saturate(mutualInf);
-    if(saturatedMutualInf < gSpatialMIThreshold && (historyLength == BIN_COUNT))
+    if((saturatedMutualInf < gSpatialMIThreshold) && (int(historyLength) == BIN_COUNT))
     {
         historyLength = 1.0;
     }

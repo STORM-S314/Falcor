@@ -80,7 +80,6 @@ const char kInputCurrVisibilityBufferTexture[]  = "CurrentVisibilityBuffer";
 const char kInputGradVisibilityBufferTexture[]  = "GradientVisibilityBuffer";
 const char kInputGradientSamplesTexture[]       = "GradientSamples";
 const char kInputMotionVectors[]                = "MotionVectors";
-const char kInputPosNormalFWidth[]              = "PosNormalFWidth";
 
 // Internal buffer names
 const char kInternalPrevColorTexture[]      = "PrevColor";
@@ -152,7 +151,6 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputGradVisibilityBufferTexture, "GradientVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
     reflector.addInput(kInputCurrVisibilityBufferTexture, "CurrentVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
     reflector.addInput(kInputMotionVectors, "MotionVectors");
-    reflector.addInput(kInputPosNormalFWidth, "PosNormalFWidth");
     reflector.addInput(kInputGradientSamplesTexture, "GradSamples").format(ResourceFormat::R32Uint);
 
     // Internal buffers
@@ -264,7 +262,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInputGradVisibilityBuffer     = renderData.getTexture(kInputGradVisibilityBufferTexture);
     ref<Texture> pInputMotionVectors            = renderData.getTexture(kInputMotionVectors);
     ref<Texture> pInputNormalVectors            = renderData.getTexture(kInputNormalsTexture);
-    ref<Texture> pInputPosNormalFWidth          = renderData.getTexture(kInputPosNormalFWidth);
     ref<Texture> pInputSpecularAlbedo           = renderData.getTexture(kInputSpecularAlbedoTexture);
     ref<Texture> pInputIndirectAlbedo           = renderData.getTexture(kInputIndirectAlbedoTexture);
     
@@ -361,7 +358,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
         perImageAccumulationCB["gNormalsTexture"] = pInputNormalVectors;
         perImageAccumulationCB["gPrevNormalsTexture"] = pInternalPrevNormalsTexture;
-        perImageAccumulationCB["gPosNormalFWidth"] = pInputPosNormalFWidth;
         perImageAccumulationCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
         perImageAccumulationCB["gPrevVisibilityBuffer"] = pInternalPrevVisBufferTexture;
         perImageAccumulationCB["gAlbedoTexture"] = pInputAlbedoTexture;
@@ -416,14 +412,12 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"]      = pInternalPrevLinearZTexture;
             perImageTemporalMutualInfCalcCB["gNormalsTexture"]          = pInputNormalVectors;
             perImageTemporalMutualInfCalcCB["gPrevNormalsTexture"]      = pInternalPrevNormalsTexture;
-            perImageTemporalMutualInfCalcCB["gPosNormalFWidth"]         = pInputPosNormalFWidth;
             perImageTemporalMutualInfCalcCB["gVisibilityBuffer"]        = pInputCurrVisibilityBuffer;
             perImageTemporalMutualInfCalcCB["gPrevVisibilityBuffer"]    = pInternalPrevVisBufferTexture;
             perImageTemporalMutualInfCalcCB["gMotionVectorsTexture"]    = pInputMotionVectors;
             perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"]     = mpPrevMutualInformationCalcBuffer->asBuffer();
             perImageTemporalMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
             perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"]     = pInternalPrevMutualInfTexture;
-            perImageTemporalMutualInfCalcCB["gMutualInfResult"]         = mpMutualInfResultBuffer->getColorTexture(0);
             perImageTemporalMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
             perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
             perImageTemporalMutualInfCalcCB["gSpatialMIThreshold"]      = mSpatialMIThreshold;
@@ -440,7 +434,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageSpatialMutualInfCalcCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
             perImageSpatialMutualInfCalcCB["gLinearZTexture"] = pInputLinearZTexture;
             perImageSpatialMutualInfCalcCB["gNormalsTexture"] = pInputNormalVectors;
-            perImageSpatialMutualInfCalcCB["gPosNormalFWidth"] = pInputPosNormalFWidth;
             perImageSpatialMutualInfCalcCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
             perImageSpatialMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
             perImageSpatialMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
@@ -470,7 +463,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gPhiNormal"]            = weightPhiNormal;
         perImageAtrousFullScreenCB["gScreenDimension"]      = int2(screenWidth, screenHeight);
         perImageAtrousFullScreenCB["gIsUseMutualInf"]       = mUseMutualInformation;
-        perImageAtrousFullScreenCB["gMutualInfResult"]      = mpMutualInfResultBuffer->getColorTexture(0);
 #if IS_DEBUG_PASS
         perImageAtrousFullScreenCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -479,9 +471,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         {
             if ((i - 1) == mHistoryTap)
             {
-                pRenderContext->blit(
-                    mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV()
-                );
+                pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
             }
 
             perImageAtrousFullScreenCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
@@ -634,7 +624,6 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputCurrVisibilityBufferTexture);
     ref<Texture> pInputMotionVectors = renderData.getTexture(kInputMotionVectors);
     ref<Texture> pInputNormalVectors = renderData.getTexture(kInputNormalsTexture);
-    ref<Texture> pInputPosNormalFWidth = renderData.getTexture(kInputPosNormalFWidth);
 
     ref<Texture> pInternalPrevColorTexture = renderData.getTexture(kInternalPrevColorTexture);
     ref<Texture> pInternalPrevAlbedoTexture = renderData.getTexture(kInternalPrevAlbedoTexture);

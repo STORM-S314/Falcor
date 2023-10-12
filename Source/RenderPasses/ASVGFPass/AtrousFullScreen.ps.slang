@@ -42,7 +42,6 @@ cbuffer PerImageCB
 	int 		gIsModulateAlbedo;
     int2        gScreenDimension;
     bool        gIsUseMutualInf;
-    Texture2D<float4>   gMutualInfResult;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
 #endif

@@ -40,7 +40,6 @@ const char kInputVisibilityBuffer[]     = "InVisibilityBuffer";
 const char kInputBufferWorldNormal[]    = "InWorldNormal";
 const char kInputBufferLinearZ[]        = "InLinearZ";
 const char kInputWPositionBuffer[]      = "InWPos";
-const char kInputPositionNormalFWidth[] = "InPosNormalFWidth";
 const char kInputWViewBuffer[]          = "InWViewBuffer";
 
 //Output buffer names
@@ -125,7 +124,6 @@ RenderPassReflection GradForwardProjPass::reflect(const CompileData& compileData
     reflector.addInput(kInputBufferWorldNormal, "WorldNormalBuffer");
     reflector.addInput(kInputVisibilityBuffer, "VisibilityBuffer");
     reflector.addInput(kInputWPositionBuffer, "WPositionBuffer");
-    reflector.addInput(kInputPositionNormalFWidth, "PosNormalFWidth");
     reflector.addInput(kInputWViewBuffer, "WViewBuffer");
     
     //Internal
@@ -164,7 +162,6 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     ref<Texture> pInputVisibilityBuffer         = renderData.getTexture(kInputVisibilityBuffer);
     pRenderContext->blit(pInputVisibilityBuffer->getSRV(), mpVisibilityBufferTexture->getRTV());
     ref<Texture> pInputWPosBuffer               = renderData.getTexture(kInputWPositionBuffer);
-    ref<Texture> pInputPosNormalFWidthBuffer    = renderData.getTexture(kInputPositionNormalFWidth);
     ref<Texture> pInputWViewBuffer              = renderData.getTexture(kInputWViewBuffer);
     pRenderContext->blit(pInputWViewBuffer->getSRV(), mpWViewBufferTexture->getRTV());
     
@@ -206,7 +203,6 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
         perImageGradForwardProjCB["gGradientSamplesTexture"] = mpGradientSamplesTexture;
         perImageGradForwardProjCB["gPosTexture"] = pInputWPosBuffer;
         perImageGradForwardProjCB["gPrevWPosTexture"] = pInternalPrevWPositionBuffer;
-        perImageGradForwardProjCB["gPositionNormalFwidth"] = pInputPosNormalFWidthBuffer;
         perImageGradForwardProjCB["gWViewBuffer"] = mpWViewBufferTexture;
         perImageGradForwardProjCB["gPrevWViewBuffer"] = pInternalPrevWViewBuffer;
         perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrix();

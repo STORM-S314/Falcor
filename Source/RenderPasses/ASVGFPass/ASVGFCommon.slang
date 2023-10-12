@@ -50,7 +50,7 @@ bool isPixelWithinScreenDimensions(float2 pixelPos, float2 screenDimensions)
     return (all(pixelPos >= int2(0,0)) && all(pixelPos <= (screenDimensions.xy - int2(1,1))));
 }
 
-bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 currentDepth, float2 prevDepth, float3 currentNormal, float3 prevNormal, float fWidthNormal)
+bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 currentDepth, float2 prevDepth, float3 currentNormal, float3 prevNormal)
 {
     // check whether reprojected pixel is inside of the screen
     if(!isPixelWithinScreenDimensions(pixelPos, screenDimensions)){return false;}
@@ -59,7 +59,7 @@ bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 curren
     if((abs(prevDepth.x - currentDepth.x) / (currentDepth.y + 1e-2f)) > 10.f) {return false;}
 
     // check normals for compatibility
-    if ((distance(currentNormal, prevNormal) / (fWidthNormal + 1e-2)) > 16.0) {return false;}
+    if (dot(currentNormal, prevNormal) < 0.9) {return false;}
 
     return true;
 }

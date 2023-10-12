@@ -31,7 +31,6 @@
 cbuffer PerImageCB {
     Texture2D               gLinearZTexture;
     Texture2D               gNormalsTexture;
-    Texture2D               gPosNormalFWidth;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
     float2                  gScreenDimension;
     Texture2D<float4>       gMutualInfResult;
@@ -62,10 +61,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     if(mutualInfResultBuf.b < float(gMinHistoryCount))
     {
         HitInfo centerHitInfoP  = HitInfo(gVisibilityBuffer[iPos]);
-        float2 centerDepthP     = gLinearZTexture[iPos].xy;
-        float3 centerNormalP    = gNormalsTexture[iPos].xyz;
+        float2 centerDepth     = gLinearZTexture[iPos].xy;
+        float3 centerNormal    = gNormalsTexture[iPos].xyz;
         uint    centerMeshID    = getMeshInstanceID(centerHitInfoP);
-        float fWidthNormal = gPosNormalFWidth[iPos].y;
 
         if(!centerHitInfoP.isValid())
         {
@@ -95,19 +93,11 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     float2 depthP       = gLinearZTexture[currentP].xy;
                     float3 normalP      = gNormalsTexture[currentP].xyz;
 
-                    //check if inside screen
-                    accept = isPixelWithinScreenDimensions(currentP, gScreenDimension.xy);
-
                     //vis buffer check
                     accept = accept && hitInfoP.isValid();
                     uint    meshIDP    = getMeshInstanceID(hitInfoP);
                     accept = accept && (meshIDP == centerMeshID);
-
-                    // check if deviation of depths is acceptable
-                    accept = accept && ((abs(depthP.x - centerDepthP.x) / (centerDepthP.y + 1e-2f)) < 10.f);
-
-                    // check normals for compatibility
-                    accept = accept && ((distance(centerNormalP, normalP) / (fWidthNormal + 1e-2)) < 16.0);
+                    accept = accept && isReprojectionValid(currentP, gScreenDimension.xy, centerDepth, depthP, centerNormal, normalP);
                 }
 
                 if(accept)
@@ -166,7 +156,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         mutualInfResult = exp(-mutualInfResult);
     }
 #if IS_DEBUG_PASS
-    //gColorTest[iPos] = (mutualInfResultBuf.b < float(gMinHistoryCount)) ? float4(1.0, 0.0, 0.0, 1.0) : float4(0.0, 1.0, 0.0, 1.0);
+    gColorTest[iPos] = (mutualInfResultBuf.b < float(gMinHistoryCount)) ? float4(1.0, 0.0, 0.0, 1.0) : float4(0.0, 1.0, 0.0, 1.0);
 #endif
 
     return float4(gColorAndVariance[iPos].rgb, saturate(mutualInfResult));
