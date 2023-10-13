@@ -288,7 +288,7 @@ struct PathTracer
 
         // Create sample generator.
         const uint maxSpp = kSamplesPerPixel > 0 ? kSamplesPerPixel : kMaxSamplesPerPixel;
-        path.sg = SampleGenerator(pixel, randomNumbers[pixel] * maxSpp + path.getSampleIdx());
+        path.sg = SampleGenerator(randomNumbers[pixel] * maxSpp + path.getSampleIdx());
 
         // Load the primary hit info from the V-buffer.
         const HitInfo hit = HitInfo(vbuffer[pixel]);

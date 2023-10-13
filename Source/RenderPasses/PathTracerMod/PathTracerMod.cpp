@@ -1062,8 +1062,6 @@ void PathTracerMod::setShaderData(const ShaderVar& var, const RenderData& render
         if (!pSampleCount) throw RuntimeError("PathTracerMod: Missing sample count input texture");
     }
 
-    ref<Texture> pRandomNumbers = renderData.getTexture(kInputRandomNumbers);
-
     var["params"].setBlob(mParams);
     var["vbuffer"] = renderData.getTexture(kInputVBuffer);
     var["viewDir"] = pViewDir; // Can be nullptr

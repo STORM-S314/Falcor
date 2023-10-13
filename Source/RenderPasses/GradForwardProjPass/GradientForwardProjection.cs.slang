@@ -141,7 +141,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         gCurrentRandomNumberTexture[idx_curr]   =   gPrevRandomNumberTexture[idx_prev];
         gVisibilityBuffer[idx_curr]             =   gPrevVisibilityBuffer[idx_prev];
-        gWViewBuffer[idx_curr]                  =   gPrevWViewBuffer[idx_prev];
+        //gWViewBuffer[idx_curr]                  =   gPrevWViewBuffer[idx_prev];
         //gColorTestTexture[idx_curr] = float4(1.0, 0.0, 0.0, 1.0);
         //gColorTestTexture[idx_prev] = float4(0.0, 1.0, 0.0, 1.0);
     }
