@@ -80,7 +80,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     float4  currentColor            = gColor[iPos].xyzw;
     float2  currentDepth            = gLinearZTexture[iPos].xy;
-    float3  currentIllumination     = getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].rgb + gIndirectAlbedo[iPos].rgb + gSpecularAlbedo[iPos].rgb);
+    float3  currentIllumination     = getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].rgb, gIndirectAlbedo[iPos].rgb, gSpecularAlbedo[iPos].rgb);
     float   currentLuminance        = luminance(currentIllumination.rgb);
     float2  currentMomemnts         = float2(currentLuminance, currentLuminance * currentLuminance);
     HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);

@@ -156,7 +156,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         mutualInfResult = exp(-mutualInfResult);
     }
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = (mutualInfResultBuf.b < float(gMinHistoryCount)) ? float4(1.0, 0.0, 0.0, 1.0) : float4(0.0, 1.0, 0.0, 1.0);
+    //gColorTest[iPos] = (mutualInfResultBuf.b < float(gMinHistoryCount)) ? float4(1.0, 0.0, 0.0, 1.0) : float4(0.0, 1.0, 0.0, 1.0);
 #endif
 
     return float4(gColorAndVariance[iPos].rgb, saturate(mutualInfResult));

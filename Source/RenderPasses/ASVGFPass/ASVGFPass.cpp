@@ -345,7 +345,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
         }
     }
-
+    
     //Temporal Accumulation
     {
         auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
@@ -408,6 +408,11 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         {
             auto perImageTemporalMutualInfCalcCB = mpPrgTemporalMutualInfCalc->getRootVar()["PerImageCB"];
             perImageTemporalMutualInfCalcCB["gColorAndVariance"]        = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+            perImageTemporalMutualInfCalcCB["gColor"] = pInputColorTexture;
+            perImageTemporalMutualInfCalcCB["gEmissionTexture"] = pInputEmissionTexture;
+            perImageTemporalMutualInfCalcCB["gAlbedoTexture"] = pInputAlbedoTexture;
+            perImageTemporalMutualInfCalcCB["gIndirectAlbedo"] = pInputIndirectAlbedo;
+            perImageTemporalMutualInfCalcCB["gSpecularAlbedo"] = pInputSpecularAlbedo;
             perImageTemporalMutualInfCalcCB["gLinearZTexture"]          = pInputLinearZTexture;
             perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"]      = pInternalPrevLinearZTexture;
             perImageTemporalMutualInfCalcCB["gNormalsTexture"]          = pInputNormalVectors;
