@@ -177,7 +177,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     if(gIsModulateAlbedo == 1)
     {
-        filteredIllumination.rgba = float4((filteredIllumination.rgb * (gAlbedoTexture[ipos].rgb /*+ gSpecularAlbedo[ipos].rgb + gIndirectAlbedo[ipos].rgb */) + gEmissionTexture[ipos].rgb), 1.0);
+        filteredIllumination.rgba = float4((filteredIllumination.rgb * (gAlbedoTexture[ipos].rgb /*+ gSpecularAlbedo[ipos].rgb + gIndirectAlbedo[ipos].rgb */)), 1.0);
 	}
 
     return filteredIllumination;
