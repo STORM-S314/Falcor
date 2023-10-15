@@ -72,8 +72,6 @@ const char kUseMutualInfCalc[]      = "UseMutualInfCalc";
 const char kInputColorTexture[]                 = "Color";
 const char kInputAlbedoTexture[]                = "Albedo";
 const char kInputSpecularAlbedoTexture[]        = "SpecularAlbedo";
-const char kInputIndirectAlbedoTexture[]        = "IndirectAlbedo";
-const char kInputEmissionTexture[]              = "Emission";
 const char kInputLinearZTexture[]               = "LinearZ";
 const char kInputNormalsTexture[]               = "Normals";
 const char kInputCurrVisibilityBufferTexture[]  = "CurrentVisibilityBuffer";
@@ -84,13 +82,11 @@ const char kInputMotionVectors[]                = "MotionVectors";
 // Internal buffer names
 const char kInternalPrevColorTexture[]      = "PrevColor";
 const char kInternalPrevAlbedoTexture[]     = "PrevAlbedo";
-const char kInternalPrevEmissionTexture[]   = "PrevEmission";
 const char kInternalPrevLinearZTexture[]    = "PrevLinearZ";
 const char kInternalPrevNormalsTexture[]    = "PrevNormals";
 const char kInternalPrevVisibilityBuffer[]  = "PrevVisBuffer";
 const char kInternalPrevMutualInfResult[]   = "PrevMutInfResult";
 const char kInternalPrevSpecularAlbedoTexture[] = "PrevSpecularAlbedo";
-const char kInternalPrevIndirectAlbedoTexture[] = "PrevIndirectAlbedo";
 
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
@@ -144,8 +140,6 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputColorTexture, "Color");
     reflector.addInput(kInputAlbedoTexture, "Albedo");
     reflector.addInput(kInputSpecularAlbedoTexture, "SpecularAlbedo");
-    reflector.addInput(kInputIndirectAlbedoTexture, "IndirectAlbedo");
-    reflector.addInput(kInputEmissionTexture, "Emission");
     reflector.addInput(kInputLinearZTexture, "LinearZ");
     reflector.addInput(kInputNormalsTexture, "Normals");
     reflector.addInput(kInputGradVisibilityBufferTexture, "GradientVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
@@ -159,10 +153,6 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     reflector.addInternal(kInternalPrevAlbedoTexture, "Previous Albedo")
-        .format(ResourceFormat::RGBA32Float)
-        .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
-
-    reflector.addInternal(kInternalPrevEmissionTexture, "Previous Emission")
         .format(ResourceFormat::RGBA32Float)
         .bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
@@ -181,9 +171,6 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
         .format(ResourceFormat::RGBA32Float).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
 
     reflector.addInternal(kInternalPrevSpecularAlbedoTexture, "Previous Specular Albedo")
-        .format(ResourceFormat::RGBA8Unorm).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
-
-    reflector.addInternal(kInternalPrevIndirectAlbedoTexture, "Previous Indirect Albedo")
         .format(ResourceFormat::RGBA8Unorm).bindFlags(Resource::BindFlags::RenderTarget | Resource::BindFlags::ShaderResource);
     
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
@@ -255,7 +242,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
     ref<Texture> pInputColorTexture             = renderData.getTexture(kInputColorTexture);
     ref<Texture> pInputAlbedoTexture            = renderData.getTexture(kInputAlbedoTexture);
-    ref<Texture> pInputEmissionTexture          = renderData.getTexture(kInputEmissionTexture);
     ref<Texture> pInputLinearZTexture           = renderData.getTexture(kInputLinearZTexture);
     ref<Texture> pInputGradientSamples          = renderData.getTexture(kInputGradientSamplesTexture);
     ref<Texture> pInputCurrVisibilityBuffer     = renderData.getTexture(kInputCurrVisibilityBufferTexture);
@@ -263,17 +249,14 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInputMotionVectors            = renderData.getTexture(kInputMotionVectors);
     ref<Texture> pInputNormalVectors            = renderData.getTexture(kInputNormalsTexture);
     ref<Texture> pInputSpecularAlbedo           = renderData.getTexture(kInputSpecularAlbedoTexture);
-    ref<Texture> pInputIndirectAlbedo           = renderData.getTexture(kInputIndirectAlbedoTexture);
     
     ref<Texture> pInternalPrevColorTexture      = renderData.getTexture(kInternalPrevColorTexture);
     ref<Texture> pInternalPrevAlbedoTexture     = renderData.getTexture(kInternalPrevAlbedoTexture);
-    ref<Texture> pInternalPrevEmissionTexture   = renderData.getTexture(kInternalPrevEmissionTexture);
     ref<Texture> pInternalPrevLinearZTexture    = renderData.getTexture(kInternalPrevLinearZTexture);
     ref<Texture> pInternalPrevNormalsTexture    = renderData.getTexture(kInternalPrevNormalsTexture);
     ref<Texture> pInternalPrevVisBufferTexture  = renderData.getTexture(kInternalPrevVisibilityBuffer);
     ref<Texture> pInternalPrevMutualInfTexture  = renderData.getTexture(kInternalPrevMutualInfResult);
     ref<Texture> pInternalPrevSpecularAlbedo    = renderData.getTexture(kInternalPrevSpecularAlbedoTexture);
-    ref<Texture> pInternalPrevIndirectAlbedo    = renderData.getTexture(kInternalPrevIndirectAlbedoTexture);
     
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
 
@@ -307,12 +290,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageGradForwardProjCB["gPrevColorTexture"]      = pInternalPrevColorTexture;
         perImageGradForwardProjCB["gAlbedoTexture"]         = pInputAlbedoTexture;
         perImageGradForwardProjCB["gPrevAlbedoTexture"]     = pInternalPrevAlbedoTexture;
-        perImageGradForwardProjCB["gEmissionTexture"]       = pInputEmissionTexture;
-        perImageGradForwardProjCB["gPrevEmissionTexture"]   = pInternalPrevEmissionTexture;
         perImageGradForwardProjCB["gSpecularAlbedo"]        = pInputSpecularAlbedo;
         perImageGradForwardProjCB["gPrevSpecularAlbedo"]    = pInternalPrevSpecularAlbedo;
-        perImageGradForwardProjCB["gIndirectAlbedo"]        = pInputIndirectAlbedo;
-        perImageGradForwardProjCB["gPrevIndirectAlbedo"]    = pInternalPrevIndirectAlbedo;
         perImageGradForwardProjCB["gGradientSamples"]       = pInputGradientSamples;
         perImageGradForwardProjCB["gVisibilityBuffer"]      = pInputCurrVisibilityBuffer;
         perImageGradForwardProjCB["gLinearZTexture"]        = pInputLinearZTexture;
@@ -362,12 +341,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gPrevVisibilityBuffer"] = pInternalPrevVisBufferTexture;
         perImageAccumulationCB["gAlbedoTexture"] = pInputAlbedoTexture;
         perImageAccumulationCB["gPrevAlbedoTexture"] = pInternalPrevAlbedoTexture;
-        perImageAccumulationCB["gEmissionTexture"] = pInputEmissionTexture;
-        perImageAccumulationCB["gPrevEmissionTexture"] = pInternalPrevEmissionTexture;
         perImageAccumulationCB["gSpecularAlbedo"] = pInputSpecularAlbedo;
         perImageAccumulationCB["gPrevSpecularAlbedo"] = pInternalPrevSpecularAlbedo;
-        perImageAccumulationCB["gIndirectAlbedo"] = pInputIndirectAlbedo;
-        perImageAccumulationCB["gPrevIndirectAlbedo"] = pInternalPrevIndirectAlbedo;
         perImageAccumulationCB["gGradientDifferenceTexture"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
         perImageAccumulationCB["gGradientDownsample"] = gradientDownsample;
         perImageAccumulationCB["gScreenDimension"] = float2(screenWidth, screenHeight);
@@ -409,9 +384,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             auto perImageTemporalMutualInfCalcCB = mpPrgTemporalMutualInfCalc->getRootVar()["PerImageCB"];
             perImageTemporalMutualInfCalcCB["gColorAndVariance"]        = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
             perImageTemporalMutualInfCalcCB["gColor"] = pInputColorTexture;
-            perImageTemporalMutualInfCalcCB["gEmissionTexture"] = pInputEmissionTexture;
             perImageTemporalMutualInfCalcCB["gAlbedoTexture"] = pInputAlbedoTexture;
-            perImageTemporalMutualInfCalcCB["gIndirectAlbedo"] = pInputIndirectAlbedo;
             perImageTemporalMutualInfCalcCB["gSpecularAlbedo"] = pInputSpecularAlbedo;
             perImageTemporalMutualInfCalcCB["gLinearZTexture"]          = pInputLinearZTexture;
             perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"]      = pInternalPrevLinearZTexture;
@@ -461,9 +434,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gLinearZTexture"]       = pInputLinearZTexture;
         perImageAtrousFullScreenCB["gNormalsTexture"]       = pInputNormalVectors;
         perImageAtrousFullScreenCB["gAlbedoTexture"]        = pInputAlbedoTexture;
-        perImageAtrousFullScreenCB["gEmissionTexture"]      = pInputEmissionTexture;
         perImageAtrousFullScreenCB["gSpecularAlbedo"]       = pInputSpecularAlbedo;
-        perImageAtrousFullScreenCB["gIndirectAlbedo"]       = pInputIndirectAlbedo;
         perImageAtrousFullScreenCB["gPhiColor"]             = weightPhiColor;
         perImageAtrousFullScreenCB["gPhiNormal"]            = weightPhiNormal;
         perImageAtrousFullScreenCB["gScreenDimension"]      = int2(screenWidth, screenHeight);
@@ -502,11 +473,9 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     // Swap buffers for next frame}
     pRenderContext->blit(pInputColorTexture->getSRV(),          pInternalPrevColorTexture->getRTV());
     pRenderContext->blit(pInputAlbedoTexture->getSRV(),         pInternalPrevAlbedoTexture->getRTV());
-    pRenderContext->blit(pInputEmissionTexture->getSRV(),       pInternalPrevEmissionTexture->getRTV());
     pRenderContext->blit(pInputLinearZTexture->getSRV(),        pInternalPrevLinearZTexture->getRTV());
     pRenderContext->blit(pInputNormalVectors->getSRV(),         pInternalPrevNormalsTexture->getRTV());
     pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
-    pRenderContext->blit(pInputIndirectAlbedo->getSRV(),        pInternalPrevIndirectAlbedo->getRTV());
     pRenderContext->blit(pInputSpecularAlbedo->getSRV(),        pInternalPrevSpecularAlbedo->getRTV());
     pRenderContext->blit(mpMutualInfResultBuffer->getColorTexture(0)->getSRV(), pInternalPrevMutualInfTexture->getRTV());
     
@@ -527,11 +496,9 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevColorTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevAlbedoTexture).get());
-    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevEmissionTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevLinearZTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevNormalsTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevMutualInfResult).get());
-    pRenderContext->clearTexture(renderData.getTexture(kInternalPrevIndirectAlbedoTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevSpecularAlbedoTexture).get());
 
     pRenderContext->clearUAV(renderData.getTexture(kInternalPrevVisibilityBuffer)->getUAV().get(), uint4(0, 0, 0, 0));
@@ -623,7 +590,6 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
 {
     ref<Texture> pInputColorTexture = renderData.getTexture(kInputColorTexture);
     ref<Texture> pInputAlbedoTexture = renderData.getTexture(kInputAlbedoTexture);
-    ref<Texture> pInputEmissionTexture = renderData.getTexture(kInputEmissionTexture);
     ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputLinearZTexture);
     ref<Texture> pInputGradientSamples = renderData.getTexture(kInputGradientSamplesTexture);
     ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputCurrVisibilityBufferTexture);
@@ -632,7 +598,6 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
 
     ref<Texture> pInternalPrevColorTexture = renderData.getTexture(kInternalPrevColorTexture);
     ref<Texture> pInternalPrevAlbedoTexture = renderData.getTexture(kInternalPrevAlbedoTexture);
-    ref<Texture> pInternalPrevEmissionTexture = renderData.getTexture(kInternalPrevEmissionTexture);
     ref<Texture> pInternalPrevLinearZTexture = renderData.getTexture(kInternalPrevLinearZTexture);
     ref<Texture> pInternalPrevNormalsTexture = renderData.getTexture(kInternalPrevNormalsTexture);
     ref<Texture> pInternalPrevVisBufferTexture = renderData.getTexture(kInternalPrevVisibilityBuffer);
@@ -650,7 +615,6 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     auto perImageDebugFullScreenCB = mpPrgDebugFullScreen->getRootVar()["PerImageCB"];
     perImageDebugFullScreenCB["gColor"] = mpTestColorTexture;//mpGradientResultPingPongBuffer[0]->getColorTexture(2);
     perImageDebugFullScreenCB["gAlbedo"] = pInputAlbedoTexture;
-    perImageDebugFullScreenCB["gEmission"] = pInputEmissionTexture;
     perImageDebugFullScreenCB["gGradientSample"] = pInputGradientSamples;
     perImageDebugFullScreenCB["gGradLuminanceDiff"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
 
