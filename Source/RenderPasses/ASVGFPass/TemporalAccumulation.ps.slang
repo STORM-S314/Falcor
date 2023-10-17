@@ -43,6 +43,7 @@ cbuffer PerImageCB
     Texture2D<PackedHitInfo>   gPrevVisibilityBuffer;
     Texture2D   gAlbedoTexture;
 	Texture2D   gPrevAlbedoTexture;
+    Texture2D   gEmissionTexture;
     Texture2D   gSpecularAlbedo;
     Texture2D   gPrevSpecularAlbedo;
     Texture2D<float4>   gGradientDifferenceTexture;
@@ -76,7 +77,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     float4  currentColor            = gColor[iPos].xyzw;
     float2  currentDepth            = gLinearZTexture[iPos].xy;
-    float3  currentIllumination     = getIllumination(currentColor.xyz, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb);
+    float3  currentIllumination     = getIllumination(currentColor.xyz, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb);
     float   currentLuminance        = luminance(currentIllumination.rgb);
     float2  currentMomemnts         = float2(currentLuminance, currentLuminance * currentLuminance);
     HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);

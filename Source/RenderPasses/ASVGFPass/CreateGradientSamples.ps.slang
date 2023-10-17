@@ -34,6 +34,8 @@ cbuffer PerImageCB
 	Texture2D                   gPrevColorTexture;
 	Texture2D                   gAlbedoTexture;
 	Texture2D                   gPrevAlbedoTexture;
+    Texture2D                   gEmissionTexture;
+    Texture2D                   gPrevEmissionTexture;
     Texture2D                   gSpecularAlbedo;
     Texture2D                   gPrevSpecularAlbedo;
 	Texture2D<uint>             gGradientSamples;
@@ -64,7 +66,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     
 	int2 currentPos = posGrad * gGradientDownsample + posInTile;
 
-    float3 currentIllumination = getIllumination(gColorTexture[currentPos].rgb, gAlbedoTexture[currentPos].rgb, gSpecularAlbedo[currentPos].rgb);
+    float3 currentIllumination = getIllumination(gColorTexture[currentPos].rgb, gAlbedoTexture[currentPos].rgb, gSpecularAlbedo[currentPos].rgb, gEmissionTexture[currentPos].rgb);
 	float currentLuminance = luminance(currentIllumination);
     
 	if(gradientSample >= (1u << 31)) {
@@ -72,7 +74,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     
 		int2 prevPos = int2(idxPrev % gScreenWidth, idxPrev / gScreenWidth);
 
-        float3 prevIllumination = getIllumination(gPrevColorTexture[prevPos].rgb, gPrevAlbedoTexture[prevPos].rgb, gPrevSpecularAlbedo[currentPos].rgb);
+        float3 prevIllumination = getIllumination(gPrevColorTexture[prevPos].rgb, gPrevAlbedoTexture[prevPos].rgb, gPrevSpecularAlbedo[prevPos].rgb, gPrevEmissionTexture[prevPos].rgb);
 		float prevLuminance = luminance(prevIllumination);
     
 		psOut.fragGradLuminanceDifference.r = max(currentLuminance, prevLuminance);
@@ -100,10 +102,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 				    float3 indexColor       = gColorTexture[indexPos].rgb;
                     float3 indexAlbedo      = gAlbedoTexture[indexPos].rgb;
                     float3 indexSpecularAlbedo      = gSpecularAlbedo[indexPos].rgb;
+                    float3 indexEmission    = gEmissionTexture[indexPos].rgb;
 
 				    uint indexMeshID = getMeshInstanceID(HitInfo(gVisibilityBuffer[indexPos]));
 
-                    float3 indexIllumination = getIllumination(indexColor, indexAlbedo, indexSpecularAlbedo);
+                    float3 indexIllumination = getIllumination(indexColor, indexAlbedo, indexSpecularAlbedo, indexEmission);
 				    float indexLuminance = luminance(indexIllumination);
     
 				    float indexWeight = indexMeshID == meshID ? 1.0 : 0.0;

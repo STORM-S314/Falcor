@@ -33,6 +33,7 @@ cbuffer PerImageCB
     Texture2D   gLinearZTexture;
     Texture2D   gNormalsTexture;
     Texture2D   gAlbedoTexture;
+    Texture2D   gEmissionTexture;
     Texture2D   gSpecularAlbedo;
     Texture2D   gIndirectAlbedo;
     float       gPhiColor;
