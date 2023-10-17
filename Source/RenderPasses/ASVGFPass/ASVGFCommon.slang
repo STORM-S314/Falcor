@@ -40,9 +40,9 @@ struct FullScreenPassVsOut
     float4 posH       : SV_POSITION;
 };
 
-float3 getIllumination(float3 a_Color, float3 a_Albedo, float3 a_SpecularAlbedo, float3 a_EmissionTexture)
+float3 getIllumination(float3 a_Color, float3 a_Albedo, float3 a_SpecularAlbedo, float3 a_Emission)
 {
-    return (a_Color.rgb ) / (max(float3(0.001, 0.001, 0.001), a_Albedo.rgb + a_SpecularAlbedo));
+    return ((a_Color.rgb) / (max(float3(0.001, 0.001, 0.001), a_Albedo.rgb + a_SpecularAlbedo + a_Emission.rgb)));
 }
 
 bool isPixelWithinScreenDimensions(float2 pixelPos, float2 screenDimensions)
