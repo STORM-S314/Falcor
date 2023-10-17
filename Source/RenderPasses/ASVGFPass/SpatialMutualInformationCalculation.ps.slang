@@ -153,10 +153,16 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         //In both cases, we need to sample less of the color from neighboring pixels and use more from this current pixel
         //we can do exp(sumLuminance) for all cases 
         //or (1.0 - mutualInfResult) for when mutualInfResult == 0.0
-        mutualInfResult = exp(-saturate(abs(mutualInfResult)));
+        mutualInfResult = exp(-saturate((mutualInfResult)));
+#if IS_DEBUG_PASS
+    gColorTest[iPos] = float4(1.0, 0.0, 0.0, 1.0);
+#endif
     }
 #if IS_DEBUG_PASS
-    //gColorTest[iPos] = (mutualInfResultBuf.b < float(gMinHistoryCount)) ? float4(1.0, 0.0, 0.0, 1.0) : float4(0.0, 1.0, 0.0, 1.0);
+    else
+    {
+        gColorTest[iPos] = float4(0.0, 1.0, 0.0, 1.0);
+    }
 #endif
 
     return float4(gColorAndVariance[iPos].rgb, saturate(abs(mutualInfResult)));

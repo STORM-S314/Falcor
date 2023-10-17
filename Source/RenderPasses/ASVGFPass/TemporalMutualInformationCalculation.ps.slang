@@ -73,7 +73,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float2 prevPos = floor(vsOut.posH.xy) + motionVec.xy * gScreenDimension.xy;
     const int2 iPrevPos = int2(prevPos);// + motionVec.xy * gScreenDimension.xy + float2(0.5,0.5));
 
-    float currentLuminance =    luminance(gColorAndVariance[iPos].rgb); // luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb));
+    float currentLuminance =    luminance(gColorAndVariance[iPos].rgb);//luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb));//
 
     float x = frac(prevPos.x);
     float y = frac(prevPos.y);
@@ -204,7 +204,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     float4 mutualInfResult = float4(0.0);
     mutualInfResult.r = totalSumLuminance;
-    mutualInfResult.g = saturatedMutualInf;
+    mutualInfResult.g = saturatedMutualInf / BIN_COUNT;
     mutualInfResult.b = historyLength;
 
     return mutualInfResult;
