@@ -125,7 +125,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             }
         }
 
-        if((weightedSum > 0.01) && !isHistorySet)
+        if((weightedSum > 0.5) && !isHistorySet)
         {
             float addluminance = luminanceSum / weightedSum;
             gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
