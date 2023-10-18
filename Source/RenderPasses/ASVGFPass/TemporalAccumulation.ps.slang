@@ -60,9 +60,10 @@ cbuffer PerImageCB
 
 struct PS_OUT
 {
-    float4  accumulated : SV_TARGET0;
-    float2  moments     : SV_TARGET1;
-    float   histLen     : SV_TARGET2;
+    float4  accumulated     :   SV_TARGET0;
+    float2  moments         :   SV_TARGET1;
+    float   histLen         :   SV_TARGET2;
+    float   gradDiffRatio   :   SV_TARGET3;
 }
 
 PS_OUT main(FullScreenPassVsOut vsOut) 
@@ -164,6 +165,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         psOut.accumulated.a     =   min(64, histLen + 1.0);
 		psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
 		psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
+        psOut.gradDiffRatio.r   =   antilagAlpha;
 #if IS_DEBUG_PASS
     //gColorTest[iPos] = float4(antilagAlpha, 0.0 , 0.0 , 1.0);
 #endif     
@@ -172,6 +174,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
+        psOut.gradDiffRatio.r   =   antilagAlpha;
     }
     return psOut;
 }

@@ -57,16 +57,20 @@ const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
 
 // Names of valid entries in the parameter dictionary.
-const char kModulateAlbedo[]        = "ModulateAlbedo";
-const char kNumIterations[]         = "NumIterations";
-const char kHistoryTap[]            = "HistoryTap";
-const char kFilterKernel[]          = "FilterKernel";
-const char kTemporalColorAlpha[]    = "TemporalColorAlpha";
-const char kTemporalMomentsAlpha[]  = "TemporalMomentsAlpha";
-const char kDiffAtrousIterations[]  = "DiffAtrousIterations";
-const char kGradientFilterRadius[]  = "GradientFilterRadius";
-const char kFramesPerMICalc[]       = "FramesPerMICalc";
-const char kUseMutualInfCalc[]      = "UseMutualInfCalc";
+const char kModulateAlbedo[]            = "ModulateAlbedo";
+const char kNumIterations[]             = "NumIterations";
+const char kHistoryTap[]                = "HistoryTap";
+const char kFilterKernel[]              = "FilterKernel";
+const char kTemporalColorAlpha[]        = "TemporalColorAlpha";
+const char kTemporalMomentsAlpha[]      = "TemporalMomentsAlpha";
+const char kDiffAtrousIterations[]      = "DiffAtrousIterations";
+const char kGradientFilterRadius[]      = "GradientFilterRadius";
+const char kFramesPerMICalc[]           = "FramesPerMICalc";
+const char kUseMutualInfCalc[]          = "UseMutualInfCalc";
+const char kSpatialMutInfRadius[]       = "SpatialMutInfRadius";
+const char kNumFramesInMICalc[]         = "NumFramesInMICalc";
+const char kGradDiffRatioThreshold[]    = "GradDiffRatioThreshold";
+const char kSpatialMIThreshold[]        = "SpatialMIThreshold";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -122,6 +126,10 @@ Properties ASVGFPass::getProperties() const
     props[kGradientFilterRadius]    = mGradientFilterRadius;
     props[kFramesPerMICalc]         = mNumFramesInMICalc;
     props[kUseMutualInfCalc]        = mUseMutualInformation;
+    props[kSpatialMutInfRadius]     = mSpatialMutualInfRadius;
+    props[kNumFramesInMICalc]       = mNumFramesInMICalc;
+    props[kGradDiffRatioThreshold]  = mGradDiffRatioThreshold;
+    props[kSpatialMIThreshold]      = mSpatialMIThreshold;
     return props;
 }
 
@@ -207,6 +215,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
     formatDescAccumulationResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float); // Accumulation color
     formatDescAccumulationResult.setColorTarget(1, Falcor::ResourceFormat::RG32Float);   // Accumulation moments
     formatDescAccumulationResult.setColorTarget(2, Falcor::ResourceFormat::R16Float);    // Accumulation length
+    formatDescAccumulationResult.setColorTarget(3, Falcor::ResourceFormat::R16Float);    // Gradient difference ratio
     mpAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
     mpPrevAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
 
@@ -395,10 +404,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         {
             auto perImageTemporalMutualInfCalcCB = mpPrgTemporalMutualInfCalc->getRootVar()["PerImageCB"];
             perImageTemporalMutualInfCalcCB["gColorAndVariance"]        = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
-            perImageTemporalMutualInfCalcCB["gColor"] = pInputColorTexture;
-            perImageTemporalMutualInfCalcCB["gAlbedoTexture"] = pInputAlbedoTexture;
-            perImageTemporalMutualInfCalcCB["gEmissionTexture"] = pInputEmissionTexture;
-            perImageTemporalMutualInfCalcCB["gSpecularAlbedo"] = pInputSpecularAlbedo;
+            perImageTemporalMutualInfCalcCB["gColor"]                   = pInputColorTexture;
+            perImageTemporalMutualInfCalcCB["gAlbedoTexture"]           = pInputAlbedoTexture;
+            perImageTemporalMutualInfCalcCB["gEmissionTexture"]         = pInputEmissionTexture;
+            perImageTemporalMutualInfCalcCB["gSpecularAlbedo"]          = pInputSpecularAlbedo;
             perImageTemporalMutualInfCalcCB["gLinearZTexture"]          = pInputLinearZTexture;
             perImageTemporalMutualInfCalcCB["gPrevLinearZTexture"]      = pInternalPrevLinearZTexture;
             perImageTemporalMutualInfCalcCB["gNormalsTexture"]          = pInputNormalVectors;
@@ -406,6 +415,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gVisibilityBuffer"]        = pInputCurrVisibilityBuffer;
             perImageTemporalMutualInfCalcCB["gPrevVisibilityBuffer"]    = pInternalPrevVisBufferTexture;
             perImageTemporalMutualInfCalcCB["gMotionVectorsTexture"]    = pInputMotionVectors;
+            perImageTemporalMutualInfCalcCB["gGradDiffRatioThreshold"]  = mGradDiffRatioThreshold;
+            perImageTemporalMutualInfCalcCB["gGradDifferenceRatio"]     = mpAccumulationBuffer->getColorTexture(3);
             perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"]     = mpPrevMutualInformationCalcBuffer->asBuffer();
             perImageTemporalMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
             perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"]     = pInternalPrevMutualInfTexture;
@@ -591,6 +602,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         if (!mUseOnlySpatialMutualInformation)
         {
             isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);
+            isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
             isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 1.0f, 0.01f);
         }
     }

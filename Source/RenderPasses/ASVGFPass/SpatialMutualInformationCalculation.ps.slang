@@ -113,8 +113,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         for(int pixelIndex = 0; pixelIndex < SPATIAL_BIN_COUNT; pixelIndex++)
         {
-            binLuminance[pixelIndex ] /= sumLuminance;
-            binPixel[pixelIndex]    /=   sumLuminance;
+            binLuminance[pixelIndex ]   /=  sumLuminance;
+            binPixel[pixelIndex]        /=  sumLuminance;
         }
 
         //Calculate mutual information

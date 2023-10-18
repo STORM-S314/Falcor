@@ -40,6 +40,8 @@ cbuffer PerImageCB {
     Texture2D               gPrevNormalsTexture;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
     Texture2D<PackedHitInfo>   gPrevVisibilityBuffer;
+    float                   gGradDiffRatioThreshold;
+    Texture2D               gGradDifferenceRatio;
     Texture2D               gMotionVectorsTexture;
     Buffer<float>           gPrevMutualInfBuffer;
     RWBuffer<float>         gMutualInfBuffer;
@@ -193,7 +195,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 
     float saturatedMutualInf = saturate(mutualInf);
-    if((saturatedMutualInf < gSpatialMIThreshold) && (int(historyLength) == BIN_COUNT))
+    if(((saturatedMutualInf < gSpatialMIThreshold) && (int(historyLength) == BIN_COUNT))
+    || (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
     {
         historyLength = 1.0;
     }
