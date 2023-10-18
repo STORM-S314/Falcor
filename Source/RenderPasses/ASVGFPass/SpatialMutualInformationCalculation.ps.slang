@@ -47,7 +47,7 @@ static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
-int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
+int getLuminanceBucketID(float luminanceP, int luminanceBucketCount)
 {
     return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
 }
@@ -64,6 +64,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         float2 centerDepth     = gLinearZTexture[iPos].xy;
         float3 centerNormal    = gNormalsTexture[iPos].xyz;
         uint    centerMeshID    = getMeshInstanceID(centerHitInfoP);
+        uint    centerLuminance    = luminance(gColorAndVariance[iPos].rgb);
 
         if(!centerHitInfoP.isValid())
         {
@@ -85,30 +86,28 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 			for(int xx = -SPATIAL_RADIUS; xx <= SPATIAL_RADIUS; xx++)
             {
                 int2 currentP = iPos + int2(xx,yy);
-                bool accept  = true;
 
+                float currentluminanceValue = luminance(gColorAndVariance[currentP].rgb);
                 if(all(currentP != iPos))
                 {
                     HitInfo hitInfoP    = HitInfo(gVisibilityBuffer[currentP]);
                     float2 depthP       = gLinearZTexture[currentP].xy;
                     float3 normalP      = gNormalsTexture[currentP].xyz;
+                    float weightDepth = abs(depthP.x - centerDepth.x) / (centerDepth.y * length(float2(xx, yy)) + 1e-2);
+                    float weightNormals = pow(saturate(dot(normalP, centerNormal)), 128.0); 
 
-                    //vis buffer check
-                    accept = accept && hitInfoP.isValid();
-                    uint    meshIDP    = getMeshInstanceID(hitInfoP);
-                    accept = accept && (meshIDP == centerMeshID);
-                    accept = accept && isReprojectionValid(currentP, gScreenDimension.xy, centerDepth, depthP, centerNormal, normalP);
+				    uint meshID_p =  getMeshInstanceID(hitInfoP);
+
+                    float meshIDWeight = ((hitInfoP.isValid() && (centerMeshID == meshID_p)) ? 1.0 : 0.0);
+				    float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
+                    currentluminanceValue *=  (1.0 + weight) * meshIDWeight;
                 }
 
-                if(accept)
-                {
-                    float luminanceP = luminance(gColorAndVariance[currentP].rgb);
-                    binLuminance[getLuminanceBuckedID(luminanceP, SPATIAL_BIN_COUNT)] += luminanceP;
-                    binPixel[acceptedPixelCount]    =   luminanceP;
-                    sumLuminance += luminanceP;
-
-                    acceptedPixelCount++;
-                }
+                binLuminance[getLuminanceBucketID(currentluminanceValue, SPATIAL_BIN_COUNT)] += currentluminanceValue;
+                binPixel[acceptedPixelCount]    =   currentluminanceValue;
+                sumLuminance += currentluminanceValue;
+                
+                acceptedPixelCount++;
             }
         }
 

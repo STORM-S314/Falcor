@@ -204,7 +204,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     float4 mutualInfResult = float4(0.0);
     mutualInfResult.r = totalSumLuminance;
-    mutualInfResult.g = saturatedMutualInf / BIN_COUNT;
+    mutualInfResult.g = saturatedMutualInf;
     mutualInfResult.b = historyLength;
 
     return mutualInfResult;
