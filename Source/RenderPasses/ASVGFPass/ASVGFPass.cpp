@@ -57,7 +57,6 @@ const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
 
 // Names of valid entries in the parameter dictionary.
-const char kModulateAlbedo[]            = "ModulateAlbedo";
 const char kNumIterations[]             = "NumIterations";
 const char kHistoryTap[]                = "HistoryTap";
 const char kFilterKernel[]              = "FilterKernel";
