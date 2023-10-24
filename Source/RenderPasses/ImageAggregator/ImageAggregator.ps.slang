@@ -44,24 +44,22 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     int2 iPos = int2(vsOut.posH.xy);
     float4 colorResult = float4(0);
 
-    int currentBufferIndex = 4 * ((iPos.y * gImageDimensions.x + iPos.x) + gPixelsInFrame * gInputImageIndex);
+    int currentBufferIndex = 3 * ((iPos.y * gImageDimensions.x + iPos.x) + gPixelsInFrame * gInputImageIndex);
     gAccumulationBuffer[currentBufferIndex + 0] = gColor[iPos].r;
     gAccumulationBuffer[currentBufferIndex + 1] = gColor[iPos].g;
     gAccumulationBuffer[currentBufferIndex + 2] = gColor[iPos].b;
-    gAccumulationBuffer[currentBufferIndex + 3] = gColor[iPos].a;
 
     if(gInputImageIndex == (AGGREGATION_IMAGE_COUNT - 1))
     {
         for(int aggImageIndex = 0; aggImageIndex < AGGREGATION_IMAGE_COUNT; aggImageIndex++)
         {
-            int currentIteratorBufferIndex = 4 * ((iPos.y * gImageDimensions.x + iPos.x) + gPixelsInFrame * aggImageIndex);
+            int currentIteratorBufferIndex = 3 * ((iPos.y * gImageDimensions.x + iPos.x) + gPixelsInFrame * aggImageIndex);
             colorResult.r += gAccumulationBuffer[currentIteratorBufferIndex + 0];
             colorResult.g += gAccumulationBuffer[currentIteratorBufferIndex + 1];
             colorResult.b += gAccumulationBuffer[currentIteratorBufferIndex + 2];
-            colorResult.a += gAccumulationBuffer[currentIteratorBufferIndex + 3];
         }
 
-        colorResult.rgba = colorResult.rgba / (float(AGGREGATION_IMAGE_COUNT)).xxxx;
+        colorResult.rgb = colorResult.rgb / (float(AGGREGATION_IMAGE_COUNT)).xxx;
     }
 
     return float4(colorResult.rgb, 1.0);

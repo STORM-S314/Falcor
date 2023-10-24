@@ -51,14 +51,14 @@ public:
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
 
 private:
-
-    static const int AGGREGATION_IMAGE_COUNT = 10;
+    static const int AGGREGATION_IMAGE_COUNT = 3;
 
     int mCurrentImagesAccumulated = 0;
+    int mCurrentAggregateImagesAccumulated = 0;
     bool mStartAggregation = false;
     bool mAggregationComplete = false;
 
-    ref<Buffer> mpImageAccumulationBuffer;
+    ref<Buffer> mpImageAccumulationBuffer[2];
     ref<Fbo> mpImageAggregatorFullScreen;
 
     // Full screen passes

@@ -26,6 +26,8 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 #include "ImageAggregator.h"
+#include <time.h>
+#include <algorithm>
 
 extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registry)
 {
@@ -59,7 +61,8 @@ void ImageAggregator::compile(RenderContext* pRenderContext, const CompileData& 
     formatAggregatedImageResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
 
     mpImageAggregatorFullScreen = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAggregatedImageResult);
-    mpImageAccumulationBuffer = Buffer::create(mpDevice, screenWidth * screenHeight * AGGREGATION_IMAGE_COUNT * sizeof(float) * 4);
+    mpImageAccumulationBuffer[0] = Buffer::create(mpDevice, screenWidth * screenHeight * AGGREGATION_IMAGE_COUNT * sizeof(float) * 3);
+    mpImageAccumulationBuffer[1] = Buffer::create(mpDevice, screenWidth * screenHeight * AGGREGATION_IMAGE_COUNT * sizeof(float) * 3);
 
     DefineList newDefines;
     newDefines.add("AGGREGATION_IMAGE_COUNT", std::to_string(AGGREGATION_IMAGE_COUNT));
@@ -90,20 +93,47 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
     if (mStartAggregation)
     {
         auto perImageImgAggregationCB = mpPrgImageAggregation->getRootVar()["PerImageCB"];
-
         perImageImgAggregationCB["gColor"] = pInputColorTexture;
-        perImageImgAggregationCB["gAccumulationBuffer"] = mpImageAccumulationBuffer->asBuffer();
+        perImageImgAggregationCB["gAccumulationBuffer"] = mpImageAccumulationBuffer[0]->asBuffer();
         perImageImgAggregationCB["gInputImageIndex"] = mCurrentImagesAccumulated;
         perImageImgAggregationCB["gImageDimensions"] = float2(pInputColorTexture->getWidth(), pInputColorTexture->getHeight());
         perImageImgAggregationCB["gPixelsInFrame"] = pInputColorTexture->getWidth() * pInputColorTexture->getHeight();
-        
         mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
         mCurrentImagesAccumulated++;
 
         if (mCurrentImagesAccumulated >= (AGGREGATION_IMAGE_COUNT))
         {
-            mAggregationComplete = true;
-            mStartAggregation = false;
+            auto perImageImgAggregationCB1 = mpPrgImageAggregation->getRootVar()["PerImageCB"];
+            perImageImgAggregationCB1["gColor"] = mpImageAggregatorFullScreen->getColorTexture(0);
+            perImageImgAggregationCB1["gAccumulationBuffer"] = mpImageAccumulationBuffer[1]->asBuffer();
+            perImageImgAggregationCB1["gInputImageIndex"] = mCurrentAggregateImagesAccumulated;
+            perImageImgAggregationCB1["gImageDimensions"] = float2(pInputColorTexture->getWidth(), pInputColorTexture->getHeight());
+            perImageImgAggregationCB1["gPixelsInFrame"] = pInputColorTexture->getWidth() * pInputColorTexture->getHeight();
+            mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
+            mCurrentAggregateImagesAccumulated++;
+
+            if (mCurrentAggregateImagesAccumulated >= (AGGREGATION_IMAGE_COUNT))
+            { 
+                mStartAggregation = false;
+                mAggregationComplete = true;
+                auto ext = Bitmap::getFileExtFromResourceFormat(mpImageAggregatorFullScreen->getColorTexture(0)->getFormat());
+                auto fileformat = Bitmap::getFormatFromFileExtension(ext);
+
+                time_t now = time(0);
+                struct tm tstruct;
+                char buf[80];
+                tstruct = *localtime(&now);
+                strftime(buf, sizeof(buf), "%Y%m%d_%X", &tstruct);
+                //logWarning("DateTime: {}", buf);
+
+                std::string savePath = "FrameCapture\\" + std::string(buf) + "." + ext;
+                savePath.erase(std::remove(savePath.begin(), savePath.end(), ':'), savePath.end());
+
+                mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(0, 0, std::filesystem::path(savePath), fileformat,
+                    Falcor::Bitmap::ExportFlags::None, true
+                );
+                mCurrentAggregateImagesAccumulated = 0;
+            }
             mCurrentImagesAccumulated = 0;
         }
     }
@@ -111,6 +141,10 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
     if (mAggregationComplete)
     {
         pRenderContext->blit(mpImageAggregatorFullScreen->getColorTexture(0)->getSRV(), pOutputAggregatedTexture->getRTV());
+    }
+    else
+    {
+        pRenderContext->blit(pInputColorTexture->getSRV(), pOutputAggregatedTexture->getRTV());
     }
 }
 
