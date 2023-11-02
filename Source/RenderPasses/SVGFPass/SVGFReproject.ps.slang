@@ -43,6 +43,7 @@ cbuffer PerImageCB
     Texture2D   gColor;
     Texture2D   gAlbedo;
     Texture2D   gEmission;
+    Texture2D   gSpecular;
     Texture2D   gPrevIllum;
     Texture2D   gPrevMoments;
     Texture2D   gLinearZAndNormal;
@@ -53,9 +54,9 @@ cbuffer PerImageCB
     float       gMomentsAlpha;
 };
 
-float3 demodulate(float3 c, float3 albedo)
+float3 demodulate(float3 c, float3 albedo, float3 specular, float3 emissive)
 {
-    return c / max(albedo, float3(0.001, 0.001, 0.001));
+    return c / (max(float3(0.001, 0.001, 0.001), albedo + specular + emissive));
 }
 
 bool isReprjValid(int2 coord, float Z, float Zprev, float fwidthZ, float3 normal, float3 normalPrev, float fwidthNormal)
@@ -205,7 +206,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const int2 ipos = posH.xy;
 
     ///Only the illumination at that fragment. Done by removing the emission at the fragment and then dividing by the Albedo-texture/color set
-    float3 illumination = demodulate(gColor[ipos].rgb - gEmission[ipos].rgb, gAlbedo[ipos].rgb);
+    float3 illumination = demodulate(gColor[ipos].rgb, gAlbedo[ipos].rgb, gSpecular[ipos].rgb, gEmission[ipos].rgb);
     // Workaround path tracer bugs. TODO: remove this when we can.
     if (isNaN(illumination.x) || isNaN(illumination.y) || isNaN(illumination.z))
     {

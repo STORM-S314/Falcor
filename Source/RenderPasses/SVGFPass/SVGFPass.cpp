@@ -58,6 +58,7 @@ namespace
     const char kInputBufferAlbedo[] = "Albedo";
     const char kInputBufferColor[] = "Color";
     const char kInputBufferEmission[] = "Emission";
+    const char kInputBufferSpecular[] = "Specular";
     const char kInputBufferWorldPosition[] = "WorldPosition";
     const char kInputBufferWorldNormal[] = "WorldNormal";
     const char kInputBufferPosNormalFwidth[] = "PositionNormalFwidth";
@@ -138,6 +139,7 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputBufferAlbedo, "Albedo");
     reflector.addInput(kInputBufferColor, "Color");
     reflector.addInput(kInputBufferEmission, "Emission");
+    reflector.addInput(kInputBufferSpecular, "Specular");
     reflector.addInput(kInputBufferWorldPosition, "World Position");
     reflector.addInput(kInputBufferWorldNormal, "World Normal");
     reflector.addInput(kInputBufferPosNormalFwidth, "PositionNormalFwidth");
@@ -177,6 +179,7 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
     ref<Texture> pAlbedoTexture = renderData.getTexture(kInputBufferAlbedo);
     ref<Texture> pColorTexture = renderData.getTexture(kInputBufferColor);
     ref<Texture> pEmissionTexture = renderData.getTexture(kInputBufferEmission);
+    ref<Texture> pSpecularTexture = renderData.getTexture(kInputBufferSpecular);
     ref<Texture> pWorldPositionTexture = renderData.getTexture(kInputBufferWorldPosition);
     ref<Texture> pWorldNormalTexture = renderData.getTexture(kInputBufferWorldNormal);
     ref<Texture> pPosNormalFwidthTexture = renderData.getTexture(kInputBufferPosNormalFwidth);
@@ -211,7 +214,7 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
         // per-pixel history length in mpCurReprojFbo.
         ref<Texture> pPrevLinearZAndNormalTexture =
             renderData.getTexture(kInternalBufferPreviousLinearZAndNormal);
-        computeReprojection(pRenderContext, pAlbedoTexture, pColorTexture, pEmissionTexture,
+        computeReprojection(pRenderContext, pAlbedoTexture, pColorTexture, pSpecularTexture, pEmissionTexture,
                             pMotionVectorTexture, pPosNormalFwidthTexture,
                             pPrevLinearZAndNormalTexture);
 
@@ -232,6 +235,7 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
         perImageCB["gAlbedo"] = pAlbedoTexture;
         perImageCB["gEmission"] = pEmissionTexture;
         perImageCB["gIllumination"] = mpPingPongFbo[0]->getColorTexture(0);
+        perImageCB["gSpecular"] = pSpecularTexture;
         mpFinalModulate->execute(pRenderContext, mpFinalFbo);
 
         // Blit into the output texture.
@@ -313,19 +317,16 @@ void SVGFPass::computeLinearZAndNormal(RenderContext* pRenderContext, ref<Textur
     mpPackLinearZAndNormal->execute(pRenderContext, mpLinearZAndNormalFbo);
 }
 
-void SVGFPass::computeReprojection(RenderContext* pRenderContext, ref<Texture> pAlbedoTexture,
-                                   ref<Texture> pColorTexture, ref<Texture> pEmissionTexture,
-                                   ref<Texture> pMotionVectorTexture,
-                                   ref<Texture> pPositionNormalFwidthTexture,
-                                   ref<Texture> pPrevLinearZTexture)
+void SVGFPass::computeReprojection(RenderContext* pRenderContext, ref<Texture> pAlbedoTexture, ref<Texture> pColorTexture, ref<Texture> pSpecularTexture, ref<Texture> pEmissionTexture,ref<Texture> pMotionVectorTexture,ref<Texture> pPositionNormalFwidthTexture,ref<Texture> pPrevLinearZTexture)
 {
     auto perImageCB = mpReprojection->getRootVar()["PerImageCB"];
 
     // Setup textures for our reprojection shader pass
-    perImageCB["gMotion"]        = pMotionVectorTexture;
-    perImageCB["gColor"]         = pColorTexture;
-    perImageCB["gEmission"]      = pEmissionTexture;
-    perImageCB["gAlbedo"]        = pAlbedoTexture;
+    perImageCB["gMotion"]       = pMotionVectorTexture;
+    perImageCB["gColor"]        = pColorTexture;
+    perImageCB["gEmission"]     = pEmissionTexture;
+    perImageCB["gAlbedo"]       = pAlbedoTexture;
+    perImageCB["gSpecular"]     = pSpecularTexture;
     perImageCB["gPositionNormalFwidth"] = pPositionNormalFwidthTexture;
     perImageCB["gPrevIllum"]     = mpFilteredPastFbo->getColorTexture(0);
     perImageCB["gPrevMoments"]   = mpPrevReprojFbo->getColorTexture(1);

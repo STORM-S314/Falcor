@@ -54,10 +54,7 @@ private:
     void computeLinearZAndNormal(RenderContext* pRenderContext, ref<Texture> pLinearZTexture,
                                  ref<Texture> pWorldNormalTexture);
     void computeReprojection(RenderContext* pRenderContext, ref<Texture> pAlbedoTexture,
-                             ref<Texture> pColorTexture, ref<Texture> pEmissionTexture,
-                             ref<Texture> pMotionVectorTexture,
-                             ref<Texture> pPositionNormalFwidthTexture,
-                             ref<Texture> pPrevLinearZAndNormalTexture);
+        ref<Texture> pColorTexture, ref<Texture> pSpecularTexture, ref<Texture> pEmissionTexture, ref<Texture> pMotionVectorTexture, ref<Texture> pPositionNormalFwidthTexture, ref<Texture> pPrevLinearZAndNormalTexture);
     void computeFilteredMoments(RenderContext* pRenderContext);
     void computeAtrousDecomposition(RenderContext* pRenderContext, ref<Texture> pAlbedoTexture);
 
