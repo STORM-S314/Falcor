@@ -75,7 +75,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float2 prevPos = floor(vsOut.posH.xy) + motionVec.xy * gScreenDimension.xy;
     const int2 iPrevPos = int2(prevPos);// + motionVec.xy * gScreenDimension.xy + float2(0.5,0.5));
 
-    float currentLuminance =    luminance(gColorAndVariance[iPos].rgb);//luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb));//
+    float currentLuminance =   luminance(gColorAndVariance[iPos].rgb); //luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb));
 
     float x = frac(prevPos.x);
     float y = frac(prevPos.y);
@@ -114,7 +114,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 //Add history to current buffer based on 4 offsets of prev pixels
     bool isHistorySet = false;
-    for(int historyIndex = 1; historyIndex < BIN_COUNT; historyIndex++)
+    for(int historyIndex = 1; historyIndex < LUM_FRAME_BIN_COUNT; historyIndex++)
     {
         float weightedSum = 0.0;
         float luminanceSum = 0.0;
@@ -133,7 +133,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             float addluminance = luminanceSum / weightedSum;
             gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
             totalSumLuminance += addluminance;
-            historyLength = min(int(historyLength + 1.0), BIN_COUNT);
+            historyLength = min(int(historyLength + 1.0), LUM_FRAME_BIN_COUNT);
         }
         else
         {
@@ -142,30 +142,30 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     }
 
     //If history length is enough for temporal mutual information calculation
-    if(historyLength >= BIN_COUNT)
+    if(historyLength >= LUM_FRAME_BIN_COUNT)
     {
-        float binLuminance[BIN_COUNT];
-        float binFrames[BIN_COUNT]   ;
+        float binsLumGroup[LUM_GROUP_BIN_COUNT];
+        float binsLumFrames[LUM_FRAME_BIN_COUNT]   ;
 
-        for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
+        for(int frameIndex = 0; frameIndex < LUM_GROUP_BIN_COUNT; frameIndex++)
         {
-            binLuminance[frameIndex] = 0.0;
+            binsLumGroup[frameIndex] = 0.0;
         }
 
-        for(int frameIndex = 0; frameIndex < BIN_COUNT; frameIndex++)
+        for(int frameIndex = 0; frameIndex < LUM_FRAME_BIN_COUNT; frameIndex++)
         {
             int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
             
             float bufferPixelLuminance  =   gMutualInfBuffer[indexInBuffer].r;
             float pixelLuminanceProbability  = bufferPixelLuminance / totalSumLuminance;
-            binFrames[frameIndex] =  pixelLuminanceProbability;
-            binLuminance[getLuminanceBuckedID(bufferPixelLuminance, BIN_COUNT)] += pixelLuminanceProbability;
+            binsLumFrames[frameIndex] =  pixelLuminanceProbability;
+            binsLumGroup[getLuminanceBuckedID(bufferPixelLuminance, LUM_GROUP_BIN_COUNT)] += pixelLuminanceProbability;
         }
 
-        for (int binIdx0 = 0; binIdx0 < BIN_COUNT; binIdx0++)
+        for (int binIdx0 = 0; binIdx0 < LUM_FRAME_BIN_COUNT; binIdx0++)
         {
-            float p_x = binFrames[binIdx0];
-            float p_y = binLuminance[binIdx0];
+            float p_x = binsLumFrames[binIdx0];
+            
             if(p_x > 0.0)
             {
                 float result = p_x * log(p_x);
@@ -173,16 +173,20 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 mutualInf -= result;
             }
 
-            if(p_y > 0.0)
+            if((binIdx0 < LUM_GROUP_BIN_COUNT))
             {
-                float result = p_y * log(p_y);
-                if(isnan(result)){result = 0.0;}
-                mutualInf -= result;
+                float p_y = binsLumGroup[binIdx0];
+                if(p_y > 0.0)
+                {
+                    float result = p_y * log(p_y);
+                    if(isnan(result)){result = 0.0;}
+                    mutualInf -= result;
+                }
             }
 
-            for (int binIdx1 = 0; binIdx1 < BIN_COUNT; binIdx1++)
+            for (int binIdx1 = 0; binIdx1 < LUM_GROUP_BIN_COUNT; binIdx1++)
             {
-                float p_xy = p_x * binLuminance[binIdx1];
+                float p_xy = p_x * binsLumGroup[binIdx1];
                 if(p_xy > 0.0)
                 {
                     float result = p_xy * log(p_xy);
@@ -195,7 +199,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 
     float saturatedMutualInf = saturate(mutualInf);
-    if(((saturatedMutualInf < gSpatialMIThreshold) && (int(historyLength) == BIN_COUNT))
+    if(((saturatedMutualInf < gSpatialMIThreshold) && (int(historyLength) == LUM_FRAME_BIN_COUNT))
     || (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
     {
         historyLength = 1.0;

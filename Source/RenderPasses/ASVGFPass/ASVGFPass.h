@@ -82,7 +82,8 @@ private:
     bool mUseOnlySpatialMutualInformation = false;
     int mSpatialMutualInfRadius = 1;
     int mNumFramesInMICalc      = 20;
-    float mGradDiffRatioThreshold        = 0.15f;
+    int mNumLumGroupsInMICalc   = 5;
+    float mGradDiffRatioThreshold        = 0.05f;
     float mSpatialMIThreshold = 0.05f;
 
     //Params frame

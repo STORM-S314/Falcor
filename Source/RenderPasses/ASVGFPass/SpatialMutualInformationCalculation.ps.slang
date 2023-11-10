@@ -41,7 +41,7 @@ cbuffer PerImageCB {
 #endif
 };
 
-static const int SPATIAL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
+static const int SPATIAL_PIXEL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
 
 static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
@@ -71,12 +71,11 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             return float4(gColorAndVariance[iPos].rgb, mutualInfResult);
         }
 
-        float binPixel[SPATIAL_BIN_COUNT];
-        float binLuminance[SPATIAL_BIN_COUNT];
-        for(int frameIndex = 0; frameIndex < SPATIAL_BIN_COUNT; frameIndex++)
+        float binsLumPixel[SPATIAL_PIXEL_BIN_COUNT];
+        float binsLumGroup[SPATIAL_GROUP_BIN_COUNT];
+        for(int frameIndex = 0; frameIndex < SPATIAL_GROUP_BIN_COUNT; frameIndex++)
         {
-            binLuminance[frameIndex] = 0.0;
-            binPixel[frameIndex] = 0.0;
+            binsLumGroup[frameIndex] = 0.0;
         }
 
         int acceptedPixelCount = 0;
@@ -103,26 +102,29 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     currentluminanceValue *=  (1.0 + weight) * meshIDWeight;
                 }
 
-                binLuminance[getLuminanceBucketID(currentluminanceValue, SPATIAL_BIN_COUNT)] += currentluminanceValue;
-                binPixel[acceptedPixelCount]    =   currentluminanceValue;
+                binsLumGroup[getLuminanceBucketID(currentluminanceValue, SPATIAL_GROUP_BIN_COUNT)] += currentluminanceValue;
+                binsLumPixel[acceptedPixelCount]    =   currentluminanceValue;
                 sumLuminance += currentluminanceValue;
                 
                 acceptedPixelCount++;
             }
         }
 
-        for(int pixelIndex = 0; pixelIndex < SPATIAL_BIN_COUNT; pixelIndex++)
+        for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
         {
-            binLuminance[pixelIndex ]   /=  sumLuminance;
-            binPixel[pixelIndex]        /=  sumLuminance;
+            binsLumPixel[pixelIndex]        /=  sumLuminance;
+            if(pixelIndex < SPATIAL_GROUP_BIN_COUNT)
+            {
+                binsLumGroup[pixelIndex ]   /=  sumLuminance;
+            }
         }
 
         //Calculate mutual information
         mutualInfResult = 0.0;
-        for (int binIdx = 0; binIdx < SPATIAL_BIN_COUNT; binIdx++)
+        for (int binIdx = 0; binIdx < SPATIAL_PIXEL_BIN_COUNT; binIdx++)
         {
-            float p_x = binPixel[binIdx];
-            float p_y = binLuminance[binIdx];
+            float p_x = binsLumPixel[binIdx];
+            
             if(p_x > 0.0)
             {
                 float result = p_x * log(p_x);
@@ -130,16 +132,20 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 mutualInfResult -= result;
             }
 
-            if(p_y > 0.0)
+            if((binIdx < SPATIAL_GROUP_BIN_COUNT))
             {
-                float result = p_y * log(p_y);
-                if(isnan(result)){result = 0.0;}
-                mutualInfResult -= result;
+                float p_y = binsLumGroup[binIdx];
+                if(p_y > 0.0)
+                {
+                    float result = p_y * log(p_y);
+                    if(isnan(result)){result = 0.0;}
+                    mutualInfResult -= result;
+                }
             }
 
-            for (int binIdx1 = 0; binIdx1 < SPATIAL_BIN_COUNT; binIdx1++)
+            for (int binIdx1 = 0; binIdx1 < SPATIAL_GROUP_BIN_COUNT; binIdx1++)
             {
-                float p_xy = p_x * binLuminance[binIdx1];
+                float p_xy = p_x * binsLumGroup[binIdx1];
                 if(p_xy > 0.0)
                 {
                     float result = p_xy * log(p_xy);
@@ -152,15 +158,15 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         //In both cases, we need to sample less of the color from neighboring pixels and use more from this current pixel
         //we can do exp(sumLuminance) for all cases 
         //or (1.0 - mutualInfResult) for when mutualInfResult == 0.0
-        mutualInfResult = exp(-saturate((mutualInfResult)));
+        mutualInfResult = exp(-saturate(mutualInfResult));
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(1.0, 0.0, 0.0, 1.0);
+    gColorTest[iPos] = float4(mutualInfResult, 0.0, 0.0, 1.0);
 #endif
     }
 #if IS_DEBUG_PASS
     else
     {
-        gColorTest[iPos] = float4(0.0, 1.0, 0.0, 1.0);
+        gColorTest[iPos] = float4(0.0, mutualInfResult, 0.0, 1.0);
     }
 #endif
 

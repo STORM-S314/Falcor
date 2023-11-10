@@ -537,10 +537,13 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         
         auto sceneDefines = pScene->getSceneDefines();
         DefineList temporalDefines(sceneDefines);
-        temporalDefines.add("BIN_COUNT", std::to_string(mNumFramesInMICalc));
+        temporalDefines.add("LUM_FRAME_BIN_COUNT", std::to_string(mNumFramesInMICalc));
+        temporalDefines.add("LUM_GROUP_BIN_COUNT", std::to_string(mNumLumGroupsInMICalc));
+        
 
         DefineList spatialDefines(sceneDefines);
         spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
+        spatialDefines.add("SPATIAL_GROUP_BIN_COUNT", std::to_string(mNumLumGroupsInMICalc));
 
 #if IS_DEBUG_PASS
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
@@ -598,6 +601,8 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     {
         isDirty |= widget.checkbox("Use Only Spatial Mutual Information", mUseOnlySpatialMutualInformation);
         isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
+        isDirty |= widget.var("Num Luminance Groups for MI Calc", mNumLumGroupsInMICalc, 1, 3000, 1);
+
         if (!mUseOnlySpatialMutualInformation)
         {
             isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);

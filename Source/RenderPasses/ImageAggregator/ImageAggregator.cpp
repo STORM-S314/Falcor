@@ -132,6 +132,13 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
                 mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(0, 0, std::filesystem::path(savePath), fileformat,
                     Falcor::Bitmap::ExportFlags::None, true
                 );
+
+                /*std::string savePathPNG = "FrameCapture\\" + std::string(buf) + "png" + "." + "png";
+                savePathPNG.erase(std::remove(savePathPNG.begin(), savePathPNG.end(), ':'), savePathPNG.end());
+
+                mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(
+                    0, 0, std::filesystem::path(savePathPNG), Falcor::Bitmap::FileFormat::PngFile, Falcor::Bitmap::ExportFlags::None, true
+                );*/
                 mCurrentAggregateImagesAccumulated = 0;
             }
             mCurrentImagesAccumulated = 0;
