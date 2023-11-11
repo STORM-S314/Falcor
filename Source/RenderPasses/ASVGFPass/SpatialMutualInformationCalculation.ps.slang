@@ -36,6 +36,7 @@ cbuffer PerImageCB {
     Texture2D<float4>       gMutualInfResult;
     int                     gMinHistoryCount;
     Texture2D<float4>       gColorAndVariance;
+    Texture2D               gGradDifferenceRatio;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
 #endif
@@ -158,7 +159,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         //In both cases, we need to sample less of the color from neighboring pixels and use more from this current pixel
         //we can do exp(sumLuminance) for all cases 
         //or (1.0 - mutualInfResult) for when mutualInfResult == 0.0
-        mutualInfResult = exp(-saturate(mutualInfResult));
+        mutualInfResult = exp(-max(0.0, mutualInfResult));
 #if IS_DEBUG_PASS
     gColorTest[iPos] = float4(mutualInfResult, 0.0, 0.0, 1.0);
 #endif
@@ -170,5 +171,5 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     }
 #endif
 
-    return float4(gColorAndVariance[iPos].rgb, saturate(abs(mutualInfResult)));
+    return float4(gColorAndVariance[iPos].rgb, mutualInfResult);
 }

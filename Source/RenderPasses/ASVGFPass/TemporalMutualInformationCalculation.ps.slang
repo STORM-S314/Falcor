@@ -75,7 +75,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float2 prevPos = floor(vsOut.posH.xy) + motionVec.xy * gScreenDimension.xy;
     const int2 iPrevPos = int2(prevPos);// + motionVec.xy * gScreenDimension.xy + float2(0.5,0.5));
 
-    float currentLuminance =   luminance(gColorAndVariance[iPos].rgb); //luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb));
+    float currentLuminance =   luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb)); //luminance(gColorAndVariance[iPos].rgb);
 
     float x = frac(prevPos.x);
     float y = frac(prevPos.y);
@@ -198,7 +198,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     }
 
 
-    float saturatedMutualInf = saturate(mutualInf);
+    float saturatedMutualInf = max(0.0, mutualInf);
     if(((saturatedMutualInf < gSpatialMIThreshold) && (int(historyLength) == LUM_FRAME_BIN_COUNT))
     || (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
     {

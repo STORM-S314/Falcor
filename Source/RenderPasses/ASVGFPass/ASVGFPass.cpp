@@ -432,13 +432,14 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         // Spatial Mutual information calculation
         {
             auto perImageSpatialMutualInfCalcCB = mpPrgSpatialMutualInfCalc->getRootVar()["PerImageCB"];
-            perImageSpatialMutualInfCalcCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
-            perImageSpatialMutualInfCalcCB["gLinearZTexture"] = pInputLinearZTexture;
-            perImageSpatialMutualInfCalcCB["gNormalsTexture"] = pInputNormalVectors;
-            perImageSpatialMutualInfCalcCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
-            perImageSpatialMutualInfCalcCB["gScreenDimension"] = float2(screenWidth, screenHeight);
-            perImageSpatialMutualInfCalcCB["gMutualInfResult"] = mpMutualInfResultBuffer->getColorTexture(0);
-            perImageSpatialMutualInfCalcCB["gMinHistoryCount"] = mNumFramesInMICalc;
+            perImageSpatialMutualInfCalcCB["gColorAndVariance"]     = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
+            perImageSpatialMutualInfCalcCB["gLinearZTexture"]       = pInputLinearZTexture;
+            perImageSpatialMutualInfCalcCB["gNormalsTexture"]       = pInputNormalVectors;
+            perImageSpatialMutualInfCalcCB["gVisibilityBuffer"]     = pInputCurrVisibilityBuffer;
+            perImageSpatialMutualInfCalcCB["gScreenDimension"]      = float2(screenWidth, screenHeight);
+            perImageSpatialMutualInfCalcCB["gMutualInfResult"]      = mpMutualInfResultBuffer->getColorTexture(0);
+            perImageSpatialMutualInfCalcCB["gMinHistoryCount"]      = mNumFramesInMICalc;
+            perImageSpatialMutualInfCalcCB["gGradDifferenceRatio"]  = mpAccumulationBuffer->getColorTexture(3);
 #if IS_DEBUG_PASS
             perImageSpatialMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -463,6 +464,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAtrousFullScreenCB["gPhiNormal"]            = weightPhiNormal;
         perImageAtrousFullScreenCB["gScreenDimension"]      = int2(screenWidth, screenHeight);
         perImageAtrousFullScreenCB["gIsUseMutualInf"]       = mUseMutualInformation;
+        perImageAtrousFullScreenCB["gGradDifferenceRatio"]  = mpAccumulationBuffer->getColorTexture(3);
 #if IS_DEBUG_PASS
         perImageAtrousFullScreenCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -540,7 +542,6 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         temporalDefines.add("LUM_FRAME_BIN_COUNT", std::to_string(mNumFramesInMICalc));
         temporalDefines.add("LUM_GROUP_BIN_COUNT", std::to_string(mNumLumGroupsInMICalc));
         
-
         DefineList spatialDefines(sceneDefines);
         spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
         spatialDefines.add("SPATIAL_GROUP_BIN_COUNT", std::to_string(mNumLumGroupsInMICalc));
