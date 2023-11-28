@@ -64,12 +64,12 @@ const char kTemporalColorAlpha[]        = "TemporalColorAlpha";
 const char kTemporalMomentsAlpha[]      = "TemporalMomentsAlpha";
 const char kDiffAtrousIterations[]      = "DiffAtrousIterations";
 const char kGradientFilterRadius[]      = "GradientFilterRadius";
-const char kFramesPerMICalc[]           = "FramesPerMICalc";
 const char kUseMutualInfCalc[]          = "UseMutualInfCalc";
 const char kSpatialMutInfRadius[]       = "SpatialMutInfRadius";
 const char kNumFramesInMICalc[]         = "NumFramesInMICalc";
 const char kGradDiffRatioThreshold[]    = "GradDiffRatioThreshold";
 const char kSpatialMIThreshold[]        = "SpatialMIThreshold";
+const char kNumLumGroupsInMICalc[]      = "NumLumGroupsInMICalc";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -108,6 +108,11 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kTemporalMomentsAlpha)  mTemporalMomentsAlpha = value;
         else if (key == kDiffAtrousIterations)  mDiffAtrousIterations = value;
         else if (key == kGradientFilterRadius)  mGradientFilterRadius = value;
+        else if (key == kUseMutualInfCalc)      mUseMutualInformation = value;
+        else if (key == kSpatialMutInfRadius)   mSpatialMutualInfRadius = value;
+        else if (key == kGradDiffRatioThreshold)mGradDiffRatioThreshold = value;
+        else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
+        else if (key == kNumLumGroupsInMICalc)  mNumLumGroupsInMICalc = value;
         
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
@@ -123,12 +128,12 @@ Properties ASVGFPass::getProperties() const
     props[kTemporalMomentsAlpha]    = mTemporalMomentsAlpha;
     props[kDiffAtrousIterations]    = mDiffAtrousIterations;
     props[kGradientFilterRadius]    = mGradientFilterRadius;
-    props[kFramesPerMICalc]         = mNumFramesInMICalc;
     props[kUseMutualInfCalc]        = mUseMutualInformation;
     props[kSpatialMutInfRadius]     = mSpatialMutualInfRadius;
     props[kNumFramesInMICalc]       = mNumFramesInMICalc;
     props[kGradDiffRatioThreshold]  = mGradDiffRatioThreshold;
     props[kSpatialMIThreshold]      = mSpatialMIThreshold;
+    props[kNumLumGroupsInMICalc]    = mNumLumGroupsInMICalc;
     return props;
 }
 
