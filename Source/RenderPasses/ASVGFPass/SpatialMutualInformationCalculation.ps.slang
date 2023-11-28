@@ -171,5 +171,5 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     }
 #endif
 
-    return float4(gColorAndVariance[iPos].rgb, mutualInfResult);
+    return float4(gColorAndVariance[iPos].rgb, max(0.0, mutualInfResult));
 }
