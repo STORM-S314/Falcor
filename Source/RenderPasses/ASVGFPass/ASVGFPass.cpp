@@ -32,7 +32,6 @@
 
 #include "ASVGFPass.h"
 
-
 int ASVGFPass::gradient_res(int x)
 {
     return (x + gradientDownsample - 1) / gradientDownsample;
@@ -406,9 +405,19 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         //Temporal Mutual information calculation
         if (!mUseOnlySpatialMutualInformation)
         {
+            if (mdqTimeStep.size() == mNumFramesInMICalc)
+            {
+                mdqTimeStep.pop_back();
+            }
+            mClock.tick();
+            mdqTimeStep.push_front(mClock.getTime());
+            std::vector<double> lvecTimeSteps {mdqTimeStep.begin(), mdqTimeStep.end()};
+            mpFrameTimeSteps->setBlob(&lvecTimeSteps[0], 0, sizeof(double) * lvecTimeSteps.size());
+
             auto perImageTemporalMutualInfCalcCB = mpPrgTemporalMutualInfCalc->getRootVar()["PerImageCB"];
             perImageTemporalMutualInfCalcCB["gColorAndVariance"]        = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
             perImageTemporalMutualInfCalcCB["gColor"]                   = pInputColorTexture;
+            perImageTemporalMutualInfCalcCB["gTimeStepBuffer"]           = mpFrameTimeSteps;
             perImageTemporalMutualInfCalcCB["gAlbedoTexture"]           = pInputAlbedoTexture;
             perImageTemporalMutualInfCalcCB["gEmissionTexture"]         = pInputEmissionTexture;
             perImageTemporalMutualInfCalcCB["gSpecularAlbedo"]          = pInputSpecularAlbedo;
@@ -514,6 +523,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     std::swap(mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
     mPrevFrameJitter = cameraJitter;
+
+    mCurrentFrameNumber++;
 }
 
 void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& renderData)
@@ -541,7 +552,9 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         uint2 textureDims = renderData.getDefaultTextureDims();
         mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
         mpPrevMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
-        
+
+        mpFrameTimeSteps = Buffer::create(mpDevice, mNumFramesInMICalc * sizeof(double));
+
         auto sceneDefines = pScene->getSceneDefines();
         DefineList temporalDefines(sceneDefines);
         temporalDefines.add("LUM_FRAME_BIN_COUNT", std::to_string(mNumFramesInMICalc));
@@ -562,6 +575,10 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         mpPrgTemporalMutualInfCalc = FullScreenPass::create(mpDevice, kTemporalMutualInfCalcShader, temporalDefines);
         mpPrgSpatialMutualInfCalc = FullScreenPass::create(mpDevice, kSpatialMutualInfCalcShader, spatialDefines);
     }
+
+    mCurrentFrameNumber = 0;
+    mdqTimeStep.clear();
+    mdqTimeStep.resize(mNumFramesInMICalc);
 }
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)

@@ -31,6 +31,7 @@
 cbuffer PerImageCB {
     Texture2D               gColorAndVariance;
     Texture2D               gColor;
+    Buffer<double>          gTimeStepBuffer;
     Texture2D               gAlbedoTexture;
     Texture2D               gEmissionTexture;
     Texture2D               gSpecularAlbedo;

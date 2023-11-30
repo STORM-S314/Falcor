@@ -33,6 +33,7 @@
 #include "Falcor.h"
 #include "RenderGraph/RenderPass.h"
 #include "Core/Pass/FullScreenPass.h"
+#include "Utils/Timing/FrameRate.h"
 
 #define IS_DEBUG_PASS 0
 
@@ -86,6 +87,11 @@ private:
     float mGradDiffRatioThreshold        = 0.05f;
     float mSpatialMIThreshold = 0.05f;
 
+    uint mCurrentFrameNumber = 0;
+    std::deque<double> mdqTimeStep;
+
+    Falcor::Clock mClock;
+
     //Params frame
     float2 mPrevFrameJitter{0.0f, 0.0f};
 
@@ -108,6 +114,8 @@ private:
     //Mutual Information
     ref<Buffer> mpMutualInformationCalcBuffer;
     ref<Buffer> mpPrevMutualInformationCalcBuffer;
+
+    ref<Buffer> mpFrameTimeSteps;
 
     //Debug
     #if IS_DEBUG_PASS
