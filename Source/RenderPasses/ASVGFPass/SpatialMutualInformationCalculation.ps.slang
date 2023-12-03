@@ -33,7 +33,7 @@ cbuffer PerImageCB {
     Texture2D               gNormalsTexture;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
     float2                  gScreenDimension;
-    Texture2D<float4>       gMutualInfResult;
+    Texture2D<float4>       gTemporalMutualInfResult;
     int                     gMinHistoryCount;
     Texture2D<float4>       gColorAndVariance;
     Texture2D               gGradDifferenceRatio;
@@ -56,10 +56,10 @@ int getLuminanceBucketID(float luminanceP, int luminanceBucketCount)
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
     int2 iPos = int2(vsOut.posH.xy);
-    float4 mutualInfResultBuf = gMutualInfResult[iPos].rgba;
+    float4 mutualInfResultBuf = gTemporalMutualInfResult[iPos].rgba;
     float mutualInfResult = mutualInfResultBuf.g;
 
-    if(mutualInfResultBuf.b < float(gMinHistoryCount))
+    if(mutualInfResultBuf.g < 0.1)
     {
         HitInfo centerHitInfoP  = HitInfo(gVisibilityBuffer[iPos]);
         float2 centerDepth     = gLinearZTexture[iPos].xy;
@@ -167,7 +167,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 #if IS_DEBUG_PASS
     else
     {
-        gColorTest[iPos] = float4(0.0, mutualInfResult, 0.0, 1.0);
+        //gColorTest[iPos] = float4(0.0, mutualInfResult, 0.0, 1.0);
     }
 #endif
 

@@ -31,7 +31,7 @@
 cbuffer PerImageCB {
     Texture2D               gColorAndVariance;
     Texture2D               gColor;
-    Buffer<double>          gTimeStepBuffer;
+    Buffer<float>           gTimeStepBuffer;
     Texture2D               gAlbedoTexture;
     Texture2D               gEmissionTexture;
     Texture2D               gSpecularAlbedo;
@@ -59,17 +59,24 @@ static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
-int getLuminanceBuckedID(float luminanceP, int luminanceBucketCount)
+int getLuminanceBucketID(float luminanceP, int luminanceBucketCount)
 {
     return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
 }
 
-float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
+struct PS_OUT
+{
+    float4 temporalMIResult         : SV_TARGET0;
+	float4 accumulatedColorAndMI    : SV_TARGET1;
+};
+
+PS_OUT main(FullScreenPassVsOut vsOut)
 {
     int2 iPos = int2(vsOut.posH.xy);
     float historyLength = 1.0;
     float mutualInf = 0.0;
     float totalSumLuminance = 0.0;
+    float totalSumTimeStep = 0.0;
 
     float2 motionVec = gMotionVectorsTexture[iPos].rg;
     
@@ -93,6 +100,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     gMutualInfBuffer[pixelIndexInFrame] = currentLuminance;
     totalSumLuminance = currentLuminance;
+    totalSumTimeStep    =   gTimeStepBuffer[0];
 
 //Check for validity of prev and surrounding previous pixels with the current
     float3 currentNormal = gNormalsTexture[iPos].xyz;
@@ -129,11 +137,12 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             }
         }
 
-        if((weightedSum > 0.5) && !isHistorySet)
+        if((weightedSum > 0.4) && !isHistorySet)
         {
             float addluminance = luminanceSum / weightedSum;
             gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
             totalSumLuminance += addluminance;
+            totalSumTimeStep += gTimeStepBuffer[historyIndex];
             historyLength = min(int(historyLength + 1.0), LUM_FRAME_BIN_COUNT);
         }
         else
@@ -143,77 +152,68 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     }
 
     //If history length is enough for temporal mutual information calculation
-    if(historyLength >= LUM_FRAME_BIN_COUNT)
+    float binsFrameTimeStep[LUM_FRAME_BIN_COUNT];
+    float binsFramesLum[LUM_FRAME_BIN_COUNT]   ;
+
+    for(int frameIndex = 0; frameIndex < LUM_FRAME_BIN_COUNT; frameIndex++)
     {
-        float binsLumGroup[LUM_GROUP_BIN_COUNT];
-        float binsLumFrames[LUM_FRAME_BIN_COUNT]   ;
+        binsFramesLum[frameIndex] = 0.0;
+    }
 
-        for(int frameIndex = 0; frameIndex < LUM_GROUP_BIN_COUNT; frameIndex++)
+    for(int frameIndex = 0; frameIndex < (int)historyLength; frameIndex++)
+    {
+        int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
+
+        float frameLumVal = gMutualInfBuffer[indexInBuffer].r;
+        binsFramesLum[getLuminanceBucketID(frameLumVal, (int)historyLength)] += frameLumVal / totalSumLuminance;
+        binsFrameTimeStep[frameIndex] =  gTimeStepBuffer[frameIndex].r / totalSumTimeStep; //1.0/historyLength;//
+    }
+
+    for (int binIdx0 = 0; binIdx0 < (int)historyLength; binIdx0++)
+    {
+        float p_x = binsFramesLum[binIdx0];
+        float p_y = binsFrameTimeStep[binIdx0];
+            
+        if(p_x > 0.0)
         {
-            binsLumGroup[frameIndex] = 0.0;
+            float result = p_x * log(p_x);
+            //if(isnan(result)){result = 0.0;}
+            mutualInf -= result;
         }
 
-        for(int frameIndex = 0; frameIndex < LUM_FRAME_BIN_COUNT; frameIndex++)
+        if(p_y > 0.0)
         {
-            int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
-            
-            float bufferPixelLuminance  =   gMutualInfBuffer[indexInBuffer].r;
-            float pixelLuminanceProbability  = bufferPixelLuminance / totalSumLuminance;
-            binsLumFrames[frameIndex] =  pixelLuminanceProbability;
-            binsLumGroup[getLuminanceBuckedID(bufferPixelLuminance, LUM_GROUP_BIN_COUNT)] += pixelLuminanceProbability;
+            float result = p_y * log(p_y);
+            //if(isnan(result)){result = 0.0;}
+            mutualInf -= result;
         }
 
-        for (int binIdx0 = 0; binIdx0 < LUM_FRAME_BIN_COUNT; binIdx0++)
+        for (int binIdx1 = 0; binIdx1 < (int)historyLength; binIdx1++)
         {
-            float p_x = binsLumFrames[binIdx0];
-            
-            if(p_x > 0.0)
+            float p_xy = p_x * binsFrameTimeStep[binIdx1];
+            if(p_xy > 0.0)
             {
-                float result = p_x * log(p_x);
-                if(isnan(result)){result = 0.0;}
-                mutualInf -= result;
-            }
-
-            if((binIdx0 < LUM_GROUP_BIN_COUNT))
-            {
-                float p_y = binsLumGroup[binIdx0];
-                if(p_y > 0.0)
-                {
-                    float result = p_y * log(p_y);
-                    if(isnan(result)){result = 0.0;}
-                    mutualInf -= result;
-                }
-            }
-
-            for (int binIdx1 = 0; binIdx1 < LUM_GROUP_BIN_COUNT; binIdx1++)
-            {
-                float p_xy = p_x * binsLumGroup[binIdx1];
-                if(p_xy > 0.0)
-                {
-                    float result = p_xy * log(p_xy);
-                    if(isnan(result)){result = 0.0;}
-                    mutualInf += result;
-                }
+                float result = p_xy * log(p_xy);
+                //if(isnan(result)){result = 0.0;}
+                mutualInf += result;
             }
         }
     }
 
-
-    float saturatedMutualInf = max(0.0, mutualInf);
-    if(((saturatedMutualInf < gSpatialMIThreshold) && (int(historyLength) == LUM_FRAME_BIN_COUNT))
-    || (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
-    {
-        historyLength = 1.0;
-    }
+    mutualInf = max(0.0, mutualInf);
+    //if(((mutualInf < gSpatialMIThreshold) && (int(historyLength) == LUM_FRAME_BIN_COUNT))
+    //|| (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
+    //{
+    //    historyLength = 1.0;
+    //}
 
 #if IS_DEBUG_PASS
-    //gColorTest[iPos] = float4(0.0, saturatedMutualInf, 0.0, 1.0);
+    gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
 #endif
 
-    float4 mutualInfResult = float4(0.0);
-    mutualInfResult.r = totalSumLuminance;
-    mutualInfResult.g = saturatedMutualInf;
-    mutualInfResult.b = historyLength;
+    PS_OUT psOut;
+    psOut.temporalMIResult      =   float4(totalSumLuminance, mutualInf, historyLength, 1.0);
+    psOut.accumulatedColorAndMI =   float4(gColorAndVariance[iPos].rgb, mutualInf);
 
-    return mutualInfResult;
+    return psOut;
 }

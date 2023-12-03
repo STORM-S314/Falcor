@@ -60,35 +60,52 @@ public:
     void allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWidth, int a_ScreenHeight);
     void resetBuffers(RenderContext* pRenderContext, const RenderData& renderData);
 
-    #if IS_DEBUG_PASS
-    void debugPass(RenderContext* pRenderContext, const RenderData& );
-    #endif IS_DEBUG_PASS
+#if IS_DEBUG_PASS
+    void debugPass(RenderContext* pRenderContext, const RenderData&);
+#endif IS_DEBUG_PASS
 
 private:
+
+    enum class DenoisingAlgorithm
+    {
+        ASVGF = 0,
+        MI_ONLY_TEMPORAL = 1,
+        MI_ONLY_SPATIAL = 2,
+        MI_TEMPORAL_AND_SPATIAL = 3,
+    };
+
     ref<Scene> pScene;
     bool IsClearBuffers = false;
 
-    //Params
-    int mNumIterations          = 5;
-    int mHistoryTap             = 0;
-    uint32_t mFilterKernel      = 1;
-    float mTemporalColorAlpha   = 0.1f;
+    // Params
+    int mNumIterations = 5;
+    int mHistoryTap = 0;
+    uint32_t mFilterKernel = 1;
+    float mTemporalColorAlpha = 0.1f;
     float mTemporalMomentsAlpha = 0.6f;
-    int mDiffAtrousIterations   = 5;
-    int mGradientFilterRadius   = 1;
-    int gradientDownsample      = 3;
-    float weightPhiColor        = 3.0f;
-    float weightPhiNormal       = 128.0f;
-    bool mUseMutualInformation  = false;
-    bool mUseOnlySpatialMutualInformation = false;
+    int mDiffAtrousIterations = 5;
+    int mGradientFilterRadius = 1;
+    int gradientDownsample = 3;
+    float weightPhiColor = 3.0f;
+    float weightPhiNormal = 128.0f;
+    bool mUseMutualInformation = false;
     int mSpatialMutualInfRadius = 1;
-    int mNumFramesInMICalc      = 20;
-    int mNumLumGroupsInMICalc   = 5;
-    float mGradDiffRatioThreshold        = 0.05f;
+    int mNumFramesInMICalc = 20;
+    float mGradDiffRatioThreshold = 0.05f;
     float mSpatialMIThreshold = 0.05f;
 
+    DenoisingAlgorithm mCurrentDenoisingAlgorithm = DenoisingAlgorithm::ASVGF;
+
+    const Falcor::Gui::DropdownList DENOISING_ALGORITHM_LIST =
+    {
+        {(uint32_t)DenoisingAlgorithm::ASVGF, "ASVGF"},
+        {(uint32_t)DenoisingAlgorithm::MI_ONLY_TEMPORAL, "MI:Only Temporal"},
+        {(uint32_t)DenoisingAlgorithm::MI_ONLY_SPATIAL, "MI:Only Spatial"},
+        {(uint32_t)DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL, "MI:Temporal and Spatial"}
+    };
+
     uint mCurrentFrameNumber = 0;
-    std::deque<double> mdqTimeStep;
+    std::deque<float> mdqTimeStep;
 
     Falcor::Clock mClock;
 
@@ -109,7 +126,7 @@ private:
     ref<Fbo> mpAtrousFullScreenResultPingPong[2];
     ref<Fbo> mpAccumulationBuffer;
     ref<Fbo> mpPrevAccumulationBuffer;
-    ref<Fbo> mpMutualInfResultBuffer;
+    ref<Fbo> mpTemporalMutualInfResultBuffer;
 
     //Mutual Information
     ref<Buffer> mpMutualInformationCalcBuffer;

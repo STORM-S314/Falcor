@@ -63,7 +63,6 @@ const char kTemporalColorAlpha[]        = "TemporalColorAlpha";
 const char kTemporalMomentsAlpha[]      = "TemporalMomentsAlpha";
 const char kDiffAtrousIterations[]      = "DiffAtrousIterations";
 const char kGradientFilterRadius[]      = "GradientFilterRadius";
-const char kUseMutualInfCalc[]          = "UseMutualInfCalc";
 const char kSpatialMutInfRadius[]       = "SpatialMutInfRadius";
 const char kNumFramesInMICalc[]         = "NumFramesInMICalc";
 const char kGradDiffRatioThreshold[]    = "GradDiffRatioThreshold";
@@ -107,12 +106,9 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kTemporalMomentsAlpha)  mTemporalMomentsAlpha = value;
         else if (key == kDiffAtrousIterations)  mDiffAtrousIterations = value;
         else if (key == kGradientFilterRadius)  mGradientFilterRadius = value;
-        else if (key == kUseMutualInfCalc)      mUseMutualInformation = value;
         else if (key == kSpatialMutInfRadius)   mSpatialMutualInfRadius = value;
         else if (key == kGradDiffRatioThreshold)mGradDiffRatioThreshold = value;
         else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
-        else if (key == kNumLumGroupsInMICalc)  mNumLumGroupsInMICalc = value;
-        
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 }
@@ -127,12 +123,10 @@ Properties ASVGFPass::getProperties() const
     props[kTemporalMomentsAlpha]    = mTemporalMomentsAlpha;
     props[kDiffAtrousIterations]    = mDiffAtrousIterations;
     props[kGradientFilterRadius]    = mGradientFilterRadius;
-    props[kUseMutualInfCalc]        = mUseMutualInformation;
     props[kSpatialMutInfRadius]     = mSpatialMutualInfRadius;
     props[kNumFramesInMICalc]       = mNumFramesInMICalc;
     props[kGradDiffRatioThreshold]  = mGradDiffRatioThreshold;
     props[kSpatialMIThreshold]      = mSpatialMIThreshold;
-    props[kNumLumGroupsInMICalc]    = mNumLumGroupsInMICalc;
     return props;
 }
 
@@ -231,7 +225,8 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWid
     // Mutual inf result
     Fbo::Desc formatMutualInfDesc;
     formatMutualInfDesc.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);    //Luminance Sum, Mutual Information, History Count
-    mpMutualInfResultBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatMutualInfDesc);
+    formatMutualInfDesc.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float);     // Accumulated rgb, temporal MI
+    mpTemporalMutualInfResultBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatMutualInfDesc);
 
 #if IS_DEBUG_PASS
     Fbo::Desc formatDebugFullScreenResult;
@@ -403,16 +398,17 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     if (mUseMutualInformation)
     {
         //Temporal Mutual information calculation
-        if (!mUseOnlySpatialMutualInformation)
+        if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_TEMPORAL ||
+            mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
             if (mdqTimeStep.size() == mNumFramesInMICalc)
             {
                 mdqTimeStep.pop_back();
             }
             mClock.tick();
-            mdqTimeStep.push_front(mClock.getTime());
-            std::vector<double> lvecTimeSteps {mdqTimeStep.begin(), mdqTimeStep.end()};
-            mpFrameTimeSteps->setBlob(&lvecTimeSteps[0], 0, sizeof(double) * lvecTimeSteps.size());
+            mdqTimeStep.push_front((float)mClock.getTime());
+            std::vector<float> lvecTimeSteps {mdqTimeStep.begin(), mdqTimeStep.end()};
+            mpFrameTimeSteps->setBlob(&lvecTimeSteps[0], 0, sizeof(float) * lvecTimeSteps.size());
 
             auto perImageTemporalMutualInfCalcCB = mpPrgTemporalMutualInfCalc->getRootVar()["PerImageCB"];
             perImageTemporalMutualInfCalcCB["gColorAndVariance"]        = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
@@ -440,10 +436,13 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 #if IS_DEBUG_PASS
             perImageTemporalMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
 #endif
-            mpPrgTemporalMutualInfCalc->execute(pRenderContext, mpMutualInfResultBuffer);
+            mpPrgTemporalMutualInfCalc->execute(pRenderContext, mpTemporalMutualInfResultBuffer);
+            pRenderContext->blit(mpTemporalMutualInfResultBuffer->getColorTexture(1)->getSRV(), mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getRTV());
         }
 
         // Spatial Mutual information calculation
+        if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_SPATIAL ||
+            mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
             auto perImageSpatialMutualInfCalcCB = mpPrgSpatialMutualInfCalc->getRootVar()["PerImageCB"];
             perImageSpatialMutualInfCalcCB["gColorAndVariance"]     = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
@@ -451,7 +450,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageSpatialMutualInfCalcCB["gNormalsTexture"]       = pInputNormalVectors;
             perImageSpatialMutualInfCalcCB["gVisibilityBuffer"]     = pInputCurrVisibilityBuffer;
             perImageSpatialMutualInfCalcCB["gScreenDimension"]      = float2(screenWidth, screenHeight);
-            perImageSpatialMutualInfCalcCB["gMutualInfResult"]      = mpMutualInfResultBuffer->getColorTexture(0);
+            perImageSpatialMutualInfCalcCB["gTemporalMutualInfResult"]  = mpTemporalMutualInfResultBuffer->getColorTexture(0);
             perImageSpatialMutualInfCalcCB["gMinHistoryCount"]      = mNumFramesInMICalc;
             perImageSpatialMutualInfCalcCB["gGradDifferenceRatio"]  = mpAccumulationBuffer->getColorTexture(3);
 #if IS_DEBUG_PASS
@@ -518,7 +517,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(pInputNormalVectors->getSRV(),         pInternalPrevNormalsTexture->getRTV());
     pRenderContext->blit(pInputCurrVisibilityBuffer->getSRV(),  pInternalPrevVisBufferTexture->getRTV());
     pRenderContext->blit(pInputSpecularAlbedo->getSRV(),        pInternalPrevSpecularAlbedo->getRTV());
-    pRenderContext->blit(mpMutualInfResultBuffer->getColorTexture(0)->getSRV(), pInternalPrevMutualInfTexture->getRTV());
+    pRenderContext->blit(mpTemporalMutualInfResultBuffer->getColorTexture(0)->getSRV(), pInternalPrevMutualInfTexture->getRTV());
     
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     std::swap(mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
@@ -535,7 +534,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearFbo(mpAtrousFullScreenResultPingPong[1].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpPrevAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
-    pRenderContext->clearFbo(mpMutualInfResultBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpTemporalMutualInfResultBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevColorTexture).get());
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevAlbedoTexture).get());
@@ -553,16 +552,15 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         mpMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
         mpPrevMutualInformationCalcBuffer = Buffer::create(mpDevice, textureDims.x * textureDims.y * mNumFramesInMICalc * sizeof(float));
 
-        mpFrameTimeSteps = Buffer::create(mpDevice, mNumFramesInMICalc * sizeof(double));
+        mpFrameTimeSteps = Buffer::create(mpDevice, mNumFramesInMICalc * sizeof(float));
 
         auto sceneDefines = pScene->getSceneDefines();
         DefineList temporalDefines(sceneDefines);
         temporalDefines.add("LUM_FRAME_BIN_COUNT", std::to_string(mNumFramesInMICalc));
-        temporalDefines.add("LUM_GROUP_BIN_COUNT", std::to_string(mNumLumGroupsInMICalc));
         
         DefineList spatialDefines(sceneDefines);
         spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
-        spatialDefines.add("SPATIAL_GROUP_BIN_COUNT", std::to_string(mNumLumGroupsInMICalc));
+        spatialDefines.add("SPATIAL_GROUP_BIN_COUNT", std::to_string(8));
 
 #if IS_DEBUG_PASS
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
@@ -578,7 +576,6 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 
     mCurrentFrameNumber = 0;
     mdqTimeStep.clear();
-    mdqTimeStep.resize(mNumFramesInMICalc);
 }
 
 void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene)
@@ -619,14 +616,15 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     isDirty |= widget.var("Weight Phi", weightPhiColor, 0.0f, 100.0f, 1.0f);
     isDirty |= widget.var("Weight Normal", weightPhiNormal, 0.0f, 128.0f, 1.0f);
 
-    isDirty |= widget.checkbox("Use Mutual Information", mUseMutualInformation);
+    isDirty |= widget.dropdown( "Denoising Algorithm", DENOISING_ALGORITHM_LIST, *(reinterpret_cast<uint32_t*>(&mCurrentDenoisingAlgorithm)));
+
+    mUseMutualInformation = mCurrentDenoisingAlgorithm != DenoisingAlgorithm::ASVGF;
     if (mUseMutualInformation)
     {
-        isDirty |= widget.checkbox("Use Only Spatial Mutual Information", mUseOnlySpatialMutualInformation);
         isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
-        isDirty |= widget.var("Num Luminance Groups for MI Calc", mNumLumGroupsInMICalc, 1, 3000, 1);
 
-        if (!mUseOnlySpatialMutualInformation)
+        if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_TEMPORAL ||
+            mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
             isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);
             isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
