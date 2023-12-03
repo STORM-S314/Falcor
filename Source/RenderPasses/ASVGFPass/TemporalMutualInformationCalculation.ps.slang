@@ -208,7 +208,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     //}
 
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+    //gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
 #endif
 
     PS_OUT psOut;

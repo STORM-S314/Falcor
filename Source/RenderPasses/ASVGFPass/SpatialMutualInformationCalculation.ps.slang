@@ -29,6 +29,10 @@
 #include "ASVGFUtils.slang"
 
 cbuffer PerImageCB {
+    Texture2D               gColor;
+    Texture2D               gAlbedoTexture;
+    Texture2D               gEmissionTexture;
+    Texture2D               gSpecularAlbedo;
     Texture2D               gLinearZTexture;
     Texture2D               gNormalsTexture;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
@@ -72,7 +76,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         float2 centerDepth     = gLinearZTexture[iPos].xy;
         float3 centerNormal    = gNormalsTexture[iPos].xyz;
         uint    centerMeshID    = getMeshInstanceID(centerHitInfoP);
-        uint    centerLuminance    = luminance(gColorAndVariance[iPos].rgb);
+        uint    centerLuminance    = luminance(gColorAndVariance[iPos].rgb); // luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb));
 
         if(!centerHitInfoP.isValid())
         {
@@ -96,7 +100,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             {
                 int2 currentP = iPos + int2(xx,yy);
 
-                float currentluminanceValue = luminance(gColorAndVariance[currentP].rgb);
+                float currentluminanceValue = luminance(gColorAndVariance[currentP].rgb); // luminance(getIllumination(gColor[currentP].rgb, gAlbedoTexture[currentP].rgb, gSpecularAlbedo[currentP].rgb, gEmissionTexture[currentP].rgb));//
                 if(all(currentP != iPos))
                 {
                     HitInfo hitInfoP    = HitInfo(gVisibilityBuffer[currentP]);

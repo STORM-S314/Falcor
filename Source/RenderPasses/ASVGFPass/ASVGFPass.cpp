@@ -443,6 +443,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
             auto perImageSpatialMutualInfCalcCB = mpPrgSpatialMutualInfCalc->getRootVar()["PerImageCB"];
+            perImageSpatialMutualInfCalcCB["gColor"] = pInputColorTexture;
+            perImageSpatialMutualInfCalcCB["gAlbedoTexture"] = pInputAlbedoTexture;
+            perImageSpatialMutualInfCalcCB["gEmissionTexture"] = pInputEmissionTexture;
+            perImageSpatialMutualInfCalcCB["gSpecularAlbedo"] = pInputSpecularAlbedo;
             perImageSpatialMutualInfCalcCB["gColorAndVariance"]     = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0); //switch variance and output mutual inf
             perImageSpatialMutualInfCalcCB["gLinearZTexture"]       = pInputLinearZTexture;
             perImageSpatialMutualInfCalcCB["gNormalsTexture"]       = pInputNormalVectors;
