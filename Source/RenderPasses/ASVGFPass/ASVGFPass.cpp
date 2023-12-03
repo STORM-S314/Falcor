@@ -424,14 +424,12 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gVisibilityBuffer"]        = pInputCurrVisibilityBuffer;
             perImageTemporalMutualInfCalcCB["gPrevVisibilityBuffer"]    = pInternalPrevVisBufferTexture;
             perImageTemporalMutualInfCalcCB["gMotionVectorsTexture"]    = pInputMotionVectors;
-            perImageTemporalMutualInfCalcCB["gGradDiffRatioThreshold"]  = mGradDiffRatioThreshold;
             perImageTemporalMutualInfCalcCB["gGradDifferenceRatio"]     = mpAccumulationBuffer->getColorTexture(3);
             perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"]     = mpPrevMutualInformationCalcBuffer->asBuffer();
             perImageTemporalMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
             perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"]     = pInternalPrevMutualInfTexture;
             perImageTemporalMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
             perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
-            perImageTemporalMutualInfCalcCB["gSpatialMIThreshold"]      = mSpatialMIThreshold;
             
 #if IS_DEBUG_PASS
             perImageTemporalMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
@@ -453,6 +451,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageSpatialMutualInfCalcCB["gTemporalMutualInfResult"]  = mpTemporalMutualInfResultBuffer->getColorTexture(0);
             perImageSpatialMutualInfCalcCB["gMinHistoryCount"]      = mNumFramesInMICalc;
             perImageSpatialMutualInfCalcCB["gGradDifferenceRatio"]  = mpAccumulationBuffer->getColorTexture(3);
+            perImageSpatialMutualInfCalcCB["gGradDiffRatioThreshold"] = mGradDiffRatioThreshold;
+            perImageSpatialMutualInfCalcCB["gSpatialMIThreshold"] = mSpatialMIThreshold;
 #if IS_DEBUG_PASS
             perImageSpatialMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
 #endif
@@ -560,7 +560,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         
         DefineList spatialDefines(sceneDefines);
         spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
-        spatialDefines.add("SPATIAL_GROUP_BIN_COUNT", std::to_string(8));
+        //spatialDefines.add("SPATIAL_PIXEL_BIN_COUNT", std::to_string(8));
 
 #if IS_DEBUG_PASS
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));

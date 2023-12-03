@@ -36,7 +36,9 @@ cbuffer PerImageCB {
     Texture2D<float4>       gTemporalMutualInfResult;
     int                     gMinHistoryCount;
     Texture2D<float4>       gColorAndVariance;
+    float                   gGradDiffRatioThreshold;
     Texture2D               gGradDifferenceRatio;
+    float                   gSpatialMIThreshold;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
 #endif
@@ -53,13 +55,18 @@ int getLuminanceBucketID(float luminanceP, int luminanceBucketCount)
     return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
 }
 
+int getWeightBucketID(float weightP, int weightBucketCount)
+{
+    return int((weightP) * float(weightBucketCount - 1));
+}
+
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
     int2 iPos = int2(vsOut.posH.xy);
     float4 mutualInfResultBuf = gTemporalMutualInfResult[iPos].rgba;
     float mutualInfResult = mutualInfResultBuf.g;
 
-    if(mutualInfResultBuf.g < 0.1)
+    if((mutualInfResultBuf.g < gSpatialMIThreshold) || (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
     {
         HitInfo centerHitInfoP  = HitInfo(gVisibilityBuffer[iPos]);
         float2 centerDepth     = gLinearZTexture[iPos].xy;
@@ -73,14 +80,16 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         }
 
         float binsLumPixel[SPATIAL_PIXEL_BIN_COUNT];
-        float binsLumGroup[SPATIAL_GROUP_BIN_COUNT];
-        for(int frameIndex = 0; frameIndex < SPATIAL_GROUP_BIN_COUNT; frameIndex++)
+        float binsLumWeight[SPATIAL_PIXEL_BIN_COUNT];
+        for(int frameIndex = 0; frameIndex < SPATIAL_PIXEL_BIN_COUNT; frameIndex++)
         {
-            binsLumGroup[frameIndex] = 0.0;
+            binsLumWeight[frameIndex] = 0.0;
+            binsLumPixel[frameIndex] = 0.0;
         }
 
         int acceptedPixelCount = 0;
         float sumLuminance = 0.0;
+        float sumWeights = 0.0;
 
         for(int yy = -SPATIAL_RADIUS; yy <= SPATIAL_RADIUS; yy++) {
 			for(int xx = -SPATIAL_RADIUS; xx <= SPATIAL_RADIUS; xx++)
@@ -99,25 +108,28 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 				    uint meshID_p =  getMeshInstanceID(hitInfoP);
 
                     float meshIDWeight = ((hitInfoP.isValid() && (centerMeshID == meshID_p)) ? 1.0 : 0.0);
-				    float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
-                    currentluminanceValue *=  (1.0 + weight) * meshIDWeight;
+
+                    bool accepted = (meshIDWeight > 0.0) && (dot(normalP, centerNormal) > 0.9) && ((abs(depthP.x - centerDepth.x) / (centerDepth.y + 1e-2f)) < 10.f);
+
+                    if(accepted)
+                    {
+				        float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
+                        binsLumWeight[getLuminanceBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)] += currentluminanceValue;
+                        binsLumPixel[getWeightBucketID(weight, SPATIAL_PIXEL_BIN_COUNT)]    +=   weight;
+                        sumLuminance += currentluminanceValue;
+                        sumWeights += weight;
+                
+                        acceptedPixelCount++;
+                    }
                 }
 
-                binsLumGroup[getLuminanceBucketID(currentluminanceValue, SPATIAL_GROUP_BIN_COUNT)] += currentluminanceValue;
-                binsLumPixel[acceptedPixelCount]    =   currentluminanceValue;
-                sumLuminance += currentluminanceValue;
-                
-                acceptedPixelCount++;
             }
         }
 
         for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
         {
             binsLumPixel[pixelIndex]        /=  sumLuminance;
-            if(pixelIndex < SPATIAL_GROUP_BIN_COUNT)
-            {
-                binsLumGroup[pixelIndex ]   /=  sumLuminance;
-            }
+            binsLumWeight[pixelIndex]      /=  sumWeights;
         }
 
         //Calculate mutual information
@@ -125,32 +137,29 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         for (int binIdx = 0; binIdx < SPATIAL_PIXEL_BIN_COUNT; binIdx++)
         {
             float p_x = binsLumPixel[binIdx];
+            float p_y = binsLumWeight[binIdx];
             
             if(p_x > 0.0)
             {
                 float result = p_x * log(p_x);
-                if(isnan(result)){result = 0.0;}
+                //if(isnan(result)){result = 0.0;}
+                mutualInfResult -= result;
+            }
+ 
+            if(p_y > 0.0)
+            {
+                float result = p_y * log(p_y);
+                //if(isnan(result)){result = 0.0;}
                 mutualInfResult -= result;
             }
 
-            if((binIdx < SPATIAL_GROUP_BIN_COUNT))
+            for (int binIdx1 = 0; binIdx1 < SPATIAL_PIXEL_BIN_COUNT; binIdx1++)
             {
-                float p_y = binsLumGroup[binIdx];
-                if(p_y > 0.0)
-                {
-                    float result = p_y * log(p_y);
-                    if(isnan(result)){result = 0.0;}
-                    mutualInfResult -= result;
-                }
-            }
-
-            for (int binIdx1 = 0; binIdx1 < SPATIAL_GROUP_BIN_COUNT; binIdx1++)
-            {
-                float p_xy = p_x * binsLumGroup[binIdx1];
+                float p_xy = p_x * binsLumWeight[binIdx1];
                 if(p_xy > 0.0)
                 {
                     float result = p_xy * log(p_xy);
-                    if(isnan(result)){result = 0.0;}
+                    //if(isnan(result)){result = 0.0;}
                     mutualInfResult += result;
                 }
             }
@@ -167,7 +176,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 #if IS_DEBUG_PASS
     else
     {
-        //gColorTest[iPos] = float4(0.0, mutualInfResult, 0.0, 1.0);
+        gColorTest[iPos] = float4(0.0, mutualInfResult, 0.0, 1.0);
     }
 #endif
 
