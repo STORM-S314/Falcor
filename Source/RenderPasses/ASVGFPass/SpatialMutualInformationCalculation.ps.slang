@@ -118,8 +118,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     if(accepted)
                     {
 				        float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
-                        binsLumWeight[getLuminanceBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)] += 1.0;
-                        binsLumPixel[getWeightBucketID(weight, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
+                        binsLumWeight[getLuminanceBucketID(weight, SPATIAL_PIXEL_BIN_COUNT)]    += 1.0;
+                        binsLumPixel[getWeightBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
                         sumLuminance += currentluminanceValue;
                         sumWeights += weight;
                 
@@ -130,10 +130,12 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             }
         }
 
+        binsLumPixel[getLuminanceBucketID(centerLuminance, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
+
         for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
         {
-            binsLumPixel[pixelIndex]        /=  SPATIAL_PIXEL_BIN_COUNT;
-            binsLumWeight[pixelIndex]      /=  SPATIAL_PIXEL_BIN_COUNT;
+            binsLumPixel[pixelIndex]        /=  (acceptedPixelCount + 1);
+            binsLumWeight[pixelIndex]      /=  acceptedPixelCount;
         }
 
         //Calculate mutual information
