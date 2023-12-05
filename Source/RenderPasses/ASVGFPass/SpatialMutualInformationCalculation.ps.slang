@@ -48,7 +48,7 @@ cbuffer PerImageCB {
 #endif
 };
 
-static const int SPATIAL_PIXEL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
+//static const int SPATIAL_PIXEL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
 
 static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
@@ -118,8 +118,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     if(accepted)
                     {
 				        float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
-                        binsLumWeight[getLuminanceBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)] += currentluminanceValue;
-                        binsLumPixel[getWeightBucketID(weight, SPATIAL_PIXEL_BIN_COUNT)]    +=   weight;
+                        binsLumWeight[getLuminanceBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)] += 1.0;
+                        binsLumPixel[getWeightBucketID(weight, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
                         sumLuminance += currentluminanceValue;
                         sumWeights += weight;
                 
@@ -132,8 +132,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
         {
-            binsLumPixel[pixelIndex]        /=  sumLuminance;
-            binsLumWeight[pixelIndex]      /=  sumWeights;
+            binsLumPixel[pixelIndex]        /=  SPATIAL_PIXEL_BIN_COUNT;
+            binsLumWeight[pixelIndex]      /=  SPATIAL_PIXEL_BIN_COUNT;
         }
 
         //Calculate mutual information

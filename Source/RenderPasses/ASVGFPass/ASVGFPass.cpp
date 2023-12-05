@@ -68,6 +68,8 @@ const char kNumFramesInMICalc[]         = "NumFramesInMICalc";
 const char kGradDiffRatioThreshold[]    = "GradDiffRatioThreshold";
 const char kSpatialMIThreshold[]        = "SpatialMIThreshold";
 const char kNumLumGroupsInMICalc[]      = "NumLumGroupsInMICalc";
+const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
+const char kSpatialPixelBinCount[]      = "SpatialPixelBinCount";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -109,6 +111,9 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kSpatialMutInfRadius)   mSpatialMutualInfRadius = value;
         else if (key == kGradDiffRatioThreshold)mGradDiffRatioThreshold = value;
         else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
+        else if (key == kFrameBinCountInTempMI)    mFrameLumBinCountInTempMI = value;
+        else if (key == kSpatialPixelBinCount) mSpatialPixelBinCount = value;
+        
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 }
@@ -127,6 +132,9 @@ Properties ASVGFPass::getProperties() const
     props[kNumFramesInMICalc]       = mNumFramesInMICalc;
     props[kGradDiffRatioThreshold]  = mGradDiffRatioThreshold;
     props[kSpatialMIThreshold]      = mSpatialMIThreshold;
+    props[kFrameBinCountInTempMI]   = mFrameLumBinCountInTempMI;
+    props[kSpatialPixelBinCount]    = mSpatialPixelBinCount;
+    
     return props;
 }
 
@@ -406,7 +414,9 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
                 mdqTimeStep.pop_back();
             }
             mClock.tick();
-            mdqTimeStep.push_front((float)mClock.getTime());
+            mdqTimeStep.push_front((float)mClock.getTime());    //With time-step
+            //mdqTimeStep.push_front((float)(mCurrentFrameNumber + 1)); //With frame number
+            
             std::vector<float> lvecTimeSteps {mdqTimeStep.begin(), mdqTimeStep.end()};
             mpFrameTimeSteps->setBlob(&lvecTimeSteps[0], 0, sizeof(float) * lvecTimeSteps.size());
 
@@ -560,11 +570,12 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 
         auto sceneDefines = pScene->getSceneDefines();
         DefineList temporalDefines(sceneDefines);
-        temporalDefines.add("LUM_FRAME_BIN_COUNT", std::to_string(mNumFramesInMICalc));
+        temporalDefines.add("LUM_FRAME_BIN_COUNT", std::to_string(mFrameLumBinCountInTempMI));
+        temporalDefines.add("FRAME_HISTORY_COUNT", std::to_string(mNumFramesInMICalc));
         
         DefineList spatialDefines(sceneDefines);
         spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
-        //spatialDefines.add("SPATIAL_PIXEL_BIN_COUNT", std::to_string(8));
+        spatialDefines.add("SPATIAL_PIXEL_BIN_COUNT", std::to_string(mSpatialPixelBinCount));
 
 #if IS_DEBUG_PASS
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
@@ -630,9 +641,16 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_TEMPORAL ||
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
-            isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 3000, 1);
+            isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 200, 1);
+            isDirty |= widget.var("Frame Lum Bin count in Temp MI", mFrameLumBinCountInTempMI, 2, 50, 1);
+            
             isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
-            isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 1.0f, 0.01f);
+            isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 10.0f, 0.01f);
+        }
+        if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_SPATIAL ||
+            mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
+        {
+            isDirty |= widget.var("Spatial Pixel Bin Count", mSpatialPixelBinCount, 2, 30, 1);
         }
     }
 

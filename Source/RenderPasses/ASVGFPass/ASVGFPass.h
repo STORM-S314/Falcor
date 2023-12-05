@@ -91,8 +91,10 @@ private:
     bool mUseMutualInformation = false;
     int mSpatialMutualInfRadius = 1;
     int mNumFramesInMICalc = 20;
+    int mFrameLumBinCountInTempMI = 5;
     float mGradDiffRatioThreshold = 0.05f;
     float mSpatialMIThreshold = 0.05f;
+    int mSpatialPixelBinCount = 3;
 
     DenoisingAlgorithm mCurrentDenoisingAlgorithm = DenoisingAlgorithm::ASVGF;
 

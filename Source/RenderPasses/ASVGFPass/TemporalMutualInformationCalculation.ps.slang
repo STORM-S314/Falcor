@@ -123,7 +123,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
 //Add history to current buffer based on 4 offsets of prev pixels
     bool isHistorySet = false;
-    for(int historyIndex = 1; historyIndex < LUM_FRAME_BIN_COUNT; historyIndex++)
+    for(int historyIndex = 1; historyIndex < FRAME_HISTORY_COUNT; historyIndex++)
     {
         float weightedSum = 0.0;
         float luminanceSum = 0.0;
@@ -137,13 +137,13 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             }
         }
 
-        if((weightedSum > 0.4) && !isHistorySet)
+        if((weightedSum > 0.1) && !isHistorySet)
         {
             float addluminance = luminanceSum / weightedSum;
             gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
             totalSumLuminance += addluminance;
             totalSumTimeStep += gTimeStepBuffer[historyIndex];
-            historyLength = min(int(historyLength + 1.0), LUM_FRAME_BIN_COUNT);
+            historyLength = min(int(historyLength + 1.0), FRAME_HISTORY_COUNT);
         }
         else
         {
@@ -152,7 +152,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     }
 
     //If history length is enough for temporal mutual information calculation
-    float binsFrameTimeStep[LUM_FRAME_BIN_COUNT];
+    float binsFrameTimeStep[FRAME_HISTORY_COUNT];
     float binsFramesLum[LUM_FRAME_BIN_COUNT]   ;
 
     for(int frameIndex = 0; frameIndex < LUM_FRAME_BIN_COUNT; frameIndex++)
@@ -164,16 +164,24 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     {
         int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
 
-        float frameLumVal = gMutualInfBuffer[indexInBuffer].r;
-        binsFramesLum[getLuminanceBucketID(frameLumVal, (int)historyLength)] += frameLumVal / totalSumLuminance;
-        binsFrameTimeStep[frameIndex] =  gTimeStepBuffer[frameIndex].r / totalSumTimeStep; //1.0/historyLength;//
+        binsFramesLum[getLuminanceBucketID(gMutualInfBuffer[indexInBuffer].r, LUM_FRAME_BIN_COUNT)] += 1.0 / historyLength;
+        binsFrameTimeStep[frameIndex] =  gTimeStepBuffer[frameIndex].r / totalSumTimeStep;
     }
 
     for (int binIdx0 = 0; binIdx0 < (int)historyLength; binIdx0++)
     {
-        float p_x = binsFramesLum[binIdx0];
-        float p_y = binsFrameTimeStep[binIdx0];
-            
+        float p_x = binsFrameTimeStep[binIdx0];
+        if(p_x > 0.0)
+        {
+            float result = p_x * log(p_x);
+            //if(isnan(result)){result = 0.0;}
+            mutualInf -= result;
+        }
+    }
+
+    for (int binIdx1 = 0; binIdx1 < LUM_FRAME_BIN_COUNT; binIdx1++)
+    {
+        float p_x = binsFramesLum[binIdx1];
         if(p_x > 0.0)
         {
             float result = p_x * log(p_x);
@@ -181,16 +189,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             mutualInf -= result;
         }
 
-        if(p_y > 0.0)
+        for (int binIdx2 = 0; binIdx2 < (int)historyLength; binIdx2++)
         {
-            float result = p_y * log(p_y);
-            //if(isnan(result)){result = 0.0;}
-            mutualInf -= result;
-        }
+            float p_y = binsFrameTimeStep[binIdx2];
 
-        for (int binIdx1 = 0; binIdx1 < (int)historyLength; binIdx1++)
-        {
-            float p_xy = p_x * binsFrameTimeStep[binIdx1];
+            float p_xy = p_x * p_y;
             if(p_xy > 0.0)
             {
                 float result = p_xy * log(p_xy);
@@ -208,7 +211,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     //}
 
 #if IS_DEBUG_PASS
-    //gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+    gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
 #endif
 
     PS_OUT psOut;
