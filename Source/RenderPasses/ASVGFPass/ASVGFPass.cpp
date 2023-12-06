@@ -140,10 +140,10 @@ Properties ASVGFPass::getProperties() const
 
 void ASVGFPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
-    int screenWidth = compileData.defaultTexDims.x;
-    int screenHeight = compileData.defaultTexDims.y;
+    screenWidth = compileData.defaultTexDims.x;
+    screenHeight = compileData.defaultTexDims.y;
 
-    allocateBuffers(pRenderContext, screenWidth, screenHeight);
+    allocateBuffers(pRenderContext);
     IsClearBuffers = true;
 }
 
@@ -199,11 +199,9 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     return reflector;
 }
 
-void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWidth,  int a_ScreenHeight)
+void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext)
 {
-    int screenWidth     = a_ScreenWidth;
-    int screenHeight    = a_ScreenHeight;
-    int gradResWidth    = gradient_res(screenWidth);
+    int gradResWidth = gradient_res(screenWidth);
     int gradResHeight   = gradient_res(screenHeight);
 
     // Gradient
@@ -283,9 +281,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     ref<Texture> pInternalPrevSpecularAlbedo    = renderData.getTexture(kInternalPrevSpecularAlbedoTexture);
     
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
-
-    int screenWidth = pInputColorTexture->getWidth();
-    int screenHeight = pInputColorTexture->getHeight();
 
     FALCOR_ASSERT(
         mpAccumulationBuffer &&
@@ -435,8 +430,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gPrevVisibilityBuffer"]    = pInternalPrevVisBufferTexture;
             perImageTemporalMutualInfCalcCB["gMotionVectorsTexture"]    = pInputMotionVectors;
             perImageTemporalMutualInfCalcCB["gGradDifferenceRatio"]     = mpAccumulationBuffer->getColorTexture(3);
-            perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"]     = mpPrevMutualInformationCalcBuffer->asBuffer();
-            perImageTemporalMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer->asBuffer();
+            perImageTemporalMutualInfCalcCB["gPrevMutualInfBuffer"]     = mpPrevMutualInformationCalcBuffer;
+            perImageTemporalMutualInfCalcCB["gMutualInfBuffer"]         = mpMutualInformationCalcBuffer;
             perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"]     = pInternalPrevMutualInfTexture;
             perImageTemporalMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
             perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
@@ -534,7 +529,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(mpTemporalMutualInfResultBuffer->getColorTexture(0)->getSRV(), pInternalPrevMutualInfTexture->getRTV());
     
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
-    std::swap(mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
+    std::swap( mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
     mPrevFrameJitter = cameraJitter;
 
     mCurrentFrameNumber++;
@@ -676,9 +671,6 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     ref<Texture> pInternalPrevLinearZTexture = renderData.getTexture(kInternalPrevLinearZTexture);
     ref<Texture> pInternalPrevNormalsTexture = renderData.getTexture(kInternalPrevNormalsTexture);
     ref<Texture> pInternalPrevVisBufferTexture = renderData.getTexture(kInternalPrevVisibilityBuffer);
-
-    int screenWidth = pInputColorTexture->getWidth();
-    int screenHeight = pInputColorTexture->getHeight();
 
     float gradResWidth = gradient_res(screenWidth);
     float gradResHeight = gradient_res(screenHeight);

@@ -137,10 +137,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             }
         }
 
-        if((weightedSum > 0.1) && !isHistorySet)
+        float addluminance = luminanceSum / weightedSum;
+        gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
+
+        if((weightedSum > 0.6) && !isHistorySet)
         {
-            float addluminance = luminanceSum / weightedSum;
-            gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
             totalSumLuminance += addluminance;
             totalSumTimeStep += gTimeStepBuffer[historyIndex];
             historyLength = min(int(historyLength + 1.0), FRAME_HISTORY_COUNT);

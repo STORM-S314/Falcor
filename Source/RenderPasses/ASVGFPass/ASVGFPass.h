@@ -57,7 +57,7 @@ public:
     virtual bool onMouseEvent(const MouseEvent& a_mouseEvent) override { return false; }
     virtual bool onKeyEvent(const KeyboardEvent& a_keyEvent) override { return false; }
     int gradient_res(int x);
-    void allocateBuffers(RenderContext* a_pRenderContext, int a_ScreenWidth, int a_ScreenHeight);
+    void allocateBuffers(RenderContext* a_pRenderContext);
     void resetBuffers(RenderContext* pRenderContext, const RenderData& renderData);
 
 #if IS_DEBUG_PASS
@@ -95,6 +95,9 @@ private:
     float mGradDiffRatioThreshold = 0.05f;
     float mSpatialMIThreshold = 0.05f;
     int mSpatialPixelBinCount = 3;
+
+    int screenWidth = 0;
+    int screenHeight = 0;
 
     DenoisingAlgorithm mCurrentDenoisingAlgorithm = DenoisingAlgorithm::ASVGF;
 
