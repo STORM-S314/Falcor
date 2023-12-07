@@ -94,11 +94,13 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         int acceptedPixelCount = 0;
         float sumLuminance = 0.0;
         float sumWeights = 0.0;
+        float sumPixelIndex = 0.0;
 
         for(int yy = -SPATIAL_RADIUS; yy <= SPATIAL_RADIUS; yy++) {
 			for(int xx = -SPATIAL_RADIUS; xx <= SPATIAL_RADIUS; xx++)
             {
                 int2 currentP = iPos + int2(xx,yy);
+                bool accepted  = true;
 
                 float currentluminanceValue = luminance(gColorAndVariance[currentP].rgb); // luminance(getIllumination(gColor[currentP].rgb, gAlbedoTexture[currentP].rgb, gSpecularAlbedo[currentP].rgb, gEmissionTexture[currentP].rgb));//
                 if(all(currentP != iPos))
@@ -106,36 +108,36 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     HitInfo hitInfoP    = HitInfo(gVisibilityBuffer[currentP]);
                     float2 depthP       = gLinearZTexture[currentP].xy;
                     float3 normalP      = gNormalsTexture[currentP].xyz;
-                    float weightDepth = abs(depthP.x - centerDepth.x) / (centerDepth.y * length(float2(xx, yy)) + 1e-2);
-                    float weightNormals = pow(saturate(dot(normalP, centerNormal)), 128.0); 
+                    //float weightDepth = abs(depthP.x - centerDepth.x) / (centerDepth.y * length(float2(xx, yy)) + 1e-2);
+                    //float weightNormals = pow(saturate(dot(normalP, centerNormal)), 128.0); 
 
 				    uint meshID_p =  getMeshInstanceID(hitInfoP);
 
                     float meshIDWeight = ((hitInfoP.isValid() && (centerMeshID == meshID_p)) ? 1.0 : 0.0);
 
-                    bool accepted = (meshIDWeight > 0.0) && (dot(normalP, centerNormal) > 0.9) && ((abs(depthP.x - centerDepth.x) / (centerDepth.y + 1e-2f)) < 10.f);
-
-                    if(accepted)
-                    {
-				        float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
-                        binsLumWeight[getLuminanceBucketID(weight, SPATIAL_PIXEL_BIN_COUNT)]    += 1.0;
-                        binsLumPixel[getWeightBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
-                        sumLuminance += currentluminanceValue;
-                        sumWeights += weight;
-                
-                        acceptedPixelCount++;
-                    }
+                    accepted = (meshIDWeight > 0.0) && (dot(normalP, centerNormal) > 0.9) && ((abs(depthP.x - centerDepth.x) / (centerDepth.y + 1e-2f)) < 10.f);
                 }
 
+                if(accepted)
+                {
+				    //float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
+                    binsLumWeight[acceptedPixelCount]    = acceptedPixelCount + 1;
+                    sumPixelIndex += acceptedPixelCount + 1;
+                    binsLumPixel[getWeightBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
+                    //sumLuminance += currentluminanceValue;
+                    //sumWeights += weight;
+                
+                    acceptedPixelCount++;
+                }
             }
         }
 
-        binsLumPixel[getLuminanceBucketID(centerLuminance, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
+        //binsLumPixel[getLuminanceBucketID(centerLuminance, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
 
         for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
         {
-            binsLumPixel[pixelIndex]        /=  (acceptedPixelCount + 1);
-            binsLumWeight[pixelIndex]      /=  acceptedPixelCount;
+            binsLumPixel[pixelIndex]    /=  acceptedPixelCount;
+            binsLumWeight[pixelIndex]   /=  sumPixelIndex;
         }
 
         //Calculate mutual information
@@ -170,10 +172,6 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 }
             }
         }
-        //If mutual inf is 0, then either sumLuminance == 0 or no info about neighboring pixels
-        //In both cases, we need to sample less of the color from neighboring pixels and use more from this current pixel
-        //we can do exp(sumLuminance) for all cases 
-        //or (1.0 - mutualInfResult) for when mutualInfResult == 0.0
         mutualInfResult = exp(-max(0.0, mutualInfResult));
 #if IS_DEBUG_PASS
     gColorTest[iPos] = float4(mutualInfResult, 0.0, 0.0, 1.0);

@@ -631,12 +631,10 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     mUseMutualInformation = mCurrentDenoisingAlgorithm != DenoisingAlgorithm::ASVGF;
     if (mUseMutualInformation)
     {
-        isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
-
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_TEMPORAL ||
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
-            isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 2, 200, 1);
+            isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 1, 200, 1);
             isDirty |= widget.var("Frame Lum Bin count in Temp MI", mFrameLumBinCountInTempMI, 2, 50, 1);
             
             isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
@@ -646,6 +644,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
             isDirty |= widget.var("Spatial Pixel Bin Count", mSpatialPixelBinCount, 2, 30, 1);
+            isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
         }
     }
 
