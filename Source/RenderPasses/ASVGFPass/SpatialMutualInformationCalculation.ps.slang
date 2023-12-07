@@ -48,8 +48,6 @@ cbuffer PerImageCB {
 #endif
 };
 
-//static const int SPATIAL_PIXEL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
-
 static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
 //Calculates the Luminance bucket id where the luminance would go into
@@ -70,7 +68,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     float4 mutualInfResultBuf = gTemporalMutualInfResult[iPos].rgba;
     float mutualInfResult = mutualInfResultBuf.g;
 
-    if((mutualInfResultBuf.g < gSpatialMIThreshold) || (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
+    if((mutualInfResultBuf.g < gSpatialMIThreshold) ||
+    (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold) ||
+    (mutualInfResultBuf.b < gMinHistoryCount))
     {
         HitInfo centerHitInfoP  = HitInfo(gVisibilityBuffer[iPos]);
         float2 centerDepth     = gLinearZTexture[iPos].xy;

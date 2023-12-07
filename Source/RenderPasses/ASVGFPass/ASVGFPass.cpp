@@ -70,6 +70,7 @@ const char kSpatialMIThreshold[]        = "SpatialMIThreshold";
 const char kNumLumGroupsInMICalc[]      = "NumLumGroupsInMICalc";
 const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
 const char kSpatialPixelBinCount[]      = "SpatialPixelBinCount";
+const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -113,6 +114,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
         else if (key == kFrameBinCountInTempMI)    mFrameLumBinCountInTempMI = value;
         else if (key == kSpatialPixelBinCount) mSpatialPixelBinCount = value;
+        else if (key == kMinHistoryCountSpatialThreshold) mMinHistoryCountSpatialThreshold = value;
         
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
@@ -134,6 +136,7 @@ Properties ASVGFPass::getProperties() const
     props[kSpatialMIThreshold]      = mSpatialMIThreshold;
     props[kFrameBinCountInTempMI]   = mFrameLumBinCountInTempMI;
     props[kSpatialPixelBinCount]    = mSpatialPixelBinCount;
+    props[kMinHistoryCountSpatialThreshold] = mMinHistoryCountSpatialThreshold;
     
     return props;
 }
@@ -458,7 +461,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageSpatialMutualInfCalcCB["gVisibilityBuffer"]     = pInputCurrVisibilityBuffer;
             perImageSpatialMutualInfCalcCB["gScreenDimension"]      = float2(screenWidth, screenHeight);
             perImageSpatialMutualInfCalcCB["gTemporalMutualInfResult"]  = mpTemporalMutualInfResultBuffer->getColorTexture(0);
-            perImageSpatialMutualInfCalcCB["gMinHistoryCount"]      = mNumFramesInMICalc;
+            perImageSpatialMutualInfCalcCB["gMinHistoryCount"]      = mMinHistoryCountSpatialThreshold;
             perImageSpatialMutualInfCalcCB["gGradDifferenceRatio"]  = mpAccumulationBuffer->getColorTexture(3);
             perImageSpatialMutualInfCalcCB["gGradDiffRatioThreshold"] = mGradDiffRatioThreshold;
             perImageSpatialMutualInfCalcCB["gSpatialMIThreshold"] = mSpatialMIThreshold;
@@ -645,6 +648,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         {
             isDirty |= widget.var("Spatial Pixel Bin Count", mSpatialPixelBinCount, 2, 30, 1);
             isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
+            isDirty |= widget.var("Min History Count Spatial Threshold", mMinHistoryCountSpatialThreshold, 1, 100, 1);
         }
     }
 

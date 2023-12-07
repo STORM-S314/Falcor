@@ -94,6 +94,7 @@ private:
     int mFrameLumBinCountInTempMI = 5;
     float mGradDiffRatioThreshold = 0.05f;
     float mSpatialMIThreshold = 0.05f;
+    int mMinHistoryCountSpatialThreshold = 1;
     int mSpatialPixelBinCount = 3;
 
     int screenWidth = 0;
