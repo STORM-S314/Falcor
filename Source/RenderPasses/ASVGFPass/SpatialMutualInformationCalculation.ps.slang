@@ -48,18 +48,13 @@ cbuffer PerImageCB {
 #endif
 };
 
-static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
+//static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
-int getLuminanceBucketID(float luminanceP, int luminanceBucketCount)
+int getLuminanceBucketID(float luminanceP, int luminanceBucketCount, float maxLum)
 {
-    return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
-}
-
-int getWeightBucketID(float weightP, int weightBucketCount)
-{
-    return int((weightP) * float(weightBucketCount - 1));
+    return int((luminanceP / maxLum) * float(luminanceBucketCount - 1));
 }
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
@@ -67,6 +62,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     int2 iPos = int2(vsOut.posH.xy);
     float4 mutualInfResultBuf = gTemporalMutualInfResult[iPos].rgba;
     float mutualInfResult = mutualInfResultBuf.g;
+    float maxLum = 0.0;
 
     if((mutualInfResultBuf.g < gSpatialMIThreshold) ||
     (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold) ||
@@ -85,10 +81,13 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         float binsLumPixel[SPATIAL_PIXEL_BIN_COUNT];
         float binsLumWeight[SPATIAL_PIXEL_BIN_COUNT];
+        float acceptedLum[SPATIAL_PIXEL_BIN_COUNT];
+
         for(int frameIndex = 0; frameIndex < SPATIAL_PIXEL_BIN_COUNT; frameIndex++)
         {
             binsLumWeight[frameIndex] = 0.0;
             binsLumPixel[frameIndex] = 0.0;
+
         }
 
         int acceptedPixelCount = 0;
@@ -123,21 +122,22 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 				    //float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
                     binsLumWeight[acceptedPixelCount]    = acceptedPixelCount + 1;
                     sumPixelIndex += acceptedPixelCount + 1;
-                    binsLumPixel[getWeightBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
+                    //binsLumPixel[getLuminanceBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT, maxLum)]    +=   1.0;
                     //sumLuminance += currentluminanceValue;
                     //sumWeights += weight;
-                
+                    acceptedLum[acceptedPixelCount] = currentluminanceValue;
+                    maxLum = max(maxLum, currentluminanceValue);
+
                     acceptedPixelCount++;
                 }
             }
         }
 
-        //binsLumPixel[getLuminanceBucketID(centerLuminance, SPATIAL_PIXEL_BIN_COUNT)]    +=   1.0;
-
-        for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
+        for(int pixelIndex = 0; pixelIndex < acceptedPixelCount; pixelIndex++)
         {
-            binsLumPixel[pixelIndex]    /=  acceptedPixelCount;
+            binsLumPixel[getLuminanceBucketID(acceptedLum[pixelIndex], SPATIAL_PIXEL_BIN_COUNT, maxLum)]    +=   1.0 / acceptedPixelCount;
             binsLumWeight[pixelIndex]   /=  sumPixelIndex;
+            //binsLumPixel[pixelIndex]    /=  acceptedPixelCount;
         }
 
         //Calculate mutual information

@@ -674,7 +674,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
             isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 1, 200, 1);
-            isDirty |= widget.var("Frame Lum Bin count in Temp MI", mFrameLumBinCountInTempMI, 2, 50, 1);
+            isDirty |= widget.var("Frame Lum Bin count in Temp MI", mFrameLumBinCountInTempMI, 2, 200, 1);
             
             isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
             isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 10.0f, 0.01f);

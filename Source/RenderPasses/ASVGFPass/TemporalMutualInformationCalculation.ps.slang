@@ -57,13 +57,13 @@ cbuffer PerImageCB {
 #endif
 };
 
-static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
+//static const float MAX_LUMINANCE = luminance(float3(1.0, 1.0, 1.0));
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
-int getLuminanceBucketID(float luminanceP, int luminanceBucketCount)
+int getLuminanceBucketID(float luminanceP, int luminanceBucketCount, float maxLum)
 {
-    return int((luminanceP / MAX_LUMINANCE) * float(luminanceBucketCount - 1));
+    return int((luminanceP / maxLum) * float(luminanceBucketCount - 1));
 }
 
 struct PS_OUT
@@ -169,7 +169,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     {
         int indexInBuffer = pixelIndexInFrame + frameIndex * gTotalPixelsInFrame;
 
-        binsFramesLum[getLuminanceBucketID(gMutualInfBuffer[indexInBuffer].r, LUM_FRAME_BIN_COUNT)] += 1.0 / historyLength;
+        binsFramesLum[getLuminanceBucketID(gMutualInfBuffer[indexInBuffer].r, LUM_FRAME_BIN_COUNT, maxLum)] += 1.0 / historyLength;
         binsFrameTimeStep[frameIndex] =  gTimeStepBuffer[frameIndex].r / totalSumTimeStep;
 
 #if IS_DEBUG_PASS

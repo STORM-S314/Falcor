@@ -95,7 +95,7 @@ private:
     float mGradDiffRatioThreshold = 0.05f;
     float mSpatialMIThreshold = 0.05f;
     int mMinHistoryCountSpatialThreshold = 1;
-    int mSpatialPixelBinCount = 3;
+    int mSpatialPixelBinCount = 9;
 
     int screenWidth = 0;
     int screenHeight = 0;
