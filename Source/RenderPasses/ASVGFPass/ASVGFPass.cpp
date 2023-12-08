@@ -247,6 +247,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext)
         mpDevice, screenWidth, screenHeight, ResourceFormat::RGBA32Float, 1, 1, nullptr,
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
+
 #endif IS_DEBUG_PASS
 }
 
@@ -440,11 +441,39 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
             
 #if IS_DEBUG_PASS
+            perImageTemporalMutualInfCalcCB["gTemporalDebugBuffer"] = mpTemporalDebugMICalc;
             perImageTemporalMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
+            perImageTemporalMutualInfCalcCB["gDebugPixel"] = mDebugSelectedPixel;
+            
 #endif
             mpPrgTemporalMutualInfCalc->execute(pRenderContext, mpTemporalMutualInfResultBuffer);
             pRenderContext->blit(mpTemporalMutualInfResultBuffer->getColorTexture(1)->getSRV(), mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getRTV());
-        }
+      
+#if IS_DEBUG_PASS // Print temporal MI CALC
+        /*if (mpDebugMICalc->getCpuAccess() == Falcor::Buffer::CpuAccess::Read)
+        {*/
+            float* lRead = reinterpret_cast<float*>(mpTemporalDebugMICalc->map(Falcor::Buffer::MapType::Read));
+
+            float historyLength = lRead[0];
+            float MIResult = lRead[1];
+
+            logInfo("History = {}\nMI = {}\n", lRead[0], lRead[1]);
+            logInfo("Luminance Values");
+            for (int historyIndex = 0; historyIndex < historyLength; historyIndex++)
+            {
+                logInfo("Lum Val {} : {}\n", historyIndex, lRead[2 + historyIndex]);
+            }
+
+            logInfo("\nLum Bucket Values\n");
+            for (int bucketIndex = 0; bucketIndex < mFrameLumBinCountInTempMI; bucketIndex++)
+            {
+                logInfo("Buc Val {} : {}\n", bucketIndex, lRead[2 + mNumFramesInMICalc + bucketIndex]);
+            }
+
+            mpTemporalDebugMICalc->unmap();
+        //}
+#endif
+}
 
         // Spatial Mutual information calculation
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_SPATIAL ||
@@ -578,6 +607,13 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 #if IS_DEBUG_PASS
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
     spatialDefines.add("IS_DEBUG_PASS", std::to_string(1));
+    
+    mpTemporalDebugMICalc = Buffer::create(
+        mpDevice,
+            (sizeof(float) /* History */ + sizeof(float) /* MI */ + mNumFramesInMICalc * sizeof(float) +
+             mFrameLumBinCountInTempMI * sizeof(float)),
+        Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
+    );
 #else
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(0));
     spatialDefines.add("IS_DEBUG_PASS", std::to_string(0));
@@ -656,6 +692,20 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
     {
         IsClearBuffers = true;
     }
+}
+
+bool ASVGFPass::onMouseEvent(const MouseEvent& a_mouseEvent)
+{
+    #if IS_DEBUG_PASS
+    if (a_mouseEvent.type == MouseEvent::Type::ButtonDown && a_mouseEvent.button == Input::MouseButton::Left)
+    {
+        float2 screenDims(screenWidth, screenHeight);
+        mDebugSelectedPixel = clamp((int2)(a_mouseEvent.pos * screenDims), {0, 0}, (int2)screenDims - 1);
+
+        logInfo("Debug Mouse Selected Pixel : {},{}\n", mDebugSelectedPixel.x, mDebugSelectedPixel.y);
+    }
+    #endif
+    return false;
 }
 
 #if IS_DEBUG_PASS

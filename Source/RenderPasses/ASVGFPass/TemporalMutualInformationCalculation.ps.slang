@@ -52,6 +52,8 @@ cbuffer PerImageCB {
     float                   gSpatialMIThreshold;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>     gColorTest;
+    RWBuffer<float>         gTemporalDebugBuffer;
+    int2                    gDebugPixel;
 #endif
 };
 
@@ -77,6 +79,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float mutualInf = 0.0;
     float totalSumLuminance = 0.0;
     float totalSumTimeStep = 0.0;
+    float maxLum = 0.0;
 
     float2 motionVec = gMotionVectorsTexture[iPos].rg;
     
@@ -144,6 +147,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             totalSumLuminance += addluminance;
             totalSumTimeStep += gTimeStepBuffer[historyIndex];
             historyLength = min(int(historyLength + 1.0), FRAME_HISTORY_COUNT);
+            maxLum = max(maxLum, addluminance);
         }
         else
         {
@@ -167,7 +171,24 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
         binsFramesLum[getLuminanceBucketID(gMutualInfBuffer[indexInBuffer].r, LUM_FRAME_BIN_COUNT)] += 1.0 / historyLength;
         binsFrameTimeStep[frameIndex] =  gTimeStepBuffer[frameIndex].r / totalSumTimeStep;
+
+#if IS_DEBUG_PASS
+    if(all(gDebugPixel == iPos))
+    {
+        gTemporalDebugBuffer[2 + frameIndex] = gMutualInfBuffer[indexInBuffer].r;
     }
+#endif
+    }
+
+#if IS_DEBUG_PASS
+if(all(gDebugPixel == iPos))
+{
+    for(int bucketIndex = 0; bucketIndex < LUM_FRAME_BIN_COUNT; bucketIndex++)
+    {
+        gTemporalDebugBuffer[2 + FRAME_HISTORY_COUNT + bucketIndex] = binsFramesLum[bucketIndex].r;
+    }
+}
+#endif
 
     for (int binIdx0 = 0; binIdx0 < (int)historyLength; binIdx0++)
     {
@@ -175,7 +196,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         if(p_x > 0.0)
         {
             float result = p_x * log(p_x);
-            //if(isnan(result)){result = 0.0;}
+            if(isnan(result)){result = 0.0;}
             mutualInf -= result;
         }
     }
@@ -186,7 +207,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         if(p_x > 0.0)
         {
             float result = p_x * log(p_x);
-            //if(isnan(result)){result = 0.0;}
+            if(isnan(result)){result = 0.0;}
             mutualInf -= result;
         }
 
@@ -198,21 +219,26 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             if(p_xy > 0.0)
             {
                 float result = p_xy * log(p_xy);
-                //if(isnan(result)){result = 0.0;}
+                if(isnan(result)){result = 0.0;}
                 mutualInf += result;
             }
         }
     }
 
     mutualInf = max(0.0, mutualInf);
-    //if(((mutualInf < gSpatialMIThreshold) && (int(historyLength) == LUM_FRAME_BIN_COUNT))
-    //|| (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold))
-    //{
-    //    historyLength = 1.0;
-    //}
 
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+    
+    if(all(gDebugPixel == iPos))
+    {
+        gColorTest[iPos] = float4(1.0, 0.0, 0.0, 1.0);
+        gTemporalDebugBuffer[0] = historyLength;
+        gTemporalDebugBuffer[1] = mutualInf;
+    }
+    else
+    {
+        gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+    }
 #endif
 
     PS_OUT psOut;

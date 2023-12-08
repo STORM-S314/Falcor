@@ -54,7 +54,7 @@ public:
     virtual void execute(RenderContext* a_pRenderContext, const RenderData& a_renderData) override;
     virtual void renderUI(Gui::Widgets& a_widget) override;
     virtual void setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pScene);
-    virtual bool onMouseEvent(const MouseEvent& a_mouseEvent) override { return false; }
+    virtual bool onMouseEvent(const MouseEvent& a_mouseEvent) override;
     virtual bool onKeyEvent(const KeyboardEvent& a_keyEvent) override { return false; }
     int gradient_res(int x);
     void allocateBuffers(RenderContext* a_pRenderContext);
@@ -145,5 +145,8 @@ private:
     ref<FullScreenPass> mpPrgDebugFullScreen;
     ref<Fbo> mpDebugBuffer;
     ref<Texture> mpTestColorTexture;
+    ref<Buffer> mpTemporalDebugMICalc;
+
+    int2 mDebugSelectedPixel;
     #endif IS_DEBUG_PASS
 };
