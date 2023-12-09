@@ -146,6 +146,7 @@ private:
     ref<Fbo> mpDebugBuffer;
     ref<Texture> mpTestColorTexture;
     ref<Buffer> mpTemporalDebugMICalc;
+    ref<Buffer> mpSpatialDebugMICalc;
 
     int2 mDebugSelectedPixel;
     #endif IS_DEBUG_PASS

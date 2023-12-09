@@ -450,28 +450,30 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             pRenderContext->blit(mpTemporalMutualInfResultBuffer->getColorTexture(1)->getSRV(), mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getRTV());
       
 #if IS_DEBUG_PASS // Print temporal MI CALC
-        /*if (mpDebugMICalc->getCpuAccess() == Falcor::Buffer::CpuAccess::Read)
-        {*/
+
+            pRenderContext->flush();
             float* lRead = reinterpret_cast<float*>(mpTemporalDebugMICalc->map(Falcor::Buffer::MapType::Read));
 
             float historyLength = lRead[0];
             float MIResult = lRead[1];
 
+            logInfo("=========TEMPORAL START============");
+
             logInfo("History = {}\nMI = {}\n", lRead[0], lRead[1]);
             logInfo("Luminance Values");
             for (int historyIndex = 0; historyIndex < historyLength; historyIndex++)
             {
-                logInfo("Lum Val {} : {}\n", historyIndex, lRead[2 + historyIndex]);
+                logInfo("{} Lum Val : {}    ,   TimeStep : {}\n", historyIndex, lRead[2 + historyIndex], lRead[2 + historyIndex + mNumFramesInMICalc]
+                );
             }
 
             logInfo("\nLum Bucket Values\n");
             for (int bucketIndex = 0; bucketIndex < mFrameLumBinCountInTempMI; bucketIndex++)
             {
-                logInfo("Buc Val {} : {}\n", bucketIndex, lRead[2 + mNumFramesInMICalc + bucketIndex]);
+                logInfo("Buc Val {} : {}\n", bucketIndex, lRead[2 + mNumFramesInMICalc + mNumFramesInMICalc + bucketIndex]);
             }
-
             mpTemporalDebugMICalc->unmap();
-        //}
+            logInfo("=========TEMPORAL END============");
 #endif
 }
 
@@ -496,8 +498,36 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageSpatialMutualInfCalcCB["gSpatialMIThreshold"] = mSpatialMIThreshold;
 #if IS_DEBUG_PASS
             perImageSpatialMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
+            perImageSpatialMutualInfCalcCB["gSpatialDebugBuffer"] = mpSpatialDebugMICalc;
+            perImageSpatialMutualInfCalcCB["gDebugPixel"] = mDebugSelectedPixel;
 #endif
             mpPrgSpatialMutualInfCalc->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
+
+#if IS_DEBUG_PASS // Print spatial MI CALC
+            pRenderContext->flush();
+            float* lRead = reinterpret_cast<float*>(mpSpatialDebugMICalc->map(Falcor::Buffer::MapType::Read));
+
+            float acceptedPixelCount = lRead[0];
+            float MIResult = lRead[1];
+
+            logInfo("=========SPATIAL START============");
+
+            logInfo("AcceptedPixelCount = {}\nMI = {}\n", lRead[0], lRead[1]);
+            logInfo("Pixel Index Values");
+            for (int pixelIndex = 0; pixelIndex < acceptedPixelCount; pixelIndex++)
+            {
+                logInfo("PixelIndex : {}    \n", lRead[2 + pixelIndex]);
+            }
+
+            logInfo("Lum Values");
+            for (int pixelIndex = 0; pixelIndex < mSpatialPixelBinCount; pixelIndex++)
+            {
+                logInfo("LumValue : {}\n", lRead[2 + pixelIndex + mSpatialPixelBinCount]);
+            }
+
+            mpTemporalDebugMICalc->unmap();
+            logInfo("=========SPATIAL END============");
+#endif
         }
     }
 
@@ -610,8 +640,14 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     
     mpTemporalDebugMICalc = Buffer::create(
         mpDevice,
-            (sizeof(float) /* History */ + sizeof(float) /* MI */ + mNumFramesInMICalc * sizeof(float) +
-             mFrameLumBinCountInTempMI * sizeof(float)),
+        (sizeof(float) /* History */ + sizeof(float) /* MI */ + mNumFramesInMICalc * sizeof(float) +
+         mNumFramesInMICalc * sizeof(float) +  mFrameLumBinCountInTempMI * sizeof(float)),
+        Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
+    );
+
+    mpSpatialDebugMICalc = Buffer::create(
+        mpDevice, sizeof(float) /* accepted pixel count */ + sizeof(float) /* MI */ + mSpatialPixelBinCount * sizeof(float) +
+         mSpatialPixelBinCount * sizeof(float),
         Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
     );
 #else

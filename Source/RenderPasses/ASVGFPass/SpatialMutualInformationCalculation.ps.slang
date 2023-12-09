@@ -44,7 +44,9 @@ cbuffer PerImageCB {
     Texture2D               gGradDifferenceRatio;
     float                   gSpatialMIThreshold;
 #if IS_DEBUG_PASS
-    RWTexture2D<float4>         gColorTest;
+    RWTexture2D<float4>     gColorTest;
+    int2                    gDebugPixel;
+    RWBuffer<float>         gSpatialDebugBuffer;
 #endif
 };
 
@@ -119,12 +121,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
                 if(accepted)
                 {
-				    //float weight = exp(- weightDepth) * weightNormals * meshIDWeight;
-                    binsLumWeight[acceptedPixelCount]    = acceptedPixelCount + 1;
-                    sumPixelIndex += acceptedPixelCount + 1;
-                    //binsLumPixel[getLuminanceBucketID(currentluminanceValue, SPATIAL_PIXEL_BIN_COUNT, maxLum)]    +=   1.0;
-                    //sumLuminance += currentluminanceValue;
-                    //sumWeights += weight;
+                    binsLumWeight[acceptedPixelCount]    = (acceptedPixelCount + 1);
+                    sumPixelIndex += binsLumWeight[acceptedPixelCount];
                     acceptedLum[acceptedPixelCount] = currentluminanceValue;
                     maxLum = max(maxLum, currentluminanceValue);
 
@@ -135,35 +133,57 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         for(int pixelIndex = 0; pixelIndex < acceptedPixelCount; pixelIndex++)
         {
-            binsLumPixel[getLuminanceBucketID(acceptedLum[pixelIndex], SPATIAL_PIXEL_BIN_COUNT, maxLum)]    +=   1.0 / acceptedPixelCount;
+            int bucketID = getLuminanceBucketID(acceptedLum[pixelIndex], SPATIAL_PIXEL_BIN_COUNT, maxLum);
+            bucketID = min(bucketID, SPATIAL_PIXEL_BIN_COUNT -1);
+            bucketID = max(bucketID, 0);
+
+            binsLumPixel[bucketID] +=   1.0 / acceptedPixelCount;
             binsLumWeight[pixelIndex]   /=  sumPixelIndex;
-            //binsLumPixel[pixelIndex]    /=  acceptedPixelCount;
+        }
+
+        for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
+        {
+        #if IS_DEBUG_PASS
+                if(all(gDebugPixel == iPos))
+                {
+                    gSpatialDebugBuffer[2 + pixelIndex] = binsLumWeight[pixelIndex];
+                    gSpatialDebugBuffer[2 + SPATIAL_PIXEL_BIN_COUNT + pixelIndex] = binsLumPixel[pixelIndex];
+                }
+        #endif
         }
 
         //Calculate mutual information
         mutualInfResult = 0.0;
-        for (int binIdx = 0; binIdx < SPATIAL_PIXEL_BIN_COUNT; binIdx++)
+        for (int binIdx0 = 0; binIdx0 < SPATIAL_PIXEL_BIN_COUNT; binIdx0++)
         {
-            float p_x = binsLumPixel[binIdx];
-            float p_y = binsLumWeight[binIdx];
-            
+            float p_x = binsLumPixel[binIdx0];
             if(p_x > 0.0)
             {
                 float result = p_x * log(p_x);
                 //if(isnan(result)){result = 0.0;}
                 mutualInfResult -= result;
             }
- 
+        }
+        
+        for (int binIdx1 = 0; binIdx1 < acceptedPixelCount; binIdx1++)
+        {
+            float p_y = binsLumWeight[binIdx1];
             if(p_y > 0.0)
             {
                 float result = p_y * log(p_y);
                 //if(isnan(result)){result = 0.0;}
                 mutualInfResult -= result;
             }
-
-            for (int binIdx1 = 0; binIdx1 < SPATIAL_PIXEL_BIN_COUNT; binIdx1++)
+        }
+        
+        for (int binIdx2 = 0; binIdx2 < SPATIAL_PIXEL_BIN_COUNT; binIdx2++)
+        {
+            float p_x = binsLumPixel[binIdx2];
+            for (int binIdx3 = 0; binIdx3 < acceptedPixelCount; binIdx3++)
             {
-                float p_xy = p_x * binsLumWeight[binIdx1];
+                float p_y = binsLumWeight[binIdx3];
+                float p_xy = p_x * p_y;
+        
                 if(p_xy > 0.0)
                 {
                     float result = p_xy * log(p_xy);
@@ -172,9 +192,41 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 }
             }
         }
+
+        ////Calculate mutual information
+        //mutualInfResult = 0.0;
+        //for (int binIdx = 0; binIdx < SPATIAL_PIXEL_BIN_COUNT; binIdx++)
+        //{
+        //    float p_x = binsLumPixel[binIdx];
+        //
+        //    for (int binIdx1 = 0; binIdx1 < SPATIAL_PIXEL_BIN_COUNT; binIdx1++)
+        //    {
+        //        float p_y = binsLumWeight[binIdx1];
+        //        float p_xy = p_x * p_y;
+        //        if(p_xy > 0.0)
+        //        {
+        //            mutualInfResult += p_xy * log(p_xy);
+        //            mutualInfResult -= p_xy * log(p_x);
+        //            mutualInfResult -= p_xy * log(p_y);
+        //        }
+        //    }
+        //}
+
         mutualInfResult = exp(-max(0.0, mutualInfResult));
+
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(mutualInfResult, 0.0, 0.0, 1.0);
+
+    if(all(gDebugPixel == iPos))
+    {
+        gColorTest[iPos] = float4(0.0, 1.0, 0.0, 1.0);
+        gSpatialDebugBuffer[0] = acceptedPixelCount;
+        gSpatialDebugBuffer[1] = mutualInfResult;
+    }
+    else
+    {
+        gColorTest[iPos] = float4(mutualInfResult, 0.0, 0.0, 1.0);
+    }
+
 #endif
     }
 #if IS_DEBUG_PASS
