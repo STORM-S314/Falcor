@@ -160,7 +160,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             if(p_x > 0.0)
             {
                 float result = p_x * log(p_x);
-                //if(isnan(result)){result = 0.0;}
+                if(isnan(result)){result = 0.0;}
                 mutualInfResult -= result;
             }
         }
@@ -171,7 +171,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             if(p_y > 0.0)
             {
                 float result = p_y * log(p_y);
-                //if(isnan(result)){result = 0.0;}
+                if(isnan(result)){result = 0.0;}
                 mutualInfResult -= result;
             }
         }
@@ -181,13 +181,12 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             float p_x = binsLumPixel[binIdx2];
             for (int binIdx3 = 0; binIdx3 < acceptedPixelCount; binIdx3++)
             {
-                float p_y = binsLumWeight[binIdx3];
-                float p_xy = p_x * p_y;
+                float p_xy = getLuminanceBucketID(acceptedLum[binIdx3], SPATIAL_PIXEL_BIN_COUNT, maxLum) == binIdx2 ? 1.0/acceptedPixelCount : 0.0;
         
                 if(p_xy > 0.0)
                 {
                     float result = p_xy * log(p_xy);
-                    //if(isnan(result)){result = 0.0;}
+                    if(isnan(result)){result = 0.0;}
                     mutualInfResult += result;
                 }
             }
