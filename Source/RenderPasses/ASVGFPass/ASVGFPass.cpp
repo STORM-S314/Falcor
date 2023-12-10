@@ -463,14 +463,18 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             logInfo("Luminance Values");
             for (int historyIndex = 0; historyIndex < historyLength; historyIndex++)
             {
-                logInfo("{} Lum Val : {}    ,   TimeStep : {}\n", historyIndex, lRead[2 + historyIndex], lRead[2 + historyIndex + mNumFramesInMICalc]
+                logInfo(
+                    "{} Lum Val : {}    ,   TimeStep : {}   ,   TimeStepProb : {} \n", historyIndex, lRead[2 + historyIndex],
+                    lRead[2 + historyIndex + mNumFramesInMICalc], lRead[2 + historyIndex + mNumFramesInMICalc + mNumFramesInMICalc]
                 );
             }
 
             logInfo("\nLum Bucket Values\n");
             for (int bucketIndex = 0; bucketIndex < mFrameLumBinCountInTempMI; bucketIndex++)
             {
-                logInfo("Buc Val {} : {}\n", bucketIndex, lRead[2 + mNumFramesInMICalc + mNumFramesInMICalc + bucketIndex]);
+                logInfo(
+                    "Buc Val {} : {}\n", bucketIndex, lRead[2 + mNumFramesInMICalc + mNumFramesInMICalc + mNumFramesInMICalc + bucketIndex]
+                );
             }
             mpTemporalDebugMICalc->unmap();
             logInfo("=========TEMPORAL END============");
@@ -640,8 +644,8 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     
     mpTemporalDebugMICalc = Buffer::create(
         mpDevice,
-        (sizeof(float) /* History */ + sizeof(float) /* MI */ + mNumFramesInMICalc * sizeof(float) +
-         mNumFramesInMICalc * sizeof(float) +  mFrameLumBinCountInTempMI * sizeof(float)),
+        (sizeof(float) /* History */ + sizeof(float) /* MI */ + mNumFramesInMICalc * sizeof(float) + mNumFramesInMICalc * sizeof(float) +
+         mNumFramesInMICalc * sizeof(float) + mFrameLumBinCountInTempMI * sizeof(float)),
         Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
     );
 

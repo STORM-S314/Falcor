@@ -139,18 +139,21 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
             binsLumPixel[bucketID] +=   1.0 / acceptedPixelCount;
             binsLumWeight[pixelIndex]   /=  sumPixelIndex;
+
+            binsLumPixel[bucketID] =   min(binsLumPixel[bucketID], 1.0);
+            binsLumWeight[pixelIndex]   =  min(binsLumWeight[pixelIndex], 1.0);
         }
 
+        #if IS_DEBUG_PASS
         for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
         {
-        #if IS_DEBUG_PASS
                 if(all(gDebugPixel == iPos))
                 {
                     gSpatialDebugBuffer[2 + pixelIndex] = binsLumWeight[pixelIndex];
                     gSpatialDebugBuffer[2 + SPATIAL_PIXEL_BIN_COUNT + pixelIndex] = binsLumPixel[pixelIndex];
                 }
-        #endif
         }
+        #endif
 
         //Calculate mutual information
         mutualInfResult = 0.0;
@@ -191,25 +194,6 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 }
             }
         }
-
-        ////Calculate mutual information
-        //mutualInfResult = 0.0;
-        //for (int binIdx = 0; binIdx < SPATIAL_PIXEL_BIN_COUNT; binIdx++)
-        //{
-        //    float p_x = binsLumPixel[binIdx];
-        //
-        //    for (int binIdx1 = 0; binIdx1 < SPATIAL_PIXEL_BIN_COUNT; binIdx1++)
-        //    {
-        //        float p_y = binsLumWeight[binIdx1];
-        //        float p_xy = p_x * p_y;
-        //        if(p_xy > 0.0)
-        //        {
-        //            mutualInfResult += p_xy * log(p_xy);
-        //            mutualInfResult -= p_xy * log(p_x);
-        //            mutualInfResult -= p_xy * log(p_y);
-        //        }
-        //    }
-        //}
 
         mutualInfResult = exp(-max(0.0, mutualInfResult));
 

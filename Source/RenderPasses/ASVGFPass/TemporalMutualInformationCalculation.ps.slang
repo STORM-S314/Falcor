@@ -140,7 +140,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             }
         }
 
-        if((weightedSum > 0.1) && !isHistorySet)
+        if((weightedSum > 0.5) && !isHistorySet)
         {
             float addluminance = luminanceSum / weightedSum;
             gMutualInfBuffer[pixelIndexInFrame + gTotalPixelsInFrame * historyIndex] = addluminance;
@@ -176,11 +176,15 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         binsFramesLum[bucketID] += 1.0 / historyLength;
         binsFrameTimeStep[frameIndex] =  (gTimeStepBuffer[frameIndex].r) / (totalSumTimeStep );
 
+        binsFramesLum[bucketID] = min(binsFramesLum[bucketID], 1.0);
+        binsFrameTimeStep[frameIndex] = min(binsFrameTimeStep[frameIndex], 1.0);
+
 #if IS_DEBUG_PASS
     if(all(gDebugPixel == iPos))
     {
         gTemporalDebugBuffer[2 + frameIndex] = gMutualInfBuffer[indexInBuffer].r;
-        gTemporalDebugBuffer[2 + frameIndex + FRAME_HISTORY_COUNT] = binsFrameTimeStep[frameIndex];//gTimeStepBuffer[frameIndex].r;
+        gTemporalDebugBuffer[2 + frameIndex + FRAME_HISTORY_COUNT] =  gTimeStepBuffer[frameIndex].r;
+        gTemporalDebugBuffer[2 + frameIndex + FRAME_HISTORY_COUNT + FRAME_HISTORY_COUNT] = binsFrameTimeStep[frameIndex];
     }
 #endif
     }
@@ -190,7 +194,7 @@ if(all(gDebugPixel == iPos))
 {
     for(int bucketIndex = 0; bucketIndex < LUM_FRAME_BIN_COUNT; bucketIndex++)
     {
-        gTemporalDebugBuffer[2 + FRAME_HISTORY_COUNT + FRAME_HISTORY_COUNT + bucketIndex] = binsFramesLum[bucketIndex].r;
+        gTemporalDebugBuffer[2 + FRAME_HISTORY_COUNT + FRAME_HISTORY_COUNT + FRAME_HISTORY_COUNT+ bucketIndex] = binsFramesLum[bucketIndex].r;
     }
 }
 #endif
@@ -213,7 +217,6 @@ if(all(gDebugPixel == iPos))
 
     for (int binIdx1 = 0; binIdx1 < LUM_FRAME_BIN_COUNT; binIdx1++)
     {
-        //float p_x = binsFramesLum[binIdx1];
         for (int binIdx2 = 0; binIdx2 < (int)historyLength; binIdx2++)
         {
             float p_xy = getLuminanceBucketID(gMutualInfBuffer[binIdx2].r, LUM_FRAME_BIN_COUNT, maxLum) == binIdx1 ? 1.0/historyLength : 0.0;
@@ -223,20 +226,6 @@ if(all(gDebugPixel == iPos))
             mutualInf += result;
         }
     }
-
-    //for (int binIdx1 = 0; binIdx1 < LUM_FRAME_BIN_COUNT; binIdx1++)
-    //{
-    //    float p_x = binsFramesLum[binIdx1];
-    //    for (int binIdx2 = 0; binIdx2 < (int)historyLength; binIdx2++)
-    //    {
-    //        float p_y = binsFrameTimeStep[binIdx2];
-    //        float p_xy = p_x * p_y;
-    //
-    //        mutualInf += p_xy * log(p_xy);
-    //        mutualInf -= p_xy * log(p_x);
-    //        mutualInf -= p_xy * log(p_y);
-    //    }
-    //}
 
 #if IS_DEBUG_PASS
     
