@@ -69,7 +69,6 @@ const char kGradDiffRatioThreshold[]    = "GradDiffRatioThreshold";
 const char kSpatialMIThreshold[]        = "SpatialMIThreshold";
 const char kNumLumGroupsInMICalc[]      = "NumLumGroupsInMICalc";
 const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
-const char kSpatialPixelBinCount[]      = "SpatialPixelBinCount";
 const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
 
 //Input buffer names
@@ -113,7 +112,6 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kGradDiffRatioThreshold)mGradDiffRatioThreshold = value;
         else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
         else if (key == kFrameBinCountInTempMI)    mFrameLumBinCountInTempMI = value;
-        else if (key == kSpatialPixelBinCount) mSpatialPixelBinCount = value;
         else if (key == kMinHistoryCountSpatialThreshold) mMinHistoryCountSpatialThreshold = value;
         
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
@@ -135,7 +133,6 @@ Properties ASVGFPass::getProperties() const
     props[kGradDiffRatioThreshold]  = mGradDiffRatioThreshold;
     props[kSpatialMIThreshold]      = mSpatialMIThreshold;
     props[kFrameBinCountInTempMI]   = mFrameLumBinCountInTempMI;
-    props[kSpatialPixelBinCount]    = mSpatialPixelBinCount;
     props[kMinHistoryCountSpatialThreshold] = mMinHistoryCountSpatialThreshold;
     
     return props;
@@ -516,6 +513,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 
             logInfo("=========SPATIAL START============");
 
+            const int SPATIAL_PIXEL_BIN_COUNT = (mSpatialMutualInfRadius * 2 + 1) * (mSpatialMutualInfRadius * 2 + 1);
+
             logInfo("AcceptedPixelCount = {}\nMI = {}\n", lRead[0], lRead[1]);
             logInfo("Pixel Index Values");
             for (int pixelIndex = 0; pixelIndex < acceptedPixelCount; pixelIndex++)
@@ -524,9 +523,9 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             }
 
             logInfo("Lum Values");
-            for (int pixelIndex = 0; pixelIndex < mSpatialPixelBinCount; pixelIndex++)
+            for (int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
             {
-                logInfo("LumValue : {}\n", lRead[2 + pixelIndex + mSpatialPixelBinCount]);
+                logInfo("LumValue : {}\n", lRead[2 + pixelIndex + SPATIAL_PIXEL_BIN_COUNT]);
             }
 
             mpTemporalDebugMICalc->unmap();
@@ -636,7 +635,6 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         
         DefineList spatialDefines(sceneDefines);
         spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
-        spatialDefines.add("SPATIAL_PIXEL_BIN_COUNT", std::to_string(mSpatialPixelBinCount));
 
 #if IS_DEBUG_PASS
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
@@ -649,9 +647,10 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
     );
 
+    const int SPATIAL_PIXEL_BIN_COUNT = (mSpatialMutualInfRadius * 2 + 1) * (mSpatialMutualInfRadius * 2 + 1);
     mpSpatialDebugMICalc = Buffer::create(
-        mpDevice, sizeof(float) /* accepted pixel count */ + sizeof(float) /* MI */ + mSpatialPixelBinCount * sizeof(float) +
-         mSpatialPixelBinCount * sizeof(float),
+        mpDevice, sizeof(float) /* accepted pixel count */ + sizeof(float) /* MI */ + SPATIAL_PIXEL_BIN_COUNT * sizeof(float) +
+            SPATIAL_PIXEL_BIN_COUNT * sizeof(float),
         Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
     );
 #else
@@ -722,7 +721,6 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_SPATIAL ||
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
-            isDirty |= widget.var("Spatial Pixel Bin Count", mSpatialPixelBinCount, 2, 30, 1);
             isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
             isDirty |= widget.var("Min History Count Spatial Threshold", mMinHistoryCountSpatialThreshold, 1, 100, 1);
         }
