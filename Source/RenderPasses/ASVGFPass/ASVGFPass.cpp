@@ -410,8 +410,14 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
                 mdqTimeStep.pop_back();
             }
             mClock.tick();
-            mdqTimeStep.push_front((float)mClock.getTime());    //With time-step
-            //mdqTimeStep.push_front((float)(mCurrentFrameNumber + 1)); //With frame number
+            if (mCurrentLinearlyIncrTemporalVal == LinearlyIncreasingTemporalValue::TIME_STEP)
+            {
+                mdqTimeStep.push_front((float)mClock.getTime()); // With time-step
+            }
+            else
+            {
+                mdqTimeStep.push_front((float)(mCurrentFrameNumber + 1)); //With frame number
+            }
             
             std::vector<float> lvecTimeSteps {mdqTimeStep.begin(), mdqTimeStep.end()};
             mpFrameTimeSteps->setBlob(&lvecTimeSteps[0], 0, sizeof(float) * lvecTimeSteps.size());
@@ -712,15 +718,17 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_TEMPORAL ||
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
+            isDirty |=
+                widget.dropdown("Linearly Increasing Temporal Value", LINEARLY_INCREASING_TEMPORAL_VALUE_LIST, *(reinterpret_cast<uint32_t*>(&mCurrentLinearlyIncrTemporalVal)));
             isDirty |= widget.var("Num Frames for MI Calc", mNumFramesInMICalc, 1, 200, 1);
             isDirty |= widget.var("Frame Lum Bin count in Temp MI", mFrameLumBinCountInTempMI, 2, 200, 1);
             
-            isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
-            isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 10.0f, 0.01f);
         }
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_SPATIAL ||
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
+            isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
+            isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 10.0f, 0.01f);
             isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
             isDirty |= widget.var("Min History Count Spatial Threshold", mMinHistoryCountSpatialThreshold, 1, 100, 1);
         }

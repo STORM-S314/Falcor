@@ -219,7 +219,11 @@ if(all(gDebugPixel == iPos))
     {
         for (int binIdx2 = 0; binIdx2 < (int)historyLength; binIdx2++)
         {
-            float p_xy = getLuminanceBucketID(gMutualInfBuffer[binIdx2].r, LUM_FRAME_BIN_COUNT, maxLum) == binIdx1 ? 1.0/historyLength : 0.0;
+            int binIdx = getLuminanceBucketID(gMutualInfBuffer[binIdx2].r, LUM_FRAME_BIN_COUNT, maxLum);
+            binIdx = min(binIdx, LUM_FRAME_BIN_COUNT-1);
+            binIdx = max(binIdx, 0);
+
+            float p_xy = binIdx1 == binIdx ? 1.0/historyLength : 0.0;
             
             float result = p_xy * log(p_xy);
             if(isnan(result)){result = 0.0;}

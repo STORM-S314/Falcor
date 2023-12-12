@@ -184,7 +184,11 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             float p_x = binsLumPixel[binIdx2];
             for (int binIdx3 = 0; binIdx3 < acceptedPixelCount; binIdx3++)
             {
-                float p_xy = getLuminanceBucketID(acceptedLum[binIdx3], SPATIAL_PIXEL_BIN_COUNT, maxLum) == binIdx2 ? 1.0/acceptedPixelCount : 0.0;
+                int binIdx = getLuminanceBucketID(acceptedLum[binIdx3], SPATIAL_PIXEL_BIN_COUNT, maxLum);
+                binIdx = min(binIdx, SPATIAL_PIXEL_BIN_COUNT-1);
+                binIdx = max(binIdx, 0);
+
+                float p_xy =  binIdx == binIdx2 ? 1.0/(float)acceptedPixelCount : 0.0;
         
                 if(p_xy > 0.0)
                 {
