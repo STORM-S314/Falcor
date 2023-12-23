@@ -51,7 +51,7 @@ public:
     virtual bool onKeyEvent(const KeyboardEvent& keyEvent) override { return false; }
 
 private:
-    static const int AGGREGATION_IMAGE_COUNT = 3;
+    static const int AGGREGATION_IMAGE_COUNT = 100;
 
     int mCurrentImagesAccumulated = 0;
     int mCurrentAggregateImagesAccumulated = 0;

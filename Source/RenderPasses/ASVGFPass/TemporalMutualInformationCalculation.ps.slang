@@ -57,8 +57,6 @@ cbuffer PerImageCB {
 #endif
 };
 
-static const float MAX_LUMINANCE = luminance(float3(1.0,1.0,1.0));
-
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
 int getLuminanceBucketID(float luminanceP, int luminanceBucketCount, float maxLum)
@@ -237,11 +235,11 @@ if(all(gDebugPixel == iPos))
     {
         gColorTest[iPos] = float4(1.0, 0.0, 0.0, 1.0);
         gTemporalDebugBuffer[0] = historyLength;
-        gTemporalDebugBuffer[1] = mutualInf;
+        gTemporalDebugBuffer[1] = max(0.0, mutualInf);
     }
     else
     {
-        gColorTest[iPos] = float4(0.0, mutualInf, 0.0, 1.0);
+        gColorTest[iPos] = float4(0.0, max(0.0, mutualInf), 0.0, 1.0);
     }
 #endif
 

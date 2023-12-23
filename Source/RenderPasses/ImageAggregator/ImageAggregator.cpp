@@ -101,6 +101,9 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
         mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
         mCurrentImagesAccumulated++;
 
+         logWarning("Percentage Completed: {}", ((((float)mCurrentImagesAccumulated + (float)mCurrentAggregateImagesAccumulated * (float)AGGREGATION_IMAGE_COUNT) /
+          (AGGREGATION_IMAGE_COUNT * AGGREGATION_IMAGE_COUNT)) * 100.0f));
+
         if (mCurrentImagesAccumulated >= (AGGREGATION_IMAGE_COUNT))
         {
             auto perImageImgAggregationCB1 = mpPrgImageAggregation->getRootVar()["PerImageCB"];
@@ -133,12 +136,12 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
                     Falcor::Bitmap::ExportFlags::None, true
                 );
 
-                /*std::string savePathPNG = "FrameCapture\\" + std::string(buf) + "png" + "." + "png";
+                std::string savePathPNG = "FrameCapture\\" + std::string(buf) + "png" + "." + "png";
                 savePathPNG.erase(std::remove(savePathPNG.begin(), savePathPNG.end(), ':'), savePathPNG.end());
 
                 mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(
                     0, 0, std::filesystem::path(savePathPNG), Falcor::Bitmap::FileFormat::PngFile, Falcor::Bitmap::ExportFlags::None, true
-                );*/
+                );
                 mCurrentAggregateImagesAccumulated = 0;
             }
             mCurrentImagesAccumulated = 0;
