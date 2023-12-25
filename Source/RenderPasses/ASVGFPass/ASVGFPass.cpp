@@ -95,6 +95,7 @@ const char kInternalPrevSpecularAlbedoTexture[] = "PrevSpecularAlbedo";
 
 // Output buffer name
 const char kOutputBufferFilteredImage[] = "Filtered image";
+const char kDebugOutputBufferImage[] = "Debug Output image";
 
 ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
@@ -196,6 +197,10 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     /// Output image i.e. reconstructed image, (marked as output in the GraphEditor)
     reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA32Float);
 
+#if IS_DEBUG_PASS
+    reflector.addOutput(kDebugOutputBufferImage, "Debug output image").format(ResourceFormat::RGBA32Float);
+#endif IS_DEBUG_PASS
+    
     return reflector;
 }
 
@@ -283,6 +288,10 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     
     ref<Texture> pOutputFilteredImage = renderData.getTexture(kOutputBufferFilteredImage);
 
+    #if IS_DEBUG_PASS
+        ref<Texture> pDebugOutputImage = renderData.getTexture(kDebugOutputBufferImage);
+    #endif
+    
     FALCOR_ASSERT(
         mpAccumulationBuffer &&
         mpAccumulationBuffer->getWidth() == screenWidth &&
@@ -582,7 +591,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     //Blit outputs
     #if IS_DEBUG_PASS
         debugPass(pRenderContext, renderData);
-        pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+        pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), pOutputFilteredImage->getRTV());
+        pRenderContext->blit(mpDebugBuffer->getColorTexture(0)->getSRV(), pDebugOutputImage->getRTV());
         pRenderContext->clearTexture(mpTestColorTexture.get());
         pRenderContext->clearFbo(mpDebugBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     #else

@@ -38,35 +38,32 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 const char kInputColorTexture[]     = "Color";
 const char kOutputAggregatedImage[] = "AggregatedImage";
 
+const char kImageAggregationCount[] = "ImageAggregationCount";
+
 // Shader source files
 const char kImageAggregator[] = "RenderPasses/ImageAggregator/ImageAggregator.ps.slang";
 
 ImageAggregator::ImageAggregator(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
+    for (const auto& [key, value] : props)
+    {
+        if (key == kImageAggregationCount)
+            mImageAggregationCount = value;
+        else
+            logWarning("Unknown property '{}' in ASVGFPass properties.", key);
+    }
 }
 
 Properties ImageAggregator::getProperties() const
 {
-    return {};
+    Properties props;
+    props[kImageAggregationCount] = mImageAggregationCount;
+    return props;
 }
 
 void ImageAggregator::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
-    int screenWidth = compileData.defaultTexDims.x;
-    int screenHeight = compileData.defaultTexDims.y;
-
-    // aggregated image result
-    Fbo::Desc formatAggregatedImageResult;
-    formatAggregatedImageResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
-
-    mpImageAggregatorFullScreen = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAggregatedImageResult);
-    mpImageAccumulationBuffer[0] = Buffer::create(mpDevice, screenWidth * screenHeight * AGGREGATION_IMAGE_COUNT * sizeof(float) * 3);
-    mpImageAccumulationBuffer[1] = Buffer::create(mpDevice, screenWidth * screenHeight * AGGREGATION_IMAGE_COUNT * sizeof(float) * 3);
-
-    DefineList newDefines;
-    newDefines.add("AGGREGATION_IMAGE_COUNT", std::to_string(AGGREGATION_IMAGE_COUNT));
-    mpPrgImageAggregation = FullScreenPass::create(mpDevice, kImageAggregator, newDefines);
 }
 
 RenderPassReflection ImageAggregator::reflect(const CompileData& compileData)
@@ -85,6 +82,24 @@ RenderPassReflection ImageAggregator::reflect(const CompileData& compileData)
 
 void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
+    if (mIsDirty)
+    {
+        int screenWidth = renderData.getDefaultTextureDims().x;
+        int screenHeight = renderData.getDefaultTextureDims().y;
+        // aggregated image result
+        Fbo::Desc formatAggregatedImageResult;
+        formatAggregatedImageResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
+
+        mpImageAggregatorFullScreen = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAggregatedImageResult);
+        mpImageAccumulationBuffer[0] = Buffer::create(mpDevice, screenWidth * screenHeight * sizeof(float) * 3);
+        mpImageAccumulationBuffer[1] = Buffer::create(mpDevice, screenWidth * screenHeight * sizeof(float) * 3);
+
+        DefineList newDefines;
+        newDefines.add("AGGREGATION_IMAGE_COUNT", std::to_string(mImageAggregationCount));
+        mpPrgImageAggregation = FullScreenPass::create(mpDevice, kImageAggregator, newDefines);
+        mIsDirty = false;
+    }
+
     ref<Texture> pInputColorTexture = renderData.getTexture(kInputColorTexture);
 
     ref<Texture> pOutputAggregatedTexture = renderData.getTexture(kOutputAggregatedImage);
@@ -101,10 +116,10 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
         mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
         mCurrentImagesAccumulated++;
 
-         logWarning("Percentage Completed: {}", ((((float)mCurrentImagesAccumulated + (float)mCurrentAggregateImagesAccumulated * (float)AGGREGATION_IMAGE_COUNT) /
-          (AGGREGATION_IMAGE_COUNT * AGGREGATION_IMAGE_COUNT)) * 100.0f));
+         logWarning("Percentage Completed: {}", ((((float)mCurrentImagesAccumulated + (float)mCurrentAggregateImagesAccumulated * (float)mImageAggregationCount) /
+          (mImageAggregationCount * mImageAggregationCount)) * 100.0f));
 
-        if (mCurrentImagesAccumulated >= (AGGREGATION_IMAGE_COUNT))
+        if (mCurrentImagesAccumulated >= (mImageAggregationCount))
         {
             auto perImageImgAggregationCB1 = mpPrgImageAggregation->getRootVar()["PerImageCB"];
             perImageImgAggregationCB1["gColor"] = mpImageAggregatorFullScreen->getColorTexture(0);
@@ -115,7 +130,7 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
             mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
             mCurrentAggregateImagesAccumulated++;
 
-            if (mCurrentAggregateImagesAccumulated >= (AGGREGATION_IMAGE_COUNT))
+            if (mCurrentAggregateImagesAccumulated >= (mImageAggregationCount))
             { 
                 mStartAggregation = false;
                 mAggregationComplete = true;
@@ -163,5 +178,6 @@ void ImageAggregator::renderUI(Gui::Widgets& widget)
     if (!mStartAggregation)
     {
         mStartAggregation = widget.button("Create Aggregation");
+        mIsDirty = widget.var("Image aggregation count x * x. Specify x:", mImageAggregationCount, 10, 300, 10);
     }
 }
