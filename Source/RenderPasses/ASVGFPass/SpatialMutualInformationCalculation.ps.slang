@@ -50,7 +50,7 @@ cbuffer PerImageCB {
 #endif
 };
 
-static const int SPATIAL_PIXEL_BIN_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25  
+static const int SPATIAL_PIXEL_COUNT  = (SPATIAL_RADIUS * 2 + 1) * (SPATIAL_RADIUS * 2 + 1); //r = 1 bincount = 9, r = 2 bincount = 25
 
 //Calculates the Luminance bucket id where the luminance would go into
 //Assuming luminance would always be within 0.0 and 1.0
@@ -81,15 +81,17 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             return float4(gColorAndVariance[iPos].rgb, mutualInfResult);
         }
 
-        float binsLumPixel[SPATIAL_PIXEL_BIN_COUNT];
-        float binsLumWeight[SPATIAL_PIXEL_BIN_COUNT];
-        float acceptedLum[SPATIAL_PIXEL_BIN_COUNT];
+        float binsLumPixel[SPATIAL_LUM_BIN_COUNT];
+        float binsPixelIndex[SPATIAL_PIXEL_COUNT];
+        float acceptedLum[SPATIAL_PIXEL_COUNT];
 
-        for(int frameIndex = 0; frameIndex < SPATIAL_PIXEL_BIN_COUNT; frameIndex++)
+        for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_COUNT; pixelIndex++)
         {
-            binsLumWeight[frameIndex] = 0.0;
-            binsLumPixel[frameIndex] = 0.0;
-
+            binsPixelIndex[pixelIndex] = 0.0;
+            if(pixelIndex < SPATIAL_LUM_BIN_COUNT)
+            {
+                binsLumPixel[pixelIndex] = 0.0;
+            }
         }
 
         int acceptedPixelCount = 0;
@@ -103,7 +105,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 int2 currentP = iPos + int2(xx,yy);
                 bool accepted  = true;
 
-                float currentluminanceValue = luminance(gColorAndVariance[currentP].rgb); // luminance(getIllumination(gColor[currentP].rgb, gAlbedoTexture[currentP].rgb, gSpecularAlbedo[currentP].rgb, gEmissionTexture[currentP].rgb));//
+                float currentluminanceValue = luminance(getIllumination(gColor[currentP].rgb, gAlbedoTexture[currentP].rgb, gSpecularAlbedo[currentP].rgb, gEmissionTexture[currentP].rgb));//luminance(gColorAndVariance[currentP].rgb); //
                 if(all(currentP != iPos))
                 {
                     HitInfo hitInfoP    = HitInfo(gVisibilityBuffer[currentP]);
@@ -121,8 +123,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
                 if(accepted)
                 {
-                    binsLumWeight[acceptedPixelCount]    = (acceptedPixelCount + 1);
-                    sumPixelIndex += binsLumWeight[acceptedPixelCount];
+                    binsPixelIndex[acceptedPixelCount]    = (acceptedPixelCount + 1);
+                    sumPixelIndex += binsPixelIndex[acceptedPixelCount];
                     acceptedLum[acceptedPixelCount] = currentluminanceValue;
                     maxLum = max(maxLum, currentluminanceValue);
 
@@ -133,31 +135,39 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
         for(int pixelIndex = 0; pixelIndex < acceptedPixelCount; pixelIndex++)
         {
-            int bucketID = getLuminanceBucketID(acceptedLum[pixelIndex], SPATIAL_PIXEL_BIN_COUNT, maxLum);
-            bucketID = min(bucketID, SPATIAL_PIXEL_BIN_COUNT -1);
+            int bucketID = getLuminanceBucketID(acceptedLum[pixelIndex], SPATIAL_LUM_BIN_COUNT, maxLum);
+            bucketID = min(bucketID, SPATIAL_LUM_BIN_COUNT -1);
             bucketID = max(bucketID, 0);
 
             binsLumPixel[bucketID] +=   1.0 / acceptedPixelCount;
-            binsLumWeight[pixelIndex]   /=  sumPixelIndex;
+            binsPixelIndex[pixelIndex]   /=  sumPixelIndex;
 
             binsLumPixel[bucketID] =   min(binsLumPixel[bucketID], 1.0);
-            binsLumWeight[pixelIndex]   =  min(binsLumWeight[pixelIndex], 1.0);
+            binsPixelIndex[pixelIndex]   =  min(binsPixelIndex[pixelIndex], 1.0);
         }
 
         #if IS_DEBUG_PASS
-        for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
+        for(int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_COUNT; pixelIndex++)
         {
                 if(all(gDebugPixel == iPos))
                 {
-                    gSpatialDebugBuffer[2 + pixelIndex] = binsLumWeight[pixelIndex];
-                    gSpatialDebugBuffer[2 + SPATIAL_PIXEL_BIN_COUNT + pixelIndex] = binsLumPixel[pixelIndex];
+                    gSpatialDebugBuffer[2 + pixelIndex] = binsPixelIndex[pixelIndex];
+
+                    if(pixelIndex < SPATIAL_LUM_BIN_COUNT)
+                    {
+                        gSpatialDebugBuffer[2 + SPATIAL_PIXEL_COUNT + pixelIndex] = binsLumPixel[pixelIndex];
+                    }
+                    else
+                    {
+                        gSpatialDebugBuffer[2 + SPATIAL_PIXEL_COUNT + pixelIndex] = 0.0;
+                    }
                 }
         }
         #endif
 
         //Calculate mutual information
         mutualInfResult = 0.0;
-        for (int binIdx0 = 0; binIdx0 < SPATIAL_PIXEL_BIN_COUNT; binIdx0++)
+        for (int binIdx0 = 0; binIdx0 < SPATIAL_LUM_BIN_COUNT; binIdx0++)
         {
             float p_x = binsLumPixel[binIdx0];
             if(p_x > 0.0)
@@ -170,7 +180,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         
         for (int binIdx1 = 0; binIdx1 < acceptedPixelCount; binIdx1++)
         {
-            float p_y = binsLumWeight[binIdx1];
+            float p_y = binsPixelIndex[binIdx1];
             if(p_y > 0.0)
             {
                 float result = p_y * log(p_y);
@@ -179,13 +189,13 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             }
         }
         
-        for (int binIdx2 = 0; binIdx2 < SPATIAL_PIXEL_BIN_COUNT; binIdx2++)
+        for (int binIdx2 = 0; binIdx2 < SPATIAL_LUM_BIN_COUNT; binIdx2++)
         {
             float p_x = binsLumPixel[binIdx2];
             for (int binIdx3 = 0; binIdx3 < acceptedPixelCount; binIdx3++)
             {
-                int binIdx = getLuminanceBucketID(acceptedLum[binIdx3], SPATIAL_PIXEL_BIN_COUNT, maxLum);
-                binIdx = min(binIdx, SPATIAL_PIXEL_BIN_COUNT-1);
+                int binIdx = getLuminanceBucketID(acceptedLum[binIdx3], SPATIAL_LUM_BIN_COUNT, maxLum);
+                binIdx = min(binIdx, SPATIAL_LUM_BIN_COUNT-1);
                 binIdx = max(binIdx, 0);
 
                 float p_xy =  binIdx == binIdx2 ? 1.0/(float)acceptedPixelCount : 0.0;

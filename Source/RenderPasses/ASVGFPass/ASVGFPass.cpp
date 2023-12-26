@@ -70,6 +70,7 @@ const char kSpatialMIThreshold[]        = "SpatialMIThreshold";
 const char kNumLumGroupsInMICalc[]      = "NumLumGroupsInMICalc";
 const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
 const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
+const char kSpatialLumBinCount[] = "SpatialLumBinCount";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -114,6 +115,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
         else if (key == kFrameBinCountInTempMI)    mFrameLumBinCountInTempMI = value;
         else if (key == kMinHistoryCountSpatialThreshold) mMinHistoryCountSpatialThreshold = value;
+        else if (key == kSpatialLumBinCount) mSpatialLumBinCount= value;
         
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
@@ -135,7 +137,8 @@ Properties ASVGFPass::getProperties() const
     props[kSpatialMIThreshold]      = mSpatialMIThreshold;
     props[kFrameBinCountInTempMI]   = mFrameLumBinCountInTempMI;
     props[kMinHistoryCountSpatialThreshold] = mMinHistoryCountSpatialThreshold;
-    
+    props[kSpatialLumBinCount] = mSpatialLumBinCount;
+
     return props;
 }
 
@@ -651,6 +654,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         
         DefineList spatialDefines(sceneDefines);
         spatialDefines.add("SPATIAL_RADIUS", std::to_string(mSpatialMutualInfRadius));
+        spatialDefines.add("SPATIAL_LUM_BIN_COUNT", std::to_string(mSpatialLumBinCount));
 
 #if IS_DEBUG_PASS
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
@@ -737,6 +741,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_SPATIAL ||
             mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL)
         {
+            isDirty |= widget.var("Spatial Lum Bin Count", mSpatialLumBinCount, 3, 10, 1);
             isDirty |= widget.var("Grad Diff Threshold Ratio", mGradDiffRatioThreshold, 0.01f, 1.0f, 0.01f);
             isDirty |= widget.var("Spatial MI Threshold", mSpatialMIThreshold, 0.0f, 10.0f, 0.01f);
             isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);

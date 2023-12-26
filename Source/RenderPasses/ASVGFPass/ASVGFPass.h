@@ -35,7 +35,7 @@
 #include "Core/Pass/FullScreenPass.h"
 #include "Utils/Timing/FrameRate.h"
 
-#define IS_DEBUG_PASS 0
+#define IS_DEBUG_PASS 1
 
 using namespace Falcor;
 
@@ -101,6 +101,7 @@ private:
     float mGradDiffRatioThreshold = 0.05f;
     float mSpatialMIThreshold = 0.05f;
     int mMinHistoryCountSpatialThreshold = 1;
+    int mSpatialLumBinCount = 5;
 
     int screenWidth = 0;
     int screenHeight = 0;
