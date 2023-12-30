@@ -465,34 +465,37 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             pRenderContext->blit(mpTemporalMutualInfResultBuffer->getColorTexture(1)->getSRV(), mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getRTV());
       
 #if IS_DEBUG_PASS // Print temporal MI CALC
-
-            pRenderContext->flush();
-            float* lRead = reinterpret_cast<float*>(mpTemporalDebugMICalc->map(Falcor::Buffer::MapType::Read));
-
-            float historyLength = lRead[0];
-            float MIResult = lRead[1];
-
-            logInfo("=========TEMPORAL START============");
-
-            logInfo("History = {}\nMI = {}\n", lRead[0], lRead[1]);
-            logInfo("Luminance Values");
-            for (int historyIndex = 0; historyIndex < historyLength; historyIndex++)
+            if (mDebugLogMICalc)
             {
-                logInfo(
-                    "{} Lum Val : {}    ,   TimeStep : {}   ,   TimeStepProb : {} \n", historyIndex, lRead[2 + historyIndex],
-                    lRead[2 + historyIndex + mNumFramesInMICalc], lRead[2 + historyIndex + mNumFramesInMICalc + mNumFramesInMICalc]
-                );
-            }
+                pRenderContext->flush();
+                float* lRead = reinterpret_cast<float*>(mpTemporalDebugMICalc->map(Falcor::Buffer::MapType::Read));
 
-            logInfo("\nLum Bucket Values\n");
-            for (int bucketIndex = 0; bucketIndex < mFrameLumBinCountInTempMI; bucketIndex++)
-            {
-                logInfo(
-                    "Buc Val {} : {}\n", bucketIndex, lRead[2 + mNumFramesInMICalc + mNumFramesInMICalc + mNumFramesInMICalc + bucketIndex]
-                );
+                float historyLength = lRead[0];
+                float MIResult = lRead[1];
+
+                logInfo("=========TEMPORAL START============");
+
+                logInfo("History = {}\nMI = {}\n", lRead[0], lRead[1]);
+                logInfo("Luminance Values");
+                for (int historyIndex = 0; historyIndex < historyLength; historyIndex++)
+                {
+                    logInfo(
+                        "{} Lum Val : {}    ,   TimeStep : {}   ,   TimeStepProb : {} \n", historyIndex, lRead[2 + historyIndex],
+                        lRead[2 + historyIndex + mNumFramesInMICalc], lRead[2 + historyIndex + mNumFramesInMICalc + mNumFramesInMICalc]
+                    );
+                }
+
+                logInfo("\nLum Bucket Values\n");
+                for (int bucketIndex = 0; bucketIndex < mFrameLumBinCountInTempMI; bucketIndex++)
+                {
+                    logInfo(
+                        "Buc Val {} : {}\n", bucketIndex,
+                        lRead[2 + mNumFramesInMICalc + mNumFramesInMICalc + mNumFramesInMICalc + bucketIndex]
+                    );
+                }
+                mpTemporalDebugMICalc->unmap();
+                logInfo("=========TEMPORAL END============");
             }
-            mpTemporalDebugMICalc->unmap();
-            logInfo("=========TEMPORAL END============");
 #endif
 }
 
@@ -523,31 +526,34 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             mpPrgSpatialMutualInfCalc->execute(pRenderContext, mpAtrousFullScreenResultPingPong[0]);
 
 #if IS_DEBUG_PASS // Print spatial MI CALC
-            pRenderContext->flush();
-            float* lRead = reinterpret_cast<float*>(mpSpatialDebugMICalc->map(Falcor::Buffer::MapType::Read));
-
-            float acceptedPixelCount = lRead[0];
-            float MIResult = lRead[1];
-
-            logInfo("=========SPATIAL START============");
-
-            const int SPATIAL_PIXEL_BIN_COUNT = (mSpatialMutualInfRadius * 2 + 1) * (mSpatialMutualInfRadius * 2 + 1);
-
-            logInfo("AcceptedPixelCount = {}\nMI = {}\n", lRead[0], lRead[1]);
-            logInfo("Pixel Index Values");
-            for (int pixelIndex = 0; pixelIndex < acceptedPixelCount; pixelIndex++)
+            if (mDebugLogMICalc)
             {
-                logInfo("PixelIndex : {}    \n", lRead[2 + pixelIndex]);
-            }
+                pRenderContext->flush();
+                float* lRead = reinterpret_cast<float*>(mpSpatialDebugMICalc->map(Falcor::Buffer::MapType::Read));
 
-            logInfo("Lum Values");
-            for (int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
-            {
-                logInfo("LumValue : {}\n", lRead[2 + pixelIndex + SPATIAL_PIXEL_BIN_COUNT]);
-            }
+                float acceptedPixelCount = lRead[0];
+                float MIResult = lRead[1];
 
-            mpTemporalDebugMICalc->unmap();
-            logInfo("=========SPATIAL END============");
+                logInfo("=========SPATIAL START============");
+
+                const int SPATIAL_PIXEL_BIN_COUNT = (mSpatialMutualInfRadius * 2 + 1) * (mSpatialMutualInfRadius * 2 + 1);
+
+                logInfo("AcceptedPixelCount = {}\nMI = {}\n", lRead[0], lRead[1]);
+                logInfo("Pixel Index Values");
+                for (int pixelIndex = 0; pixelIndex < acceptedPixelCount; pixelIndex++)
+                {
+                    logInfo("PixelIndex : {}    \n", lRead[2 + pixelIndex]);
+                }
+
+                logInfo("Lum Values");
+                for (int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
+                {
+                    logInfo("LumValue : {}\n", lRead[2 + pixelIndex + SPATIAL_PIXEL_BIN_COUNT]);
+                }
+
+                mpTemporalDebugMICalc->unmap();
+                logInfo("=========SPATIAL END============");
+            }
 #endif
         }
     }
@@ -615,8 +621,74 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
     std::swap( mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
     mPrevFrameJitter = cameraJitter;
-
     mCurrentFrameNumber++;
+
+    #if IS_DEBUG_PASS
+    if (isConductLightFlickerTest)
+    {
+        if (testMat)
+        {
+            Falcor::ref<Falcor::Material> clight = pScene->getMaterialByName(mEmissiveMatName);
+            Falcor::StandardMaterial* smLight = reinterpret_cast<Falcor::StandardMaterial*>(clight.get());
+
+            if (mCurrentLightFlickerFrameIndex == 0)
+            {
+                mOldLightIntensityVal = smLight->getEmissiveFactor();
+            }
+        
+            float cLightIntensityVal = 0.0;
+            if (mCurrentLightFlickerFrameIndex < (mNumFramesLightTest - 1))
+            {
+                cLightIntensityVal = mLightValuesPerFrame[mCurrentLightFlickerFrameIndex];
+                logWarning("IntensityVal: {}", cLightIntensityVal);
+            }
+            else if (mCurrentLightFlickerFrameIndex == (mNumFramesLightTest - 1))
+            {
+                cLightIntensityVal = mOldLightIntensityVal;
+            }
+            else
+            {
+                cLightIntensityVal = mOldLightIntensityVal;
+                isConductLightFlickerTest = false;
+                takeOutputScreenshot(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0));
+            }
+
+            smLight->setEmissiveFactor(cLightIntensityVal);
+            mCurrentLightFlickerFrameIndex++;
+        }
+        else
+        {
+            Falcor::ref<Falcor::Light> clight = pScene->getLight(mLightId);
+            Falcor::PointLight* smLight = reinterpret_cast<Falcor::PointLight*>(clight.get());
+
+            if (mCurrentLightFlickerFrameIndex == 0)
+            {
+                mOldLightIntensityVal = smLight->getIntensityForUI();
+            }
+
+            float cLightIntensityVal = 0.0;
+            if (mCurrentLightFlickerFrameIndex < (mNumFramesLightTest - 1))
+            {
+                cLightIntensityVal = mLightValuesPerFrame[mCurrentLightFlickerFrameIndex];
+                logWarning("IntensityVal: {}", cLightIntensityVal);
+            }
+            else if (mCurrentLightFlickerFrameIndex == (mNumFramesLightTest - 1))
+            {
+                cLightIntensityVal = mOldLightIntensityVal;
+            }
+            else
+            {
+                cLightIntensityVal = mOldLightIntensityVal;
+                isConductLightFlickerTest = false;
+                takeOutputScreenshot(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0));
+            }
+
+            smLight->setIntensityFromUI(cLightIntensityVal);
+            mCurrentLightFlickerFrameIndex++;
+        }
+    }
+    
+    #endif
 }
 
 void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& renderData)
@@ -676,11 +748,23 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 #else
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(0));
     spatialDefines.add("IS_DEBUG_PASS", std::to_string(0));
+
+
 #endif IS_DEBUG_PASS
 
         mpPrgTemporalMutualInfCalc = FullScreenPass::create(mpDevice, kTemporalMutualInfCalcShader, temporalDefines);
         mpPrgSpatialMutualInfCalc = FullScreenPass::create(mpDevice, kSpatialMutualInfCalcShader, spatialDefines);
     }
+
+#if IS_DEBUG_PASS
+    // Setup light random intensity values
+    srand(1);
+    mLightValuesPerFrame.clear();
+    for (int i = 0; i < (mNumFramesLightTest - 1); i++)
+    {
+        mLightValuesPerFrame.push_back((rand() % (int)(mMaxLightValue - mMinLightValue)) + mMinLightValue);
+    }
+#endif IS_DEBUG_PASS
 
     mCurrentFrameNumber = 0;
     mdqTimeStep.clear();
@@ -749,10 +833,52 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         }
     }
 
+    #if IS_DEBUG_PASS
+    auto groupDebug = widget.group("DEBUG");
+    {
+        auto groupDebugLightTest = groupDebug.group("Light Test");
+        isDirty |= groupDebugLightTest.var("Debug: Min Light Value", mMinLightValue, 0.0f, 500.0f, 1.0f);
+        isDirty |= groupDebugLightTest.var("Debug: Max Light Value", mMaxLightValue, 0.0f, 500.0f, 1.0f);
+        isDirty |= groupDebugLightTest.var("Debug: Light Test Frames", mNumFramesLightTest, 1, 500, 1);
+        isDirty |= groupDebugLightTest.checkbox("Debug: Test Emissive Mat(T) or Light(F)", testMat);
+        isDirty |= groupDebugLightTest.textbox("Debug: Emissive Mat Name", mEmissiveMatName);
+        isDirty |= groupDebugLightTest.var("Debug: Point Light ID", mLightId, 1, 500, 1);
+
+        if (!isConductLightFlickerTest)
+        {
+            isConductLightFlickerTest = groupDebugLightTest.button("Debug: Conduct Flickering Light Test");
+            mCurrentLightFlickerFrameIndex = 0;
+        }
+
+        groupDebug.checkbox("Debug: LOG MI Calc", mDebugLogMICalc);
+    }
+    #endif
+
     if (isDirty)
     {
         IsClearBuffers = true;
     }
+}
+
+void ASVGFPass::takeOutputScreenshot(ref<Texture> pScreenShotTexture)
+{
+    //ref<Texture> pScreenShotTexture = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+
+    auto ext = Bitmap::getFileExtFromResourceFormat(pScreenShotTexture->getFormat());
+    auto fileformat = Bitmap::getFormatFromFileExtension(ext);
+
+    time_t now = time(0);
+    struct tm tstruct;
+    char buf[80];
+    tstruct = *localtime(&now);
+    strftime(buf, sizeof(buf), "%Y%m%d_%X", &tstruct);
+
+    std::string savePath = "FrameCapture\\" + std::string(buf) + "." + ext;
+    savePath.erase(std::remove(savePath.begin(), savePath.end(), ':'), savePath.end());
+
+    pScreenShotTexture->captureToFile(
+        0, 0, std::filesystem::path(savePath), fileformat, Falcor::Bitmap::ExportFlags::None, true
+    );
 }
 
 bool ASVGFPass::onMouseEvent(const MouseEvent& a_mouseEvent)

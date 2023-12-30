@@ -59,6 +59,7 @@ public:
     int gradient_res(int x);
     void allocateBuffers(RenderContext* a_pRenderContext);
     void resetBuffers(RenderContext* pRenderContext, const RenderData& renderData);
+    void takeOutputScreenshot(ref<Texture> pScreenShotTexture);
 
 #if IS_DEBUG_PASS
     void debugPass(RenderContext* pRenderContext, const RenderData&);
@@ -161,5 +162,18 @@ private:
     ref<Buffer> mpSpatialDebugMICalc;
 
     int2 mDebugSelectedPixel;
+    bool mDebugLogMICalc = false;
+
+    int mNumFramesLightTest = 10;
+    float mMinLightValue = 0.0f;
+    float mMaxLightValue = 20.0f;
+    std::vector<float> mLightValuesPerFrame;
+    bool isConductLightFlickerTest = false;
+    int mCurrentLightFlickerFrameIndex = 0;
+    float mOldLightIntensityVal = 0.0;
+    bool testMat = false;
+    int mLightId = 0;
+    std::string mEmissiveMatName;
+
     #endif IS_DEBUG_PASS
 };

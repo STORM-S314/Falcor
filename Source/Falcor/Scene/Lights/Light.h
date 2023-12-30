@@ -115,6 +115,8 @@ namespace Falcor
         Changes getChanges() const { return mChanges; }
 
         void updateFromAnimation(const float4x4& transform) override {}
+        void setIntensityFromUI(float intensity);
+        float getIntensityForUI();
 
     protected:
         Light(const std::string& name, LightType type);
@@ -124,8 +126,6 @@ namespace Falcor
         // UI callbacks for keeping the intensity in-sync.
         float3 getColorForUI();
         void setColorFromUI(const float3& uiColor);
-        float getIntensityForUI();
-        void setIntensityFromUI(float intensity);
 
         std::string mName;
         bool mActive = true;
