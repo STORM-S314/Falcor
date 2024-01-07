@@ -551,6 +551,12 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
                     logInfo("LumValue : {}\n", lRead[2 + pixelIndex + SPATIAL_PIXEL_BIN_COUNT]);
                 }
 
+                logInfo("Lum Bucket Prob Values");
+                for (int pixelIndex = 0; pixelIndex < SPATIAL_PIXEL_BIN_COUNT; pixelIndex++)
+                {
+                    logInfo("LumBucketProbValue : {}\n", lRead[2 + pixelIndex + SPATIAL_PIXEL_BIN_COUNT + SPATIAL_PIXEL_BIN_COUNT]);
+                }
+
                 mpTemporalDebugMICalc->unmap();
                 logInfo("=========SPATIAL END============");
             }
@@ -741,8 +747,9 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 
     const int SPATIAL_PIXEL_BIN_COUNT = (mSpatialMutualInfRadius * 2 + 1) * (mSpatialMutualInfRadius * 2 + 1);
     mpSpatialDebugMICalc = Buffer::create(
-        mpDevice, sizeof(float) /* accepted pixel count */ + sizeof(float) /* MI */ + SPATIAL_PIXEL_BIN_COUNT * sizeof(float) +
-            SPATIAL_PIXEL_BIN_COUNT * sizeof(float),
+        mpDevice,
+        sizeof(float) /* accepted pixel count */ + sizeof(float) /* MI */ + SPATIAL_PIXEL_BIN_COUNT * sizeof(float) +
+            SPATIAL_PIXEL_BIN_COUNT * sizeof(float) + SPATIAL_PIXEL_BIN_COUNT * sizeof(float),
         Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
     );
 #else
@@ -842,7 +849,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         isDirty |= groupDebugLightTest.var("Debug: Light Test Frames", mNumFramesLightTest, 1, 500, 1);
         isDirty |= groupDebugLightTest.checkbox("Debug: Test Emissive Mat(T) or Light(F)", testMat);
         isDirty |= groupDebugLightTest.textbox("Debug: Emissive Mat Name", mEmissiveMatName);
-        isDirty |= groupDebugLightTest.var("Debug: Point Light ID", mLightId, 1, 500, 1);
+        isDirty |= groupDebugLightTest.var("Debug: Point Light ID", mLightId, 0, 500, 1);
 
         if (!isConductLightFlickerTest)
         {

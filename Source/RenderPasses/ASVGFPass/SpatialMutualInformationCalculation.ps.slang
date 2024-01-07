@@ -74,7 +74,6 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         float2 centerDepth     = gLinearZTexture[iPos].xy;
         float3 centerNormal    = gNormalsTexture[iPos].xyz;
         uint    centerMeshID    = getMeshInstanceID(centerHitInfoP);
-        uint    centerLuminance    = luminance(gColorAndVariance[iPos].rgb); // luminance(getIllumination(gColor[iPos].rgb, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb));
 
         if(!centerHitInfoP.isValid())
         {
@@ -152,14 +151,15 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 if(all(gDebugPixel == iPos))
                 {
                     gSpatialDebugBuffer[2 + pixelIndex] = binsPixelIndex[pixelIndex];
+                    gSpatialDebugBuffer[2 + pixelIndex + SPATIAL_PIXEL_COUNT] = acceptedLum[pixelIndex];
 
                     if(pixelIndex < SPATIAL_LUM_BIN_COUNT)
                     {
-                        gSpatialDebugBuffer[2 + SPATIAL_PIXEL_COUNT + pixelIndex] = binsLumPixel[pixelIndex];
+                        gSpatialDebugBuffer[2 + SPATIAL_PIXEL_COUNT + SPATIAL_PIXEL_COUNT + pixelIndex] = binsLumPixel[pixelIndex];
                     }
                     else
                     {
-                        gSpatialDebugBuffer[2 + SPATIAL_PIXEL_COUNT + pixelIndex] = 0.0;
+                        gSpatialDebugBuffer[2 + SPATIAL_PIXEL_COUNT + SPATIAL_PIXEL_COUNT + pixelIndex] = 0.0;
                     }
                 }
         }
