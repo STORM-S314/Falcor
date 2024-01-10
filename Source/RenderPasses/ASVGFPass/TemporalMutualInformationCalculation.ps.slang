@@ -50,6 +50,7 @@ cbuffer PerImageCB {
     float2                  gScreenDimension;
     int                     gTotalPixelsInFrame;
     float                   gSpatialMIThreshold;
+    int                     gInfCalcType;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>     gColorTest;
     RWBuffer<float>         gTemporalDebugBuffer;
@@ -197,6 +198,8 @@ if(all(gDebugPixel == iPos))
 }
 #endif
 
+if(gInfCalcType == 0) //MI
+{
     for (int binIdx0 = 0; binIdx0 < (int)historyLength; binIdx0++)
     {
         float p_x = binsFrameTimeStep[binIdx0];
@@ -228,6 +231,24 @@ if(all(gDebugPixel == iPos))
             mutualInf += result;
         }
     }
+}
+else if(gInfCalcType == 1) //Entropy
+{
+    for (int binIdx1 = 0; binIdx1 < LUM_FRAME_BIN_COUNT; binIdx1++)
+    {
+        float p_y = binsFramesLum[binIdx1];
+        float result = p_y * log(p_y);
+        if(isnan(result)){result = 0.0;}
+        mutualInf -= result;
+    }
+    mutualInf = exp(-mutualInf);
+}
+
+//if(mutualInf < 0.01)
+//{
+//   mutualInf = 1.0; 
+//}
+//mutualInf = exp(-mutualInf);
 
 #if IS_DEBUG_PASS
     

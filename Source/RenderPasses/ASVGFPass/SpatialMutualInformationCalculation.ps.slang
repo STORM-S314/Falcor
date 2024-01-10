@@ -43,6 +43,7 @@ cbuffer PerImageCB {
     float                   gGradDiffRatioThreshold;
     Texture2D               gGradDifferenceRatio;
     float                   gSpatialMIThreshold;
+    int                     gInfCalcType;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>     gColorTest;
     int2                    gDebugPixel;
@@ -67,7 +68,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     float maxLum = 0.0;
 
     if((mutualInfResultBuf.g < gSpatialMIThreshold) ||
-    (gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold) ||
+    //(gGradDifferenceRatio[iPos].r > gGradDiffRatioThreshold) ||
     (mutualInfResultBuf.b < gMinHistoryCount))
     {
         HitInfo centerHitInfoP  = HitInfo(gVisibilityBuffer[iPos]);
@@ -165,51 +166,65 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
         }
         #endif
 
-        //Calculate mutual information
-        mutualInfResult = 0.0;
-        for (int binIdx0 = 0; binIdx0 < SPATIAL_LUM_BIN_COUNT; binIdx0++)
+        if(gInfCalcType == 0)//MI
         {
-            float p_x = binsLumPixel[binIdx0];
-            if(p_x > 0.0)
+
+            //Calculate mutual information
+            mutualInfResult = 0.0;
+            for (int binIdx0 = 0; binIdx0 < SPATIAL_LUM_BIN_COUNT; binIdx0++)
             {
-                float result = p_x * log(p_x);
-                if(isnan(result)){result = 0.0;}
-                mutualInfResult -= result;
+                float p_x = binsLumPixel[binIdx0];
+                if(p_x > 0.0)
+                {
+                    float result = p_x * log(p_x);
+                    if(isnan(result)){result = 0.0;}
+                    mutualInfResult -= result;
+                }
             }
-        }
         
-        for (int binIdx1 = 0; binIdx1 < acceptedPixelCount; binIdx1++)
-        {
-            float p_y = binsPixelIndex[binIdx1];
-            if(p_y > 0.0)
+            for (int binIdx1 = 0; binIdx1 < acceptedPixelCount; binIdx1++)
             {
+                float p_y = binsPixelIndex[binIdx1];
+                if(p_y > 0.0)
+                {
+                    float result = p_y * log(p_y);
+                    if(isnan(result)){result = 0.0;}
+                    mutualInfResult -= result;
+                }
+            }
+        
+            for (int binIdx2 = 0; binIdx2 < SPATIAL_LUM_BIN_COUNT; binIdx2++)
+            {
+                float p_x = binsLumPixel[binIdx2];
+                for (int binIdx3 = 0; binIdx3 < acceptedPixelCount; binIdx3++)
+                {
+                    int binIdx = getLuminanceBucketID(acceptedLum[binIdx3], SPATIAL_LUM_BIN_COUNT, maxLum);
+                    binIdx = min(binIdx, SPATIAL_LUM_BIN_COUNT-1);
+                    binIdx = max(binIdx, 0);
+
+                    float p_xy =  binIdx == binIdx2 ? 1.0/(float)acceptedPixelCount : 0.0;
+        
+                    if(p_xy > 0.0)
+                    {
+                        float result = p_xy * log(p_xy);
+                        if(isnan(result)){result = 0.0;}
+                        mutualInfResult += result;
+                    }
+                }
+            }
+
+            mutualInfResult = exp(-max(0.0, mutualInfResult));
+        }
+        else if(gInfCalcType == 1)//Entropy
+        {
+            for (int binIdx1 = 0; binIdx1 < SPATIAL_LUM_BIN_COUNT; binIdx1++)
+            {
+                float p_y = binsLumPixel[binIdx1];
                 float result = p_y * log(p_y);
                 if(isnan(result)){result = 0.0;}
                 mutualInfResult -= result;
             }
         }
-        
-        for (int binIdx2 = 0; binIdx2 < SPATIAL_LUM_BIN_COUNT; binIdx2++)
-        {
-            float p_x = binsLumPixel[binIdx2];
-            for (int binIdx3 = 0; binIdx3 < acceptedPixelCount; binIdx3++)
-            {
-                int binIdx = getLuminanceBucketID(acceptedLum[binIdx3], SPATIAL_LUM_BIN_COUNT, maxLum);
-                binIdx = min(binIdx, SPATIAL_LUM_BIN_COUNT-1);
-                binIdx = max(binIdx, 0);
-
-                float p_xy =  binIdx == binIdx2 ? 1.0/(float)acceptedPixelCount : 0.0;
-        
-                if(p_xy > 0.0)
-                {
-                    float result = p_xy * log(p_xy);
-                    if(isnan(result)){result = 0.0;}
-                    mutualInfResult += result;
-                }
-            }
-        }
-
-        mutualInfResult = exp(-max(0.0, mutualInfResult));
 
 #if IS_DEBUG_PASS
 

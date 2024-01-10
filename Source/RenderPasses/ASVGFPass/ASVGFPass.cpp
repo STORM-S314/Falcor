@@ -454,6 +454,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageTemporalMutualInfCalcCB["gPrevMutualInfResult"]     = pInternalPrevMutualInfTexture;
             perImageTemporalMutualInfCalcCB["gScreenDimension"]         = float2(screenWidth, screenHeight);
             perImageTemporalMutualInfCalcCB["gTotalPixelsInFrame"]      = screenWidth * screenHeight;
+            perImageTemporalMutualInfCalcCB["gInfCalcType"]             = (uint32_t)mInfCalcType;
             
 #if IS_DEBUG_PASS
             perImageTemporalMutualInfCalcCB["gTemporalDebugBuffer"] = mpTemporalDebugMICalc;
@@ -518,6 +519,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageSpatialMutualInfCalcCB["gGradDifferenceRatio"]  = mpAccumulationBuffer->getColorTexture(3);
             perImageSpatialMutualInfCalcCB["gGradDiffRatioThreshold"] = mGradDiffRatioThreshold;
             perImageSpatialMutualInfCalcCB["gSpatialMIThreshold"] = mSpatialMIThreshold;
+            perImageSpatialMutualInfCalcCB["gInfCalcType"] = (uint32_t)mInfCalcType;
 #if IS_DEBUG_PASS
             perImageSpatialMutualInfCalcCB["gColorTest"] = mpTestColorTexture;
             perImageSpatialMutualInfCalcCB["gSpatialDebugBuffer"] = mpSpatialDebugMICalc;
@@ -838,6 +840,8 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
             isDirty |= widget.var("Spatial radius", mSpatialMutualInfRadius, 1, 4, 1);
             isDirty |= widget.var("Min History Count Spatial Threshold", mMinHistoryCountSpatialThreshold, 1, 100, 1);
         }
+
+        isDirty |= widget.dropdown("Information Calc Type", INFORMATION_CALC_TYPE_LIST, *(reinterpret_cast<uint32_t*>(&mInfCalcType)));
     }
 
     #if IS_DEBUG_PASS

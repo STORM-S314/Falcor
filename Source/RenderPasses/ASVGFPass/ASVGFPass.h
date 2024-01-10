@@ -35,7 +35,7 @@
 #include "Core/Pass/FullScreenPass.h"
 #include "Utils/Timing/FrameRate.h"
 
-#define IS_DEBUG_PASS 1
+#define IS_DEBUG_PASS 0
 
 using namespace Falcor;
 
@@ -66,13 +66,18 @@ public:
 #endif IS_DEBUG_PASS
 
 private:
-
     enum class DenoisingAlgorithm
     {
         ASVGF = 0,
         MI_ONLY_TEMPORAL = 1,
         MI_ONLY_SPATIAL = 2,
         MI_TEMPORAL_AND_SPATIAL = 3,
+    };
+
+    enum class InformationCalcType
+    {
+        MI = 0,
+        ENTROPY = 1
     };
 
     enum class LinearlyIncreasingTemporalValue
@@ -109,14 +114,18 @@ private:
 
     DenoisingAlgorithm mCurrentDenoisingAlgorithm = DenoisingAlgorithm::ASVGF;
     LinearlyIncreasingTemporalValue mCurrentLinearlyIncrTemporalVal = LinearlyIncreasingTemporalValue::TIME_STEP;
+    InformationCalcType mInfCalcType = InformationCalcType::MI;
 
-    const Falcor::Gui::DropdownList DENOISING_ALGORITHM_LIST =
-    {
+    const Falcor::Gui::DropdownList DENOISING_ALGORITHM_LIST = {
         {(uint32_t)DenoisingAlgorithm::ASVGF, "ASVGF"},
         {(uint32_t)DenoisingAlgorithm::MI_ONLY_TEMPORAL, "MI:Only Temporal"},
         {(uint32_t)DenoisingAlgorithm::MI_ONLY_SPATIAL, "MI:Only Spatial"},
-        {(uint32_t)DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL, "MI:Temporal and Spatial"}
-    };
+        {(uint32_t)DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL, "MI:Temporal and Spatial"}};
+
+    const Falcor::Gui::DropdownList INFORMATION_CALC_TYPE_LIST = {
+        {(uint32_t)InformationCalcType::MI, "MI"},
+        {(uint32_t)InformationCalcType::ENTROPY, "Entropy"}
+    };    
 
     const Falcor::Gui::DropdownList LINEARLY_INCREASING_TEMPORAL_VALUE_LIST = {
         {(uint32_t)LinearlyIncreasingTemporalValue::TIME_STEP, "Time Step"},
