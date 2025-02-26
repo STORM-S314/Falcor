@@ -47,6 +47,18 @@ import NRDHelpers;
 __exported import PathState;
 __exported import Params;
 
+/** Interface for querying visibility in the scene.
+    This is used in `handleHit`.
+*/
+interface IVisibilityQuery
+{
+    /** Trace a visibility ray against the scene.
+        \param[in] ray Ray.
+        \return Returns true if the ray endpoints are mutually visible (i.e. the ray does NOT intersect the scene).
+    */
+    [mutating] bool traceVisibilityRay(const Ray ray);
+};
+
 /** Path tracer.
 
     This implements the high-level path tracing logic and is shared among
@@ -54,18 +66,7 @@ __exported import Params;
 */
 struct PathTracer
 {
-    /** Interface for querying visibility in the scene.
-        This is used in `handleHit`.
-    */
-    interface IVisibilityQuery
-    {
-        /** Trace a visibility ray against the scene.
-            \param[in] ray Ray.
-            \return Returns true if the ray endpoints are mutually visible (i.e. the ray does NOT intersect the scene).
-        */
-        [mutating] bool traceVisibilityRay(const Ray ray);
-    };
-
+    
     PathTracerParams params;                        ///< Runtime parameters.
 
     // Samplers
@@ -288,7 +289,7 @@ struct PathTracer
 
         // Create sample generator.
         const uint maxSpp = kSamplesPerPixel > 0 ? kSamplesPerPixel : kMaxSamplesPerPixel;
-        path.sg = SampleGenerator(randomNumbers[pixel] * maxSpp + path.getSampleIdx());
+        path.sg = SampleGenerator(pixel, randomNumbers[pixel] * maxSpp + path.getSampleIdx());
 
         // Load the primary hit info from the V-buffer.
         const HitInfo hit = HitInfo(vbuffer[pixel]);
@@ -443,7 +444,7 @@ struct PathTracer
             else
             {
                 // Compute ray origin for next ray segment.
-                path.origin = sd.computeNewRayOrigin(false);
+                path.origin = sd.computeRayOrigin(false);
 
                 // Update interior list and inside volume flag.
                 if (!sd.mtl.isThinSurface())
@@ -708,7 +709,7 @@ struct PathTracer
             {
                 path.rejectedHits++;
                 path.interiorList.handleIntersection(sd.materialID, nestedPriority, sd.frontFacing);
-                path.origin = sd.computeNewRayOrigin(false);
+                path.origin = sd.computeRayOrigin(false);
                 path.decrementVertexIndex();
             }
             else
@@ -748,8 +749,9 @@ struct PathTracer
         \param[in] isPrimaryTriangleHit True if primary hit on a triangle.
         \return Texture sampler instance.
     */
-    ITextureSampler createTextureSampler(const PathState path, bool isPrimaryHit, bool isTriangleHit)
+    ITextureSampler createTextureSampler(const PathState path, bool isPrimaryHit)
     {
+        const bool isTriangleHit = (path.hit.getType() == HitType::Triangle);
         if (kPrimaryLodMode == TexLODMode::RayDiffs && isPrimaryHit && isTriangleHit)
         {
             // Filtered lookups at primary hit on triangle.
@@ -783,10 +785,8 @@ struct PathTracer
         const bool isTriangleHit = hitType == HitType::Triangle;
         const bool isCurveHit = kUseCurves && (hitType == HitType::Curve);
 
-        let lod = createTextureSampler(path, isPrimaryHit, isTriangleHit);
-
         // Load shading data. This is a long latency operation.
-        ShadingData sd = loadShadingData(path.hit, path.origin, path.dir, lod);
+        ShadingData sd = loadShadingData(path.hit, path.origin, path.dir);
 
         const bool isHairMaterial = kUseHairMaterial && (sd.mtl.getMaterialType() == MaterialType::Hair);
         // TODO: Decouple geometry from the material.
@@ -805,6 +805,9 @@ struct PathTracer
         if (!handleNestedDielectrics(sd, path)) return;
 
         logPathVertex();
+
+        // Create texture sampler.
+        let lod = createTextureSampler(path, isPrimaryHit);
 
         // Create BSDF instance and query its properties.
         let hints = getMaterialInstanceHints(path.hit, isPrimaryHit);
@@ -890,7 +893,7 @@ struct PathTracer
         }
         else
         {
-            path.origin = sd.computeNewRayOrigin();
+            path.origin = sd.computeRayOrigin();
         }
 
         // Determine if BSDF has non-delta lobes.

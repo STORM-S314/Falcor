@@ -70,11 +70,24 @@ private:
     {
         std::string name;
         std::string passDefine;
-        ref<RtProgram> pProgram;
+        ref<Program> pProgram;
         ref<RtBindingTable> pBindingTable;
         ref<RtProgramVars> pVars;
 
-        TracePass(ref<Device> pDevice, const std::string& name, const std::string& passDefine, const ref<Scene>& pScene, const DefineList& defines, const Program::TypeConformanceList& globalTypeConformances);
+        TracePass(ref<Device> pDevice, const std::string& name, const std::string& passDefine, const ref<Scene>& pScene, const DefineList& defines, const TypeConformanceList& globalTypeConformances);
+        static std::unique_ptr<TracePass> create(
+            ref<Device> pDevice,
+            const std::string& name,
+            const std::string& passDefine,
+            const ref<IScene>& pScene,
+            const DefineList& defines,
+            const TypeConformanceList& globalTypeConformances
+        )
+        {
+            if (auto scene = dynamic_ref_cast<Scene>(pScene))
+                return std::make_unique<TracePass>(std::move(pDevice), name, passDefine, std::move(scene), defines, globalTypeConformances);
+            return {};
+        }
         void prepareProgram(ref<Device> pDevice, const DefineList& defines);
     };
 
@@ -89,7 +102,7 @@ private:
     bool prepareLighting(RenderContext* pRenderContext);
     void prepareRTXDI(RenderContext* pRenderContext);
     void setNRDData(const ShaderVar& var, const RenderData& renderData) const;
-    void setShaderData(const ShaderVar& var, const RenderData& renderData, bool useLightSampling = true) const;
+    void bindShaderData(const ShaderVar& var, const RenderData& renderData, bool useLightSampling = true) const;
     bool renderRenderingUI(Gui::Widgets& widget);
     bool renderDebugUI(Gui::Widgets& widget);
     void renderStatsUI(Gui::Widgets& widget);
@@ -128,6 +141,9 @@ private:
         bool        useLightsInDielectricVolumes = false;       ///< Use lights inside of volumes (transmissive materials). We typically don't want this because lights are occluded by the interface.
         bool        disableCaustics = false;                    ///< Disable sampling of caustics.
         TexLODMode  primaryLodMode = TexLODMode::Mip0;          ///< Use filtered texture lookups at the primary hit.
+
+        // Scheduling parameters
+        bool useSER = true;                                     ///< Enable SER (Shader Execution Reordering).
 
         // Output parameters
         ColorFormat colorFormat = ColorFormat::LogLuvHDR;       ///< Color format used for internal per-sample color and denoiser buffers.

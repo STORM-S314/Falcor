@@ -24,8 +24,6 @@
 #	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
-import ColorSpace;
-
 #ifndef TILE_OFFSET_SHIFT
     #define TILE_OFFSET_SHIFT 3u
 #endif
@@ -40,9 +38,9 @@ struct FullScreenPassVsOut
     float4 posH       : SV_POSITION;
 };
 
-float3 getIllumination(float3 a_Color, float3 a_Albedo, float3 a_SpecularAlbedo, float3 a_Emission)
+float3 getIllumination(float3 a_Color, float3 a_Emission, float3 a_Albedo)
 {
-    return ((a_Color.rgb) / (max(float3(0.001, 0.001, 0.001), a_Albedo.rgb + a_SpecularAlbedo + a_Emission.rgb)));
+    return (a_Color.rgb - a_Emission.rgb) / max(float3(0.001, 0.001, 0.001), a_Albedo.rgb);
 }
 
 bool isPixelWithinScreenDimensions(float2 pixelPos, float2 screenDimensions)
@@ -50,7 +48,7 @@ bool isPixelWithinScreenDimensions(float2 pixelPos, float2 screenDimensions)
     return (all(pixelPos >= int2(0,0)) && all(pixelPos <= (screenDimensions.xy - int2(1,1))));
 }
 
-bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 currentDepth, float2 prevDepth, float3 currentNormal, float3 prevNormal)
+bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 currentDepth, float2 prevDepth, float3 currentNormal, float3 prevNormal, float fWidthNormal)
 {
     // check whether reprojected pixel is inside of the screen
     if(!isPixelWithinScreenDimensions(pixelPos, screenDimensions)){return false;}
@@ -59,7 +57,7 @@ bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 curren
     if((abs(prevDepth.x - currentDepth.x) / (currentDepth.y + 1e-2f)) > 10.f) {return false;}
 
     // check normals for compatibility
-    if (dot(currentNormal, prevNormal) < 0.9) {return false;}
+    if ((distance(currentNormal, prevNormal) / (fWidthNormal + 1e-2)) > 16.0) {return false;}
 
     return true;
 }

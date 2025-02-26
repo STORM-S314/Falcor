@@ -35,23 +35,19 @@ cbuffer PerImageCB
 	Texture2D                   gAlbedoTexture;
 	Texture2D                   gPrevAlbedoTexture;
     Texture2D                   gEmissionTexture;
-    Texture2D                   gPrevEmissionTexture;
-    Texture2D                   gSpecularAlbedo;
-    Texture2D                   gPrevSpecularAlbedo;
+	Texture2D                   gPrevEmissionTexture;
 	Texture2D<uint>             gGradientSamples;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
 	Texture2D                   gLinearZTexture;
 	int                         gGradientDownsample;
     int                         gScreenWidth;
-#if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
-#endif
 };
 
 struct PS_OUT
 {
-    float4 fragGradLuminanceDifference  : SV_TARGET0;
-	float4 fragGradientVariance         : SV_TARGET1;
+    float4 fragGradientLuminance    : SV_TARGET0;
+	float4 fragGradientVariance     : SV_TARGET1;
 };
 
 PS_OUT main(FullScreenPassVsOut vsOut)
@@ -66,7 +62,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     
 	int2 currentPos = posGrad * gGradientDownsample + posInTile;
 
-    float3 currentIllumination = getIllumination(gColorTexture[currentPos].rgb, gAlbedoTexture[currentPos].rgb, gSpecularAlbedo[currentPos].rgb, gEmissionTexture[currentPos].rgb);
+    float3 currentIllumination = getIllumination(gColorTexture[currentPos].rgb, gEmissionTexture[currentPos].rgb, gAlbedoTexture[currentPos].rgb);
 	float currentLuminance = luminance(currentIllumination);
     
 	if(gradientSample >= (1u << 31)) {
@@ -74,16 +70,16 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     
 		int2 prevPos = int2(idxPrev % gScreenWidth, idxPrev / gScreenWidth);
 
-        float3 prevIllumination = getIllumination(gPrevColorTexture[prevPos].rgb, gPrevAlbedoTexture[prevPos].rgb, gPrevSpecularAlbedo[prevPos].rgb, gPrevEmissionTexture[prevPos].rgb);
+        float3 prevIllumination = getIllumination(gPrevColorTexture[prevPos].rgb, gPrevEmissionTexture[prevPos].rgb, gPrevAlbedoTexture[prevPos].rgb);
 		float prevLuminance = luminance(prevIllumination);
     
-		psOut.fragGradLuminanceDifference.r = max(currentLuminance, prevLuminance);
-		psOut.fragGradLuminanceDifference.g = (currentLuminance - prevLuminance);
-		psOut.fragGradLuminanceDifference.b = 1.0;
-		psOut.fragGradLuminanceDifference.a = 0.0;
+		psOut.fragGradientLuminance.r = max(currentLuminance, prevLuminance);
+		psOut.fragGradientLuminance.g = (currentLuminance - prevLuminance);
+		psOut.fragGradientLuminance.b = 1.0;
+		psOut.fragGradientLuminance.a = 0.0;
 	}
 	else {
-		psOut.fragGradLuminanceDifference.rgba = float4(0);
+		psOut.fragGradientLuminance.rgba = float4(0);
 	}
     
 	float2 moments = float2(currentLuminance, currentLuminance * currentLuminance);
@@ -100,13 +96,12 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 			    int2 indexPos = posGrad * gGradientDownsample + int2(xx, yy);
 			    if(!all(currentPos == indexPos)) {
 				    float3 indexColor       = gColorTexture[indexPos].rgb;
-                    float3 indexAlbedo      = gAlbedoTexture[indexPos].rgb;
-                    float3 indexSpecularAlbedo      = gSpecularAlbedo[indexPos].rgb;
                     float3 indexEmission    = gEmissionTexture[indexPos].rgb;
+                    float3 indexAlbedo      = gAlbedoTexture[indexPos].rgb;
 
 				    uint indexMeshID = getMeshInstanceID(HitInfo(gVisibilityBuffer[indexPos]));
 
-                    float3 indexIllumination = getIllumination(indexColor, indexAlbedo, indexSpecularAlbedo, indexEmission);
+                    float3 indexIllumination = getIllumination(indexColor, indexEmission, indexAlbedo);
 				    float indexLuminance = luminance(indexIllumination);
     
 				    float indexWeight = indexMeshID == meshID ? 1.0 : 0.0;
@@ -124,8 +119,6 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	psOut.fragGradientVariance.r  = moments[0];
 	psOut.fragGradientVariance.g  = variance;
 	psOut.fragGradientVariance.ba = currentDepth;
-#if IS_DEBUG_PASS
-    //gColorTest[currentPos] = float4(0.0, abs(psOut.fragGradLuminanceDifference.g) / psOut.fragGradLuminanceDifference.r, 0.0, 1.0);
-#endif
+    //gColorTest[currentPos] = float4(abs(psOut.fragGradientLuminance.g), 0.0, 0.0, 1.0);
 	return psOut;
 }

@@ -128,7 +128,7 @@ struct PathGenerator
                 if (hitSurface)
                 {
                     let lod = ExplicitLodTextureSampler(0.f);
-                    ShadingData sd = loadShadingData(hit, cameraRay.origin, cameraRay.dir, lod);
+                    ShadingData sd = loadShadingData(hit, cameraRay.origin, cameraRay.dir);
 
                     // Create material instance and query its properties.
                     let hints = getMaterialInstanceHints(hit, true /* primary hit */);
@@ -143,7 +143,7 @@ struct PathGenerator
                     {
                         // RTXDI uses a simple material model with only diffuse and specular reflection lobes.
                         // We query the BSDF for the diffuse albedo and specular reflectance.
-                        gRTXDI.setSurfaceData(pixel, sd.computeNewRayOrigin(), bsdfProperties.guideNormal, bsdfProperties.diffuseReflectionAlbedo, bsdfProperties.specularReflectance, bsdfProperties.roughness);
+                        gRTXDI.setSurfaceData(pixel, sd.computeRayOrigin(), bsdfProperties.guideNormal, bsdfProperties.diffuseReflectionAlbedo, bsdfProperties.specularReflectance, bsdfProperties.roughness);
                     }
                 }
                 if (!validSurface) gRTXDI.setInvalidSurfaceData(pixel);

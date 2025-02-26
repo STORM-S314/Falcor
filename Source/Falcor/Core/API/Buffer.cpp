@@ -118,7 +118,7 @@ Buffer::Buffer(
 
     // Check that buffer size is within 4GB limit. Larger buffers are currently not well supported in D3D12.
     // TODO: Revisit this check in the future.
-    FALCOR_CHECK(size <= (1ull << 32), "Creating GPU buffer of size {} bytes. Buffers above 4GB are not currently well supported.", size);
+    FALCOR_CHECK(size <= (1ull << 34), "Creating GPU buffer of size {} bytes. Buffers above 16GB are not currently well supported.", size);
 
     if (mMemoryType != MemoryType::DeviceLocal && is_set(mBindFlags, ResourceBindFlags::Shared))
     {

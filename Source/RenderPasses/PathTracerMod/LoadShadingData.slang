@@ -130,11 +130,11 @@ uint getMaterialInstanceHints(const HitInfo hit, const bool isPrimary)
     \param[in] lod Method for computing texture level-of-detail
     \return ShadingData struct.
 */
-ShadingData loadShadingData(const HitInfo hit, const float3 rayOrigin, const float3 rayDir, const ITextureSampler lod)
+ShadingData loadShadingData(const HitInfo hit, const float3 rayOrigin, const float3 rayDir)
 {
     uint materialID = {};
 
     VertexData v = loadVertexData(hit, rayOrigin, rayDir, materialID);
-    ShadingData sd = gScene.materials.prepareShadingData(v, materialID, -rayDir, lod);
+    ShadingData sd = gScene.materials.prepareShadingData(v, materialID, -rayDir);
     return sd;
 }

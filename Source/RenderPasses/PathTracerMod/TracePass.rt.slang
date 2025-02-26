@@ -72,7 +72,7 @@ struct PathPayload
         p.packed[4].xyz = asuint(path.L);
         p.packed[4].w = asuint(path.pdf);
 
-        p.hit = path.hit.getData();
+        p.hit = path.hit.pack();
         p.guideData = path.guideData;
         p.interiorList = path.interiorList;
         p.sg = path.sg;
@@ -109,7 +109,7 @@ struct PathPayload
     }
 };
 
-struct VisibilityQuery : PathTracer::IVisibilityQuery
+struct VisibilityQuery : IVisibilityQuery
 {
     bool traceVisibilityRay(const Ray ray)
     {

@@ -49,14 +49,14 @@ extension PathTracer
         // - Terminate
 
         const bool isPrimaryHit = path.getVertexIndex() == 1;
-        const bool isTriangleHit = path.hit.getType() == HitType::Triangle;
         const uint2 pixel = path.getPixel();
         const float3 viewDir = -path.dir;
 
-        let lod = createTextureSampler(path, isPrimaryHit, isTriangleHit);
+        
+        let lod = createTextureSampler(path, isPrimaryHit);
 
         // Load shading data. This is a long latency operation.
-        ShadingData sd = loadShadingData(path.hit, path.origin, path.dir, lod);
+        ShadingData sd = loadShadingData(path.hit, path.origin, path.dir);
 
         // Reject false hits in nested dielectrics.
         if (!handleNestedDielectrics(sd, path)) return;
@@ -129,7 +129,7 @@ extension PathTracer
         }
 
         // Compute origin for rays traced from this path vertex.
-        path.origin = sd.computeNewRayOrigin();
+        path.origin = sd.computeRayOrigin();
 
         // Hijack pdf that we don't need.
         float primaryHitDist = path.pdf;
@@ -186,14 +186,13 @@ extension PathTracer
         // - Sample scatter ray or terminate
 
         const bool isPrimaryHit = path.getVertexIndex() == 1;
-        const bool isTriangleHit = path.hit.getType() == HitType::Triangle;
         const uint2 pixel = path.getPixel();
         const float3 viewDir = -path.dir;
 
-        let lod = createTextureSampler(path, isPrimaryHit, isTriangleHit);
+        let lod = createTextureSampler(path, isPrimaryHit);
 
         // Load shading data. This is a long latency operation.
-        ShadingData sd = loadShadingData(path.hit, path.origin, path.dir, lod);
+        ShadingData sd = loadShadingData(path.hit, path.origin, path.dir);
 
         // Reject false hits in nested dielectrics.
         if (!handleNestedDielectrics(sd, path)) return;
@@ -252,7 +251,7 @@ extension PathTracer
         }
 
         // Compute origin for rays traced from this path vertex.
-        path.origin = sd.computeNewRayOrigin();
+        path.origin = sd.computeRayOrigin();
 
         // Set the active lobes only to delta transmission.
         sd.mtl.setActiveLobes((uint)LobeType::DeltaTransmission);
