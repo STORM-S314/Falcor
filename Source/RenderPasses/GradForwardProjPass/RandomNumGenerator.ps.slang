@@ -25,19 +25,16 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
-import SVGFCommon;
+import Utils.Math.HashUtils;
+import Utils.Math.BitTricks;
+#include "GradForwardProjCommon.slang"
 
-cbuffer PerImageCB
-{
-    Texture2D   gAlbedo;
-    Texture2D   gSpecular;
-    Texture2D   gEmission;
-    Texture2D   gIllumination;
+cbuffer PerImageCB {
+	uint gSeed;
 };
 
-float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
+uint main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
-    const int2 ipos = int2(vsOut.posH.xy);
-
-    return float4((gAlbedo[ipos].rgb + gSpecular[ipos].rgb + gEmission[ipos].rgb) * gIllumination[ipos].rgb, 1.0);
+    int2 ipos = int2(vsOut.posH.xy);
+    return blockCipherTEA(interleave_32bit(gSeed * ipos.x), gSeed * ipos.y).x;
 }

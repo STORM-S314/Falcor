@@ -730,6 +730,19 @@ void RenderPassUI::addUIPin(
 
 void RenderPassUI::renderPinUI(const std::string& passName, RenderGraphUI* pGraphUI, uint32_t index, bool input)
 {
+    if (input && index >= mInputPins.size())
+    {
+        logError("Is input : {} pins Greater than vec size {}", input, mInputPins.size());
+        return;
+        throw std::exception("Input pins Greater than vec size");
+    }
+    else if (!input && index >= mOutputPins.size())
+    {
+        logError("Is input : {} pins Greater than vec size {}", input, mInputPins.size());
+        return;
+        throw std::exception("Output pins Greater than vec size");
+    }
+
     RenderPassUI::PinUI& pinUI = input ? mInputPins[index] : mOutputPins[index];
 
     size_t fieldIndex = -1;

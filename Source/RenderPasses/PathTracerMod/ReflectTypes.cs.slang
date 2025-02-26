@@ -1,5 +1,5 @@
 /***************************************************************************
- # Copyright (c) 2015-23, NVIDIA CORPORATION. All rights reserved.
+ # Copyright (c) 2015-22, NVIDIA CORPORATION. All rights reserved.
  #
  # Redistribution and use in source and binary forms, with or without
  # modification, are permitted provided that the following conditions
@@ -25,19 +25,26 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
-import SVGFCommon;
 
-cbuffer PerImageCB
-{
-    Texture2D   gAlbedo;
-    Texture2D   gSpecular;
-    Texture2D   gEmission;
-    Texture2D   gIllumination;
-};
+/** Dummy compute program for reflection of the structured buffer types.
 
-float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
-{
-    const int2 ipos = int2(vsOut.posH.xy);
+     Falcor requires reflection data to be able to create a structured buffer,
+     but the programs are not yet ready to be used when we create the buffers.
+     Therefore we create this dummy program to make it easier.
+ */
+import RenderPasses.Shared.Denoising.NRDData;
+import PathTracer;
+import ColorType;
+import GuideData;
 
-    return float4((gAlbedo[ipos].rgb + gSpecular[ipos].rgb + gEmission[ipos].rgb) * gIllumination[ipos].rgb, 1.0);
-}
+ParameterBlock<PathTracer> pathTracer;
+
+StructuredBuffer<ColorType> sampleColor;
+StructuredBuffer<GuideData> sampleGuideData;
+StructuredBuffer<NRDRadiance> sampleNRDRadiance;
+StructuredBuffer<float> sampleNRDHitDist;
+StructuredBuffer<float4> sampleNRDPrimaryHitNeeOnDelta;
+StructuredBuffer<float4> sampleNRDEmission;
+StructuredBuffer<float4> sampleNRDReflectance;
+
+void main() {}

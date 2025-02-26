@@ -1,5 +1,5 @@
 /***************************************************************************
- # Copyright (c) 2015-23, NVIDIA CORPORATION. All rights reserved.
+ # Copyright (c) 2015-21, NVIDIA CORPORATION. All rights reserved.
  #
  # Redistribution and use in source and binary forms, with or without
  # modification, are permitted provided that the following conditions
@@ -25,19 +25,24 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
-import SVGFCommon;
 
-cbuffer PerImageCB
+float luminance(in float3 color)
 {
-    Texture2D   gAlbedo;
-    Texture2D   gSpecular;
-    Texture2D   gEmission;
-    Texture2D   gIllumination;
-};
+	return dot(color, float3(0.299, 0.587, 0.114));
+}
 
-float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
+float3 rgb_to_yuv(float3 rgb)
 {
-    const int2 ipos = int2(vsOut.posH.xy);
+	return mul(float3x3(
+		0.299, -0.14713,  0.615,
+		0.587, -0.28886, -0.51499,
+		0.114,  0.436,   -0.10001), rgb);
+}
 
-    return float4((gAlbedo[ipos].rgb + gSpecular[ipos].rgb + gEmission[ipos].rgb) * gIllumination[ipos].rgb, 1.0);
+float3 yuv_to_rgb(float3 yuv)
+{
+	return mul(float3x3(
+		1.0,      1.0,     1.0,
+		0.0,     -0.39465, 2.03211,
+		1.13983, -0.58060, 0.0), yuv);
 }

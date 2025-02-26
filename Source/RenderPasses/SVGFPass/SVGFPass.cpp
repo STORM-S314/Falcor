@@ -44,25 +44,28 @@ const char kAtrousShader[] = "RenderPasses/SVGFPass/SVGFAtrous.ps.slang";
 const char kFilterMomentShader[] = "RenderPasses/SVGFPass/SVGFFilterMoments.ps.slang";
 const char kFinalModulateShader[] = "RenderPasses/SVGFPass/SVGFFinalModulate.ps.slang";
 
-// Names of valid entries in the parameter dictionary.
-const char kEnabled[] = "Enabled";
-const char kIterations[] = "Iterations";
-const char kFeedbackTap[] = "FeedbackTap";
-const char kVarianceEpsilon[] = "VarianceEpsilon";
-const char kPhiColor[] = "PhiColor";
-const char kPhiNormal[] = "PhiNormal";
-const char kAlpha[] = "Alpha";
-const char kMomentsAlpha[] = "MomentsAlpha";
-
-// Input buffer names
-const char kInputBufferAlbedo[] = "Albedo";
-const char kInputBufferColor[] = "Color";
-const char kInputBufferEmission[] = "Emission";
-const char kInputBufferWorldPosition[] = "WorldPosition";
-const char kInputBufferWorldNormal[] = "WorldNormal";
-const char kInputBufferPosNormalFwidth[] = "PositionNormalFwidth";
-const char kInputBufferLinearZ[] = "LinearZ";
-const char kInputBufferMotionVector[] = "MotionVec";
+    // Names of valid entries in the parameter dictionary.
+    const char kEnabled[] = "Enabled";
+    const char kIterations[] = "Iterations";
+    const char kFeedbackTap[] = "FeedbackTap";
+    const char kVarianceEpsilon[] = "VarianceEpsilon";
+    const char kPhiColor[] = "PhiColor";
+    const char kPhiNormal[] = "PhiNormal";
+    const char kAlpha[] = "Alpha";
+    const char kMomentsAlpha[] = "MomentsAlpha";
+    const char kIsDirectIllumination[] = "kIsDirectIllumination";
+    
+    // Input buffer names
+    const char kInputBufferAlbedo[] = "Albedo";
+    const char kInputBufferIndirectAlbedo[] = "IndirectAlbedo";
+    const char kInputBufferColor[] = "Color";
+    const char kInputBufferEmission[] = "Emission";
+    const char kInputBufferSpecular[] = "Specular";
+    const char kInputBufferWorldPosition[] = "WorldPosition";
+    const char kInputBufferWorldNormal[] = "WorldNormal";
+    const char kInputBufferPosNormalFwidth[] = "PositionNormalFwidth";
+    const char kInputBufferLinearZ[] = "LinearZ";
+    const char kInputBufferMotionVector[] = "MotionVec";
 
 // Internal buffer names
 const char kInternalBufferPreviousLinearZAndNormal[] = "Previous Linear Z and Packed Normal";
@@ -82,26 +85,20 @@ SVGFPass::SVGFPass(ref<Device> pDevice, const Properties& props) : RenderPass(pD
 {
     for (const auto& [key, value] : props)
     {
-        if (key == kEnabled)
-            mFilterEnabled = value;
-        else if (key == kIterations)
-            mFilterIterations = value;
-        else if (key == kFeedbackTap)
-            mFeedbackTap = value;
-        else if (key == kVarianceEpsilon)
-            mVarainceEpsilon = value;
-        else if (key == kPhiColor)
-            mPhiColor = value;
-        else if (key == kPhiNormal)
-            mPhiNormal = value;
-        else if (key == kAlpha)
-            mAlpha = value;
-        else if (key == kMomentsAlpha)
-            mMomentsAlpha = value;
-        else
-            logWarning("Unknown property '{}' in SVGFPass properties.", key);
+        if (key == kEnabled) mFilterEnabled = value;
+        else if (key == kIterations) mFilterIterations = value;
+        else if (key == kFeedbackTap) mFeedbackTap = value;
+        else if (key == kVarianceEpsilon) mVarainceEpsilon = value;
+        else if (key == kPhiColor) mPhiColor = value;
+        else if (key == kPhiNormal) mPhiNormal = value;
+        else if (key == kAlpha) mAlpha = value;
+        else if (key == kMomentsAlpha) mMomentsAlpha = value;
+        else if (key == kIsDirectIllumination) mIsDirectIllumination = value;
+        else logWarning("Unknown property '{}' in SVGFPass properties.", key);
     }
 
+    ///Each full screen pass conducts an operation for the main equation calculation
+    ///And is called from the SVGF::execute
     mpPackLinearZAndNormal = FullScreenPass::create(mpDevice, kPackLinearZAndNormalShader);
     mpReprojection = FullScreenPass::create(mpDevice, kReprojectShader);
     mpAtrous = FullScreenPass::create(mpDevice, kAtrousShader);
@@ -121,6 +118,7 @@ Properties SVGFPass::getProperties() const
     props[kPhiNormal] = mPhiNormal;
     props[kAlpha] = mAlpha;
     props[kMomentsAlpha] = mMomentsAlpha;
+    props[kIsDirectIllumination] = mIsDirectIllumination;
     return props;
 }
 
@@ -140,15 +138,19 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
 {
     RenderPassReflection reflector;
 
+    ///These attributes are received from the GBufferRT pass (currently using GBufferRT pass in the RenderGraphEditorUI)
     reflector.addInput(kInputBufferAlbedo, "Albedo");
+    reflector.addInput(kInputBufferIndirectAlbedo, "IndirectAlbedo");
     reflector.addInput(kInputBufferColor, "Color");
     reflector.addInput(kInputBufferEmission, "Emission");
+    reflector.addInput(kInputBufferSpecular, "Specular");
     reflector.addInput(kInputBufferWorldPosition, "World Position");
     reflector.addInput(kInputBufferWorldNormal, "World Normal");
     reflector.addInput(kInputBufferPosNormalFwidth, "PositionNormalFwidth");
     reflector.addInput(kInputBufferLinearZ, "LinearZ");
     reflector.addInput(kInputBufferMotionVector, "Motion vectors");
 
+    ///creates textures used to store the previous frame's information, used only internally and not exposed to the graph editor
     reflector.addInternal(kInternalBufferPreviousLinearZAndNormal, "Previous Linear Z and Packed Normal")
         .format(ResourceFormat::RGBA32Float)
         .bindFlags(ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource);
@@ -159,6 +161,7 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
         .format(ResourceFormat::RG32Float)
         .bindFlags(ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource);
 
+    ///Output image i.e. reconstructed image, (marked as output in the GraphEditor)
     reflector.addOutput(kOutputBufferFilteredImage, "Filtered image").format(ResourceFormat::RGBA16Float);
 
     return reflector;
@@ -166,21 +169,26 @@ RenderPassReflection SVGFPass::reflect(const CompileData& compileData)
 
 void SVGFPass::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
+    ///Creates all FBO's
     allocateFbos(compileData.defaultTexDims, pRenderContext);
     mBuffersNeedClear = true;
 }
 
 void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
+    ///Texture information received from the GBufferRT
     ref<Texture> pAlbedoTexture = renderData.getTexture(kInputBufferAlbedo);
+    ref<Texture> pIndirectAlbedoTexture = renderData.getTexture(kInputBufferIndirectAlbedo);
     ref<Texture> pColorTexture = renderData.getTexture(kInputBufferColor);
     ref<Texture> pEmissionTexture = renderData.getTexture(kInputBufferEmission);
+    ref<Texture> pSpecularTexture = renderData.getTexture(kInputBufferSpecular);
     ref<Texture> pWorldPositionTexture = renderData.getTexture(kInputBufferWorldPosition);
     ref<Texture> pWorldNormalTexture = renderData.getTexture(kInputBufferWorldNormal);
     ref<Texture> pPosNormalFwidthTexture = renderData.getTexture(kInputBufferPosNormalFwidth);
     ref<Texture> pLinearZTexture = renderData.getTexture(kInputBufferLinearZ);
     ref<Texture> pMotionVectorTexture = renderData.getTexture(kInputBufferMotionVector);
 
+    ///Output texture
     ref<Texture> pOutputTexture = renderData.getTexture(kOutputBufferFilteredImage);
 
     FALCOR_ASSERT(
@@ -188,12 +196,15 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
         mpFilteredIlluminationFbo->getHeight() == pAlbedoTexture->getHeight()
     );
 
+    ///Clears all FBO's and textures that are storing previous frame's information
+    ///The FBO's are used for the current frame calculation and the textures store the previous frame's information
     if (mBuffersNeedClear)
     {
         clearBuffers(pRenderContext, renderData);
         mBuffersNeedClear = false;
     }
 
+    //IF the filter is enabled, can be toggled even through Mogwai
     if (mFilterEnabled)
     {
         // Grab linear z and its derivative and also pack the normal into
@@ -202,22 +213,19 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
 
         // Demodulate input color & albedo to get illumination and lerp in
         // reprojected filtered illumination from the previous frame.
-        // Stores the result as well as initial moments and an updated
+        // Stores the variance of each pixel as well as the moments and an updated
         // per-pixel history length in mpCurReprojFbo.
-        ref<Texture> pPrevLinearZAndNormalTexture = renderData.getTexture(kInternalBufferPreviousLinearZAndNormal);
+        ref<Texture> pPrevLinearZAndNormalTexture =
+            renderData.getTexture(kInternalBufferPreviousLinearZAndNormal);
         computeReprojection(
-            pRenderContext,
-            pAlbedoTexture,
-            pColorTexture,
-            pEmissionTexture,
-            pMotionVectorTexture,
-            pPosNormalFwidthTexture,
-            pPrevLinearZAndNormalTexture
-        );
+            pRenderContext, pAlbedoTexture, pIndirectAlbedoTexture, pColorTexture, pSpecularTexture, pEmissionTexture,
+                            pMotionVectorTexture, pPosNormalFwidthTexture,
+                            pPrevLinearZAndNormalTexture);
 
         // Do a first cross-bilateral filtering of the illumination and
         // estimate its variance, storing the result into a float4 in
         // mpPingPongFbo[0].  Takes mpCurReprojFbo as input.
+        //Calculates the moments / variance spatially if the history frames < 4 by doing a 3 X 3 filter over the current pixel
         computeFilteredMoments(pRenderContext);
 
         // Filter illumination from mpCurReprojFbo[0], storing the result
@@ -226,15 +234,16 @@ void SVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderDa
         // next time into mpFilteredPastFbo.
         computeAtrousDecomposition(pRenderContext, pAlbedoTexture);
 
-        // Compute albedo * filtered illumination and add emission back in.
-        auto perImageCB = mpFinalModulate->getRootVar()["PerImageCB"];
-        perImageCB["gAlbedo"] = pAlbedoTexture;
-        perImageCB["gEmission"] = pEmissionTexture;
-        perImageCB["gIllumination"] = mpPingPongFbo[0]->getColorTexture(0);
-        mpFinalModulate->execute(pRenderContext, mpFinalFbo);
-
+        //// Compute albedo * filtered illumination and add emission back in.
+        //auto perImageCB = mpFinalModulate->getRootVar()["PerImageCB"];
+        //perImageCB["gAlbedo"] = pAlbedoTexture;
+        //perImageCB["gEmission"] = pEmissionTexture;
+        //perImageCB["gIllumination"] = mpPingPongFbo[0]->getColorTexture(0);
+        //perImageCB["gSpecular"] = pSpecularTexture;
+        //mpFinalModulate->execute(pRenderContext, mpFinalFbo);
+        
         // Blit into the output texture.
-        pRenderContext->blit(mpFinalFbo->getColorTexture(0)->getSRV(), pOutputTexture->getRTV());
+        pRenderContext->blit(mpPingPongFbo[0]->getColorTexture(0)->getSRV(), pOutputTexture->getRTV());
 
         // Swap resources so we're ready for next frame.
         std::swap(mpCurReprojFbo, mpPrevReprojFbo);
@@ -313,7 +322,9 @@ void SVGFPass::computeLinearZAndNormal(RenderContext* pRenderContext, ref<Textur
 void SVGFPass::computeReprojection(
     RenderContext* pRenderContext,
     ref<Texture> pAlbedoTexture,
+    ref<Texture> pIndirectAlbedoTexture,
     ref<Texture> pColorTexture,
+    ref<Texture> pSpecularTexture,
     ref<Texture> pEmissionTexture,
     ref<Texture> pMotionVectorTexture,
     ref<Texture> pPositionNormalFwidthTexture,
@@ -323,17 +334,20 @@ void SVGFPass::computeReprojection(
     auto perImageCB = mpReprojection->getRootVar()["PerImageCB"];
 
     // Setup textures for our reprojection shader pass
-    perImageCB["gMotion"] = pMotionVectorTexture;
-    perImageCB["gColor"] = pColorTexture;
-    perImageCB["gEmission"] = pEmissionTexture;
-    perImageCB["gAlbedo"] = pAlbedoTexture;
+    perImageCB["gMotion"]       = pMotionVectorTexture;
+    perImageCB["gColor"]        = pColorTexture;
+    perImageCB["gEmission"]     = pEmissionTexture;
+    perImageCB["gAlbedo"]       = pAlbedoTexture;
+    perImageCB["gIndirectAlbedo"] = pIndirectAlbedoTexture;
+    perImageCB["gSpecular"]     = pSpecularTexture;
     perImageCB["gPositionNormalFwidth"] = pPositionNormalFwidthTexture;
     perImageCB["gPrevIllum"] = mpFilteredPastFbo->getColorTexture(0);
     perImageCB["gPrevMoments"] = mpPrevReprojFbo->getColorTexture(1);
     perImageCB["gLinearZAndNormal"] = mpLinearZAndNormalFbo->getColorTexture(0);
     perImageCB["gPrevLinearZAndNormal"] = pPrevLinearZTexture;
     perImageCB["gPrevHistoryLength"] = mpPrevReprojFbo->getColorTexture(2);
-
+    perImageCB["gIsDirectIllumination"] = mIsDirectIllumination;
+    
     // Setup variables for our reprojection pass
     perImageCB["gAlpha"] = mAlpha;
     perImageCB["gMomentsAlpha"] = mMomentsAlpha;
@@ -345,10 +359,10 @@ void SVGFPass::computeFilteredMoments(RenderContext* pRenderContext)
 {
     auto perImageCB = mpFilterMoments->getRootVar()["PerImageCB"];
 
-    perImageCB["gIllumination"] = mpCurReprojFbo->getColorTexture(0);
-    perImageCB["gHistoryLength"] = mpCurReprojFbo->getColorTexture(2);
+    perImageCB["gIllumination"]     = mpCurReprojFbo->getColorTexture(0);
+    perImageCB["gHistoryLength"]    = mpCurReprojFbo->getColorTexture(2);
     perImageCB["gLinearZAndNormal"] = mpLinearZAndNormalFbo->getColorTexture(0);
-    perImageCB["gMoments"] = mpCurReprojFbo->getColorTexture(1);
+    perImageCB["gMoments"]          = mpCurReprojFbo->getColorTexture(1);
 
     perImageCB["gPhiColor"] = mPhiColor;
     perImageCB["gPhiNormal"] = mPhiNormal;
@@ -395,6 +409,7 @@ void SVGFPass::renderUI(Gui::Widgets& widget)
 {
     int dirty = 0;
     dirty |= (int)widget.checkbox("Enable SVGF", mFilterEnabled);
+    dirty |= (int)widget.checkbox("Is Direct Illumination", mIsDirectIllumination);
 
     widget.text("");
     widget.text("Number of filter iterations.  Which");

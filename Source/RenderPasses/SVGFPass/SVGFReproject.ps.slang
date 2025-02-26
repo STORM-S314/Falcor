@@ -38,24 +38,35 @@ bool isNaN(float f)
 
 cbuffer PerImageCB
 {
-    Texture2D gMotion;
-    Texture2D gPositionNormalFwidth;
-    Texture2D gColor;
-    Texture2D gAlbedo;
-    Texture2D gEmission;
-    Texture2D gPrevIllum;
-    Texture2D gPrevMoments;
-    Texture2D gLinearZAndNormal;
-    Texture2D gPrevLinearZAndNormal;
-    Texture2D gPrevHistoryLength;
-
-    float gAlpha;
-    float gMomentsAlpha;
+    Texture2D   gMotion;
+    Texture2D   gPositionNormalFwidth;
+    Texture2D   gColor;
+    Texture2D   gAlbedo;
+    Texture2D   gIndirectAlbedo;
+    Texture2D   gEmission;
+    Texture2D   gSpecular;
+    Texture2D   gPrevIllum;
+    Texture2D   gPrevMoments;
+    Texture2D   gLinearZAndNormal;
+    Texture2D   gPrevLinearZAndNormal;
+    Texture2D   gPrevHistoryLength;
+    bool    gIsDirectIllumination;
+    float       gAlpha;
+    float       gMomentsAlpha;
 };
 
-float3 demodulate(float3 c, float3 albedo)
+float3 demodulate(float3 c, float3 albedo, float3 specular, float3 emissive, float3 indirectAlbedo)
 {
-    return c / max(albedo, float3(0.001, 0.001, 0.001));
+    float3 directIllumination = (c) / (max(float3(0.001, 0.001, 0.001), albedo + specular + emissive + indirectAlbedo));
+
+    if(gIsDirectIllumination)
+    {
+        return directIllumination;
+    }
+    else
+    {
+        return  (c / (max(float3(0.001, 0.001, 0.001), albedo + specular + emissive))) - directIllumination;
+    }
 }
 
 bool isReprjValid(int2 coord, float Z, float Zprev, float fwidthZ, float3 normal, float3 normalPrev, float fwidthNormal)
@@ -111,6 +122,8 @@ bool loadPrevData(float2 posH, out float4 prevIllum, out float2 prevMoments, out
         valid = valid || v[sampleIdx];
     }
 
+    ///If valid then do bilinear interpolation of the 4 corner points of the sub pixel value x,y
+    /// where x and y and the fraction values of the posPrev. i.e. 123.5, 321.6 then x,y = 0.5, 0.6
     if (valid)
     {
         float sumw = 0;
@@ -202,7 +215,8 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float4 posH = vsOut.posH;
     const int2 ipos = posH.xy;
 
-    float3 illumination = demodulate(gColor[ipos].rgb - gEmission[ipos].rgb, gAlbedo[ipos].rgb);
+    ///Only the illumination at that fragment. Done by removing the emission at the fragment and then dividing by the Albedo-texture/color set
+    float3 illumination = demodulate(gColor[ipos].rgb, gAlbedo[ipos].rgb, gSpecular[ipos].rgb, gEmission[ipos].rgb, gIndirectAlbedo[ipos].rgb);
     // Workaround path tracer bugs. TODO: remove this when we can.
     if (isNaN(illumination.x) || isNaN(illumination.y) || isNaN(illumination.z))
     {
@@ -222,6 +236,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float alphaMoments = success ? max(gMomentsAlpha, 1.0 / historyLength) : 1.0;
 
     // compute first two moments of luminance
+    // first moment is the mean (moments.r) and 2nd is the SD (moments.g)
     float2 moments;
     moments.r = luminance(illumination);
     moments.g = moments.r * moments.r;

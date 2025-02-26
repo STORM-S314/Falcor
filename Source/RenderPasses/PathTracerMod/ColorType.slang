@@ -1,5 +1,5 @@
 /***************************************************************************
- # Copyright (c) 2015-23, NVIDIA CORPORATION. All rights reserved.
+ # Copyright (c) 2015-21, NVIDIA CORPORATION. All rights reserved.
  #
  # Redistribution and use in source and binary forms, with or without
  # modification, are permitted provided that the following conditions
@@ -25,19 +25,38 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
-import SVGFCommon;
+import Params;
+import Utils.Math.PackedFormats;
 
-cbuffer PerImageCB
+struct ColorType
 {
-    Texture2D   gAlbedo;
-    Texture2D   gSpecular;
-    Texture2D   gEmission;
-    Texture2D   gIllumination;
+#if COLOR_FORMAT == 0 /* ColorFormat::RGBA32F */
+    float4 data;
+
+    float3 get()
+    {
+        return data.rgb;
+    }
+
+    [mutating] void set(float3 color)
+    {
+        data = float4(color, 1.f);
+    }
+
+#elif COLOR_FORMAT == 1 /* ColorFormat::LogLuvHDR */
+    uint data;
+
+    float3 get()
+    {
+        return decodeLogLuvHDR(data);
+    }
+
+    [mutating] void set(float3 color)
+    {
+        data = encodeLogLuvHDR(color);
+    }
+
+#else
+#error Invalid COLOR_FORMAT
+#endif
 };
-
-float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
-{
-    const int2 ipos = int2(vsOut.posH.xy);
-
-    return float4((gAlbedo[ipos].rgb + gSpecular[ipos].rgb + gEmission[ipos].rgb) * gIllumination[ipos].rgb, 1.0);
-}
