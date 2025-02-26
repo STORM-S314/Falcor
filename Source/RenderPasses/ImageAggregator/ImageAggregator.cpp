@@ -91,8 +91,14 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
         formatAggregatedImageResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
 
         mpImageAggregatorFullScreen = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAggregatedImageResult);
-        mpImageAccumulationBuffer[0] = Buffer::create(mpDevice, screenWidth * screenHeight * sizeof(float) * 3);
-        mpImageAccumulationBuffer[1] = Buffer::create(mpDevice, screenWidth * screenHeight * sizeof(float) * 3);
+        
+        mpImageAccumulationBuffer[0] = mpDevice->createBuffer(
+            screenWidth * screenHeight * sizeof(float) * 3,
+            ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource
+        );
+        mpImageAccumulationBuffer[1] = mpDevice->createBuffer(
+            screenWidth * screenHeight * sizeof(float) * 3, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource
+        );
 
         DefineList newDefines;
         newDefines.add("AGGREGATION_IMAGE_COUNT", std::to_string(mImageAggregationCount));
