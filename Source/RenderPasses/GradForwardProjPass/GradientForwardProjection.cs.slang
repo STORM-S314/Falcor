@@ -42,7 +42,6 @@ cbuffer PerImageCB {
     RWTexture2D<uint>  	        gGradientSamplesTexture;
     Texture2D 	                gPosTexture;
     Texture2D 	                gPrevWPosTexture;
-    Texture2D 	                gPositionNormalFwidth;
     Texture2D<float4>           gPrevWViewBuffer;
     RWTexture2D<float4>         gWViewBuffer;
     float4x4                    gViewProjMat;
@@ -106,7 +105,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     posWCurrent.y = 1.0 - posWCurrent.y;
     const float2 imageDim = float2(gTextureWidth, gTextureHeight);
 
-    int2 idx_curr = int2((posWCurrent.xy * imageDim.xy));
+    int2 idx_curr = int2(floor(posWCurrent.xy * imageDim.xy));
 
     //check whether reprojected pixel is inside of the screen
     if (any(idx_curr < int2(0,0)) || any(idx_curr > (imageDim - int2(1,1)))){ return; }
@@ -120,8 +119,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     // check normals for compatibility
     float3 currentNormal = gWNormalTexture[idx_curr].xyz;
     float3 prevNormal = gPrevWNormalTexture[idx_prev].xyz;
-    float posNormalFWidth = gPositionNormalFwidth[idx_curr].y;
-    if (distance(currentNormal, prevNormal) / (posNormalFWidth + 1e-2) > 16.0) return;
+    if (dot(currentNormal, prevNormal) < 0.9) return;
 
     //Check if its the same mesh id
     HitInfo currentHitInfo      = HitInfo(gVisibilityBuffer[idx_curr]);
@@ -143,7 +141,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         gCurrentRandomNumberTexture[idx_curr]   =   gPrevRandomNumberTexture[idx_prev];
         gVisibilityBuffer[idx_curr]             =   gPrevVisibilityBuffer[idx_prev];
-        gWViewBuffer[idx_curr]                  =   gPrevWViewBuffer[idx_prev];
+        //gWViewBuffer[idx_curr]                  =   gPrevWViewBuffer[idx_prev];
         //gColorTestTexture[idx_curr] = float4(1.0, 0.0, 0.0, 1.0);
         //gColorTestTexture[idx_prev] = float4(0.0, 1.0, 0.0, 1.0);
     }

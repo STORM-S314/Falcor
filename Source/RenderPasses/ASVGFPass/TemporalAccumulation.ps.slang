@@ -25,7 +25,6 @@
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
  import Utils.Math.MathHelpers;
- import ColorSpace;
  #include "ASVGFCommon.slang"
  #include "ASVGFUtils.slang"
 
@@ -42,26 +41,29 @@ cbuffer PerImageCB
     Texture2D   gPrevNormalsTexture;
     Texture2D<PackedHitInfo>   gVisibilityBuffer;
     Texture2D<PackedHitInfo>   gPrevVisibilityBuffer;
-    Texture2D   gEmissionTexture;
-	Texture2D   gPrevEmissionTexture;
     Texture2D   gAlbedoTexture;
 	Texture2D   gPrevAlbedoTexture;
-    Texture2D   gPosNormalFWidth;
-    Texture2D   gGradientDifferenceTexture;
+    Texture2D   gEmissionTexture;
+    Texture2D   gSpecularAlbedo;
+    Texture2D   gPrevSpecularAlbedo;
+    Texture2D<float4>   gGradientDifferenceTexture;
     int         gGradientDownsample;
     float2      gScreenDimension;
     float2      gJitterOffset;
     float       gTemporalColorAlpha;
     float       gTemporalMomentsAlpha;
     int       gGradientFilterRadius;
+#if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
+#endif
 };
 
 struct PS_OUT
 {
-    float4  accumulated : SV_TARGET0;
-    float2  moments     : SV_TARGET1;
-    float   histLen     : SV_TARGET2;
+    float4  accumulated     :   SV_TARGET0;
+    float2  moments         :   SV_TARGET1;
+    float   histLen         :   SV_TARGET2;
+    float   gradDiffRatio   :   SV_TARGET3;
 }
 
 PS_OUT main(FullScreenPassVsOut vsOut) 
@@ -76,13 +78,12 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     float4  currentColor            = gColor[iPos].xyzw;
     float2  currentDepth            = gLinearZTexture[iPos].xy;
-    float3  currentIllumination     = getIllumination(currentColor.xyz, gEmissionTexture[iPos].xyz, gAlbedoTexture[iPos].xyz);
+    float3  currentIllumination     = getIllumination(currentColor.xyz, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb);
     float   currentLuminance        = luminance(currentIllumination.rgb);
     float2  currentMomemnts         = float2(currentLuminance, currentLuminance * currentLuminance);
     HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);
 	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
     float3  currentNormal           = gNormalsTexture[iPos].xyz;
-    float   currentPosNormalFWidth  = gPosNormalFWidth[iPos].y;
 
     float4 weightedColorPrev    = float4(0);
 	float2 weightedMomentsPrev  = float2(0);
@@ -107,7 +108,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             float2 prevDepth        = gPrevLinearZTexture[offsetLoc].xy;
             float3 prevNormals      = gPrevNormalsTexture[offsetLoc].xyz;
 
-            bool isAccept = isReprojectionValid(offsetLoc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz, currentPosNormalFWidth);
+            bool isAccept = isReprojectionValid(offsetLoc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz);
 
             isAccept = isAccept && isPixelWithinScreenDimensions(iPrevPos, gScreenDimension.xy);
 
@@ -126,32 +127,34 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         }
     }
 
-    if(weightedSum > 0.01) { /* found sufficiently reliable history information */
+    float antilagAlpha = 0.0;
 
-        float antilagAlpha = 0.0;
+	const int r = gGradientFilterRadius;
 
-	    const int r = gGradientFilterRadius;
-
-	    for(int yy = -r; yy <= r; yy++) {
-		    for(int xx = -r; xx <= r; xx++) {
-			    float4 gradientDifference = gGradientDifferenceTexture[(iPos / int2(gGradientDownsample, gGradientDownsample)) + int2(xx, yy)];
-			    float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 200.0);
+	for(int yy = -r; yy <= r; yy++) {
+		for(int xx = -r; xx <= r; xx++) {
+			float4 gradientDifference = gGradientDifferenceTexture[(iPos / int2(gGradientDownsample, gGradientDownsample)) + int2(xx, yy)];
+            if(gradientDifference.b > 0.0)
+            {
+			    float differenceProportion = clamp(abs(gradientDifference.r > 1e-4 ? abs(gradientDifference.g) / gradientDifference.r : 0.0), 0.0, 1.0);
 			    antilagAlpha = max(antilagAlpha, differenceProportion);
-		    }
-	    }
+            }
+		}
+	}
 
-        clamp(antilagAlpha, 0.0, 1.0);
-	    if(isNaN(antilagAlpha))
-        {
-		    antilagAlpha = 1.0;
-        }
+    clamp(antilagAlpha, 0.0, 1.0);
+	if(isnan(antilagAlpha))
+    {
+		antilagAlpha = 1.0;
+    }
 
+    if(weightedSum > 0.01) { /* found sufficiently reliable history information */
 
 		weightedColorPrev   /= weightedSum;
 		weightedMomentsPrev /= weightedSum;
 		histLen             /= weightedSum;
 
-        float alphaColor   = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
+        float alphaColor = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));    //histLen max used is 9 to 9.99
 	    float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));               //histLen max used is 1.66
 
         //Equation 15 as per the paper
@@ -162,15 +165,16 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         psOut.accumulated.a     =   min(64, histLen + 1.0);
 		psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
 		psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
-        
-        //gColorTest[iPos] = float4(0.0, antilagAlpha, 0.0 , 1.0);
+        psOut.gradDiffRatio.r   =   antilagAlpha;
+#if IS_DEBUG_PASS
+    //gColorTest[iPos] = float4(antilagAlpha, 0.0 , 0.0 , 1.0);
+#endif     
     }
     else {
 		psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;
 		psOut.histLen.r         =   1.0;
-        //gColorTest[iPos] = float4(1.0, 0.0, 0.0 , 1.0);
+        psOut.gradDiffRatio.r   =   antilagAlpha;
     }
-
     return psOut;
 }

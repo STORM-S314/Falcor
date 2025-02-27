@@ -75,19 +75,6 @@ private:
         ref<RtProgramVars> pVars;
 
         TracePass(ref<Device> pDevice, const std::string& name, const std::string& passDefine, const ref<Scene>& pScene, const DefineList& defines, const TypeConformanceList& globalTypeConformances);
-        static std::unique_ptr<TracePass> create(
-            ref<Device> pDevice,
-            const std::string& name,
-            const std::string& passDefine,
-            const ref<IScene>& pScene,
-            const DefineList& defines,
-            const TypeConformanceList& globalTypeConformances
-        )
-        {
-            if (auto scene = dynamic_ref_cast<Scene>(pScene))
-                return std::make_unique<TracePass>(std::move(pDevice), name, passDefine, std::move(scene), defines, globalTypeConformances);
-            return {};
-        }
         void prepareProgram(ref<Device> pDevice, const DefineList& defines);
     };
 
@@ -102,7 +89,7 @@ private:
     bool prepareLighting(RenderContext* pRenderContext);
     void prepareRTXDI(RenderContext* pRenderContext);
     void setNRDData(const ShaderVar& var, const RenderData& renderData) const;
-    void bindShaderData(const ShaderVar& var, const RenderData& renderData, bool useLightSampling = true) const;
+    void setShaderData(const ShaderVar& var, const RenderData& renderData, bool useLightSampling = true) const;
     bool renderRenderingUI(Gui::Widgets& widget);
     bool renderDebugUI(Gui::Widgets& widget);
     void renderStatsUI(Gui::Widgets& widget);

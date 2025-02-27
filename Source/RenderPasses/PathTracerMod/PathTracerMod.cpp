@@ -37,7 +37,7 @@ namespace
     const std::string kResolvePassFilename = "RenderPasses/PathTracerMod/ResolvePass.cs.slang";
     const std::string kReflectTypesFile = "RenderPasses/PathTracerMod/ReflectTypes.cs.slang";
 
-    const std::string kShaderModel = "6_5";
+    const ShaderModel kShaderModel = ShaderModel::SM6_5;
 
     // Render pass inputs and outputs.
     const std::string kInputVBuffer = "vbuffer";
@@ -52,7 +52,7 @@ namespace
         { kInputMotionVectors,  "gMotionVectors",   "Motion vector buffer (float format)", true /* optional */ },
         { kInputViewDir,        "gViewW",           "World-space view direction (xyz float format)", true /* optional */ },
         { kInputSampleCount,    "gSampleCount",     "Sample count buffer (integer format)", true /* optional */, ResourceFormat::R8Uint },
-        { kInputRandomNumbers,  "gRndNumbers",      "Random Numbers", true /* optional */, ResourceFormat::R32Uint}
+        { kInputRandomNumbers,  "gRndNumbers",      "Random Numbers", false, ResourceFormat::R32Uint}
     };
 
     const std::string kOutputColor = "color";
@@ -676,8 +676,7 @@ PathTracerMod::TracePass::TracePass(ref<Device> pDevice, const std::string& name
     ProgramDesc desc;
     desc.addShaderModules(pScene->getShaderModules());
     desc.addShaderLibrary(kTracePassFilename);
-    if (pDevice->getType() == Device::Type::D3D12 && useSER)
-        desc.addCompilerArguments({"-Xdxc", "-enable-lifetime-markers"});
+    desc.setShaderModel(kShaderModel);
     desc.setMaxPayloadSize(160); // This is conservative but the required minimum is 140 bytes.
     desc.setMaxAttributeSize(pScene->getRaytracingMaxAttributeSize());
     desc.setMaxTraceRecursionDepth(1);
@@ -747,18 +746,11 @@ void PathTracerMod::updatePrograms()
 
     if (mRecompile == false) return;
 
-    // If we get here, a change that require recompilation of shader programs has occurred.
-    // This may be due to change of scene defines, type conformances, shader modules, or other changes that require recompilation.
-    // When type conformances and/or shader modules change, the programs need to be recreated. We assume programs have been reset upon such
-    // changes. When only defines have changed, it is sufficient to update the existing programs and recreate the program vars.
-
     auto defines = mStaticParams.getDefines(*this);
-    TypeConformanceList globalTypeConformances;
-    mpScene->getTypeConformances(globalTypeConformances);
+    auto globalTypeConformances = mpScene->getMaterialSystem().getTypeConformances();
 
-    // Create trace pass.
-    if (!mpTracePass)
-        mpTracePass = TracePass::create(mpDevice, "tracePass", "", mpScene, defines, globalTypeConformances);
+    // Create trace passes lazily.
+    if (!mpTracePass) mpTracePass = std::make_unique<TracePass>(mpDevice, "tracePass", "", mpScene, defines, globalTypeConformances);
     if (mOutputNRDAdditionalData)
     {
         if (!mpTraceDeltaReflectionPass) mpTraceDeltaReflectionPass = std::make_unique<TracePass>(mpDevice, "traceDeltaReflectionPass", "DELTA_REFLECTION_PASS", mpScene, defines, globalTypeConformances);
@@ -773,8 +765,9 @@ void PathTracerMod::updatePrograms()
 
     // Create compute passes.
     ProgramDesc baseDesc;
-    mpScene->getShaderModules(baseDesc.shaderModules);
+    baseDesc.addShaderModules(mpScene->getShaderModules());
     baseDesc.addTypeConformances(globalTypeConformances);
+    baseDesc.setShaderModel(kShaderModel);
 
     if (!mpGeneratePaths)
     {
@@ -875,7 +868,7 @@ void PathTracerMod::preparePathTracer(const RenderData& renderData)
 
     // Bind resources.
     auto var = mpPathTracerBlock->getRootVar();
-    bindShaderData(var, renderData);
+    setShaderData(var, renderData);
 }
 
 void PathTracerMod::resetLighting()
@@ -945,10 +938,6 @@ bool PathTracerMod::prepareLighting(RenderContext* pRenderContext)
     }
 
     // Request the light collection if emissive lights are enabled.
-    if (mpScene->getRenderSettings().useEmissiveLights)
-    {
-        mpScene->getLightCollection(pRenderContext);
-    }
 
     if (mpScene->useEmissiveLights())
     {
@@ -1043,7 +1032,7 @@ void PathTracerMod::setNRDData(const ShaderVar& var, const RenderData& renderDat
     var["deltaTransmissionPosW"] = renderData.getTexture(kOutputNRDDeltaTransmissionPosW);
 }
 
-void PathTracerMod::bindShaderData(const ShaderVar& var, const RenderData& renderData, bool useLightSampling) const
+void PathTracerMod::setShaderData(const ShaderVar& var, const RenderData& renderData, bool useLightSampling) const
 {
     // Bind static resources that don't change per frame.
     if (mVarsChanged)
@@ -1071,8 +1060,6 @@ void PathTracerMod::bindShaderData(const ShaderVar& var, const RenderData& rende
         pSampleCount = renderData.getTexture(kInputSampleCount);
         if (!pSampleCount) throw RuntimeError("PathTracerMod: Missing sample count input texture");
     }
-
-    ref<Texture> pRandomNumbers = renderData.getTexture(kInputRandomNumbers);
 
     var["params"].setBlob(mParams);
     var["vbuffer"] = renderData.getTexture(kInputVBuffer);
@@ -1260,12 +1247,11 @@ void PathTracerMod::generatePaths(RenderContext* pRenderContext, const RenderDat
 
     // Bind resources.
     auto var = mpGeneratePaths->getRootVar()["CB"]["gPathGenerator"];
-    bindShaderData(var, renderData, false);
+    setShaderData(var, renderData, false);
 
     mpScene->bindShaderData(mpGeneratePaths->getRootVar()["gScene"]);
 
-    if (mpRTXDI)
-        mpRTXDI->bindShaderData(mpGeneratePaths->getRootVar());
+    if (mpRTXDI) mpRTXDI->bindShaderData(mpGeneratePaths->getRootVar());
 
     // Launch one thread per pixel.
     // The dimensions are padded to whole tiles to allow re-indexing the threads in the shader.

@@ -93,11 +93,10 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
         mpImageAggregatorFullScreen = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAggregatedImageResult);
         
         mpImageAccumulationBuffer[0] = mpDevice->createBuffer(
-            screenWidth * screenHeight * sizeof(float) * 3,
-            ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource
+            screenWidth * screenHeight * sizeof(float) * 3, ResourceBindFlags::UnorderedAccess
         );
         mpImageAccumulationBuffer[1] = mpDevice->createBuffer(
-            screenWidth * screenHeight * sizeof(float) * 3, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource
+            screenWidth * screenHeight * sizeof(float) * 3, ResourceBindFlags::UnorderedAccess
         );
 
         DefineList newDefines;

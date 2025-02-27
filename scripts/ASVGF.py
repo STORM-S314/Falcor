@@ -14,6 +14,7 @@ def render_graph_ASVGF():
     g.add_edge('ASVGFPass.Filtered image', 'TAA.colorIn')
     g.add_edge('PathTracerMod.albedo', 'ASVGFPass.Albedo')
     g.add_edge('PathTracerMod.color', 'ASVGFPass.Color')
+    g.add_edge('PathTracerMod.specularAlbedo', 'ASVGFPass.SpecularAlbedo')
     g.add_edge('GBufferRaster.mvec', 'TAA.motionVecs')
     g.add_edge('GradForwardProjPass.OutGradVisibilityBuffer', 'PathTracerMod.vbuffer')
     g.add_edge('GBufferRaster.mvec', 'PathTracerMod.mvec')
@@ -23,7 +24,6 @@ def render_graph_ASVGF():
     g.add_edge('GBufferRaster.normW', 'GradForwardProjPass.InWorldNormal')
     g.add_edge('GBufferRaster.vbuffer', 'GradForwardProjPass.InVisibilityBuffer')
     g.add_edge('GBufferRaster.posW', 'GradForwardProjPass.InWPos')
-    g.add_edge('GBufferRaster.pnFwidth', 'GradForwardProjPass.InPosNormalFWidth')
     g.add_edge('GBufferRaster.viewW', 'GradForwardProjPass.InWViewBuffer')
     g.add_edge('GBufferRaster.emissive', 'ASVGFPass.Emission')
     g.add_edge('GBufferRaster.linearZ', 'ASVGFPass.LinearZ')
@@ -31,7 +31,6 @@ def render_graph_ASVGF():
     g.add_edge('GradForwardProjPass.OutGradVisibilityBuffer', 'ASVGFPass.GradientVisibilityBuffer')
     g.add_edge('GBufferRaster.vbuffer', 'ASVGFPass.CurrentVisibilityBuffer')
     g.add_edge('GBufferRaster.mvec', 'ASVGFPass.MotionVectors')
-    g.add_edge('GBufferRaster.pnFwidth', 'ASVGFPass.PosNormalFWidth')
     
     g.mark_output('ToneMapper.dst')
     g.mark_output('PathTracerMod.albedo')
@@ -60,32 +59,34 @@ try:
     camera = m.scene.camera
     camera.nearPlane = 0.1 
     
-    m.clock.pause()
-    m.clock.framerate = 24
-    m.clock.frame = 0
-    frame_count = 2401
-    # frame capture
-    m.frameCapture.outputDir = "D:\\data\\frames\\ASVGF"
-    for frame_id in range(frame_count):
-        m.renderFrame()
-        m.clock.step(1)
-        m.frameCapture.capture()
-        if (frame_id + 1% 10 == 0) or frame_id == frame_count - 1:
-            print(f"\rProgress: {frame_id + 1}/{frame_count} frames captured")
-            time.sleep(0.01)
-    exit()
-    # camera = m.scene.camera
-    # start_time = time.time()
-    # while True:
-    #     current_time = time.time()
-    #     elapsed_time = current_time - start_time
-    #     amplitude = 1
-    #     frequency = 10
-    #     x = amplitude * math.sin(frequency * elapsed_time)
-    #     camera.position = float3(x, 0.28, 1.2)
+    # m.clock.pause()
+    # m.clock.framerate = 24
+    # m.clock.frame = 0
+    # frame_count = 2401
+    # # frame capture
+    # m.frameCapture.outputDir = "D:\\data\\frames\\ASVGF"
+    # for frame_id in range(frame_count):
+    #     m.renderFrame()
+    #     m.clock.step(1)
+    #     m.frameCapture.capture()
+    #     if (frame_id + 1% 10 == 0) or frame_id == frame_count - 1:
+    #         print(f"\rProgress: {frame_id + 1}/{frame_count} frames captured")
+    #         time.sleep(0.01)
+    # exit()
+    # # camera = m.scene.camera
+    # # start_time = time.time()
+    # # while True:
+    # #     current_time = time.time()
+    # #     elapsed_time = current_time - start_time
+    # #     amplitude = 1
+    # #     frequency = 10
+    # #     x = amplitude * math.sin(frequency * elapsed_time)
+    # #     camera.position = float3(x, 0.28, 1.2)
     #     renderFrame()
 
 
 except NameError: None
+except Exception as e:
+    print(e)
 #C:\Users\storm\Documents\GitHub\Falcor\build\windows-vs2022\bin\Release\Mogwai.exe --headless --script="C:\Users\storm\Documents\GitHub\Falcor\scripts\ASVGF.py" -v2 --width=1280 --height=720 --gpu=0
 #.\RenderGraphEditor --editor --graph-file "C:\Users\storm\Documents\GitHub\Falcor\scripts\ASVGF.py" --graph-name ASVGF

@@ -49,11 +49,11 @@ extension PathTracer
         // - Terminate
 
         const bool isPrimaryHit = path.getVertexIndex() == 1;
+        const bool isTriangleHit = path.hit.getType() == HitType::Triangle;
         const uint2 pixel = path.getPixel();
         const float3 viewDir = -path.dir;
 
-        
-        let lod = createTextureSampler(path, isPrimaryHit);
+        let lod = createTextureSampler(path, isPrimaryHit, isTriangleHit);
 
         // Load shading data. This is a long latency operation.
         ShadingData sd = loadShadingData(path.hit, path.origin, path.dir);
@@ -186,10 +186,11 @@ extension PathTracer
         // - Sample scatter ray or terminate
 
         const bool isPrimaryHit = path.getVertexIndex() == 1;
+        const bool isTriangleHit = path.hit.getType() == HitType::Triangle;
         const uint2 pixel = path.getPixel();
         const float3 viewDir = -path.dir;
 
-        let lod = createTextureSampler(path, isPrimaryHit);
+        let lod = createTextureSampler(path, isPrimaryHit, isTriangleHit);
 
         // Load shading data. This is a long latency operation.
         ShadingData sd = loadShadingData(path.hit, path.origin, path.dir);

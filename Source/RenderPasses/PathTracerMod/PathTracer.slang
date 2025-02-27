@@ -66,7 +66,6 @@ interface IVisibilityQuery
 */
 struct PathTracer
 {
-    
     PathTracerParams params;                        ///< Runtime parameters.
 
     // Samplers
@@ -289,7 +288,7 @@ struct PathTracer
 
         // Create sample generator.
         const uint maxSpp = kSamplesPerPixel > 0 ? kSamplesPerPixel : kMaxSamplesPerPixel;
-        path.sg = SampleGenerator(pixel, randomNumbers[pixel] * maxSpp + path.getSampleIdx());
+        path.sg = SampleGenerator(randomNumbers[pixel] * maxSpp + path.getSampleIdx());
 
         // Load the primary hit info from the V-buffer.
         const HitInfo hit = HitInfo(vbuffer[pixel]);
@@ -749,9 +748,8 @@ struct PathTracer
         \param[in] isPrimaryTriangleHit True if primary hit on a triangle.
         \return Texture sampler instance.
     */
-    ITextureSampler createTextureSampler(const PathState path, bool isPrimaryHit)
+    ITextureSampler createTextureSampler(const PathState path, bool isPrimaryHit, bool isTriangleHit)
     {
-        const bool isTriangleHit = (path.hit.getType() == HitType::Triangle);
         if (kPrimaryLodMode == TexLODMode::RayDiffs && isPrimaryHit && isTriangleHit)
         {
             // Filtered lookups at primary hit on triangle.
@@ -785,6 +783,8 @@ struct PathTracer
         const bool isTriangleHit = hitType == HitType::Triangle;
         const bool isCurveHit = kUseCurves && (hitType == HitType::Curve);
 
+        let lod = createTextureSampler(path, isPrimaryHit, isTriangleHit);
+
         // Load shading data. This is a long latency operation.
         ShadingData sd = loadShadingData(path.hit, path.origin, path.dir);
 
@@ -805,9 +805,6 @@ struct PathTracer
         if (!handleNestedDielectrics(sd, path)) return;
 
         logPathVertex();
-
-        // Create texture sampler.
-        let lod = createTextureSampler(path, isPrimaryHit);
 
         // Create BSDF instance and query its properties.
         let hints = getMaterialInstanceHints(path.hit, isPrimaryHit);

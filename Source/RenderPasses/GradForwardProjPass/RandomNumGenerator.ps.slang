@@ -25,12 +25,16 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
+import Utils.Math.HashUtils;
+import Utils.Math.BitTricks;
+#include "GradForwardProjCommon.slang"
 
 cbuffer PerImageCB {
 	uint gSeed;
 };
 
-uint main() : SV_TARGET0
+uint main(FullScreenPassVsOut vsOut) : SV_TARGET0
 {
-    return uint(gSeed);
+    int2 ipos = int2(vsOut.posH.xy);
+    return blockCipherTEA(interleave_32bit(gSeed * ipos.x), gSeed * ipos.y).x;
 }

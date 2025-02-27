@@ -24,7 +24,6 @@
 #	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
-import ColorSpace;
 #include "ASVGFCommon.slang"
 #include "ASVGFUtils.slang"
 
@@ -36,7 +35,9 @@ cbuffer PerImageCB
     Texture2D                   gLinearZTexture;
     Texture2D                   gNormalsTexture;
     Texture2D<PackedHitInfo>    gVisibilityBuffer;
+#if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
+#endif
 };
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
@@ -86,9 +87,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
 					float weight = exp(- weightDepth) * weightNormals * (centerMeshID == meshID_p ? 1.0 : 0.0);
 
-					if(isNaN(weight))
+					if(isnan(weight))
                     {
-						//weight = 0.0;
+						weight = 0.0;
                     }
 
 					sumWeight += weight;
