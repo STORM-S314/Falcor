@@ -102,7 +102,7 @@ private:
     float weightPhiColor = 3.0f;
     float weightPhiNormal = 128.0f;
     bool mUseMutualInformation = false;
-    bool mUseCSVGF = false;
+    bool mUseCSVGF = true;
     int mSpatialMutualInfRadius = 1;
     int mNumFramesInMICalc = 20;
     int mFrameLumBinCountInTempMI = 5;
@@ -113,10 +113,12 @@ private:
     int mLumDimSize = 8;
     int mDepthDimSize = 8;
 
+    std::vector<float> mCSVGFTemporalLUT;
+
     int screenWidth = 0;
     int screenHeight = 0;
 
-    DenoisingAlgorithm mCurrentDenoisingAlgorithm = DenoisingAlgorithm::ASVGF;
+    DenoisingAlgorithm mCurrentDenoisingAlgorithm = DenoisingAlgorithm::CSVGF_ONLY_TEMPORAL;
     LinearlyIncreasingTemporalValue mCurrentLinearlyIncrTemporalVal = LinearlyIncreasingTemporalValue::TIME_STEP;
     InformationCalcType mInfCalcType = InformationCalcType::MI;
 

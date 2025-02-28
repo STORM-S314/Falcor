@@ -32,6 +32,7 @@ def render_graph_ASVGF():
     g.add_edge('GBufferRaster.vbuffer', 'ASVGFPass.CurrentVisibilityBuffer')
     g.add_edge('GBufferRaster.mvec', 'ASVGFPass.MotionVectors')
     
+    g.mark_output('ASVGFPass.Debug Output image')
     g.mark_output('ToneMapper.dst')
     g.mark_output('PathTracerMod.albedo')
     g.mark_output('PathTracerMod.color')
