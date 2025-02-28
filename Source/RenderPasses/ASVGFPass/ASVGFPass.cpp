@@ -890,7 +890,7 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
 
     isDirty |= widget.dropdown( "Denoising Algorithm", DENOISING_ALGORITHM_LIST, *(reinterpret_cast<uint32_t*>(&mCurrentDenoisingAlgorithm)));
 
-    mUseMutualInformation = mCurrentDenoisingAlgorithm != DenoisingAlgorithm::ASVGF;
+    mUseMutualInformation = (mCurrentDenoisingAlgorithm != DenoisingAlgorithm::ASVGF && mCurrentDenoisingAlgorithm != DenoisingAlgorithm::CSVGF_ONLY_TEMPORAL);
     if (mUseMutualInformation)
     {
         if (mCurrentDenoisingAlgorithm == DenoisingAlgorithm::MI_ONLY_TEMPORAL ||
@@ -913,6 +913,11 @@ void ASVGFPass::renderUI(Gui::Widgets& widget)
         }
 
         isDirty |= widget.dropdown("Information Calc Type", INFORMATION_CALC_TYPE_LIST, *(reinterpret_cast<uint32_t*>(&mInfCalcType)));
+    }
+    mUseCSVGF = mCurrentDenoisingAlgorithm == DenoisingAlgorithm::CSVGF_ONLY_TEMPORAL;
+    if (mUseCSVGF)
+    {
+        isDirty = true;
     }
 
     #if IS_DEBUG_PASS

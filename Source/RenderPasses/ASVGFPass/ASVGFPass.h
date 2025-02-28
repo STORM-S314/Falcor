@@ -102,7 +102,7 @@ private:
     float weightPhiColor = 3.0f;
     float weightPhiNormal = 128.0f;
     bool mUseMutualInformation = false;
-    bool mUseCSVGF = true;
+    bool mUseCSVGF = false;
     int mSpatialMutualInfRadius = 1;
     int mNumFramesInMICalc = 20;
     int mFrameLumBinCountInTempMI = 5;

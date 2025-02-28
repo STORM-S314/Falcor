@@ -93,47 +93,35 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
     float3  currentNormal           = gNormalsTexture[iPos].xyz;
 
-    float4  prevColor               = float4(0.0, 0.0, 0.0, 0.0);
-    float3  prevIllumination        = float3(0.0, 0.0, 0.0);
-    float   prevLuminance           = 0.0;
-    float2  prevMoments             = float2(0.0, 0.0);
+    float4  prevColor               = gPrevColorTexture[iPrevPos].xyzw;
+    float4  prevAccumColor          = gPrevAccumColorTexture[iPrevPos].xyzw;
+    float3  prevIllumination        = getIllumination(prevColor.xyz, gPrevAlbedoTexture[iPrevPos].rgb, gPrevSpecularAlbedo[iPrevPos].rgb, gEmissionTexture[iPrevPos].rgb);
+    float   prevLuminance           = tanh(luminance(prevColor.rgb));
+    float2  prevMoments             = gPrevAccumMomentsTexture[iPrevPos].xy;
     float2  prevDepth               = gPrevLinearZTexture[iPrevPos].xy;
     float3  prevNormals             = gPrevNormalsTexture[iPrevPos].xyz;
 
     float antilagAlpha = 1.0;
-    if(currentHitInfo.isValid())
-    {
-        //bool isAccept = isReprojectionValid(iPrevPos, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz);
-        //isAccept = isAccept && isPixelWithinScreenDimensions(iPrevPos, gScreenDimension.xy);
-        //HitInfo pHitInfo    = HitInfo(gPrevVisibilityBuffer[iPrevPos]);
-        //uint pMeshID = getMeshInstanceID(pHitInfo);
-        //isAccept  = isAccept && pHitInfo.isValid() && (currentMeshID == pMeshID);
-        //if(isAccept)
-        {
-            prevColor           = gPrevColorTexture[iPrevPos].xyzw;
-            prevIllumination    = getIllumination(prevColor.xyz, gPrevAlbedoTexture[iPrevPos].rgb, gPrevSpecularAlbedo[iPrevPos].rgb, gEmissionTexture[iPrevPos].rgb);
-            prevLuminance       = tanh(luminance(prevColor.rgb));
-            prevMoments         = gPrevAccumMomentsTexture[iPrevPos].xy;
-        }        
-    }
     // Quantize
     int currLumIdx = int(currentLuminance * (gLumDimSize - 1));
     int prevLumIdx = int(prevLuminance * (gLumDimSize - 1));
     int currDepthIdx = int(tanh(currentDepth.y) * (gDepthDimSize - 1));
+    int DepthDiffIdx = int(tanh(abs(currentDepth.x - prevDepth.x) / (currentDepth.y + 1e-2f)) * (gDepthDimSize - 1));
     // Compute the index into the LUT
-    int lutIdx = currLumIdx + prevLumIdx * gLumDimSize + currDepthIdx * gLumDimSize * gLumDimSize;
+    int lutIdx = currLumIdx + prevLumIdx * gLumDimSize + DepthDiffIdx * gLumDimSize * gLumDimSize;
     // Get the antilag value from the LUT
-    antilagAlpha = gAntilagLUTBuffer[lutIdx];
-    //Equation 15 as per the paper
-	float alphaColor   = antilagAlpha;
-	float alphaMoments = antilagAlpha;
-    psOut.accumulated.xyzw  =   float4(lerp(prevColor.rgb, currentIllumination.rgb, alphaColor), 1.0);
+    antilagAlpha = 1.0 - pow(gAntilagLUTBuffer[lutIdx],0.1);
+	float alphaColor   = lerp(gTemporalColorAlpha, 1.0, antilagAlpha);
+	float alphaMoments = lerp(gTemporalMomentsAlpha, 1.0, antilagAlpha);
+
+    // TODO: Reuse the prevAccumColor around the current pixel before temporal accumulation
+    psOut.accumulated.xyzw  =   float4(lerp(prevAccumColor.rgb, currentIllumination.rgb, alphaColor), 1.0);
 	psOut.moments.rg        =   lerp(prevMoments.rg, currentMomemnts.rg, alphaMoments);
 	psOut.histLen.r         =   1.0;
     psOut.gradDiffRatio.r   =   antilagAlpha;
     gCurrColorTexture[iPos] =   currentColor;
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(currLumIdx / (gLumDimSize - 1), gAntilagLUTBuffer[lutIdx],1.0 -  antilagAlpha, antilagAlpha);
+    gColorTest[iPos] = float4(antilagAlpha, 0, 0, 1);
 #endif
     return psOut;
 }
