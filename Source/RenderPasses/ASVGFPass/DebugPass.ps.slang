@@ -47,6 +47,6 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     float4 gradColor =  ((iPos.x % 3) == 0 && (iPos.y % 3) == 0) ? gGradLuminanceDiff[iPos / 3] : float4(1.0, 0.0, 0.0, 1.0);
 
     //return float4(abs(gGradLuminanceDiff[iPos / 3].g) / gGradLuminanceDiff[iPos / 3].r ,0.0, 0.0, 1.0);
-    return float4(gColor[iPos].rgb, 1.0);
+    return float4(gColor[iPos]);
 	
 }

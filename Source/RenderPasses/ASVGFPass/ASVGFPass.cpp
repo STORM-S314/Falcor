@@ -50,7 +50,9 @@ const char kCreateGradientSamplesShader[]           = "RenderPasses/ASVGFPass/Cr
 const char kAtrousGradientShader[]                  = "RenderPasses/ASVGFPass/AtrousGradient.ps.slang";
 const char kTemporalMutualInfCalcShader[]           = "RenderPasses/ASVGFPass/TemporalMutualInformationCalculation.ps.slang";
 const char kSpatialMutualInfCalcShader[]            = "RenderPasses/ASVGFPass/SpatialMutualInformationCalculation.ps.slang";
-
+const char kCSVGFTemporalAccumulationShader[]       = "RenderPasses/ASVGFPass/CSVGFTemporalAccumulation.ps.slang";
+// LUT files
+const char kCSVGFTemporalLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/CSVGFTemporalLUT.bin";
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
@@ -70,7 +72,7 @@ const char kSpatialMIThreshold[]        = "SpatialMIThreshold";
 const char kNumLumGroupsInMICalc[]      = "NumLumGroupsInMICalc";
 const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
 const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
-const char kSpatialLumBinCount[] = "SpatialLumBinCount";
+const char kSpatialLumBinCount[]        = "SpatialLumBinCount";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -219,7 +221,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext)
     formatDescGradientResult.setColorTarget(1, Falcor::ResourceFormat::RGBA32Float); // variance :: total luminance, variance, depth current.x, depth current.y
     mpGradientResultPingPongBuffer[0] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
     mpGradientResultPingPongBuffer[1] = Fbo::create2D(mpDevice, gradResWidth, gradResHeight, formatDescGradientResult);
-
+    
     // Accumulation
     Fbo::Desc formatDescAccumulationResult;
     formatDescAccumulationResult.setSampleCount(0);
@@ -229,6 +231,12 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext)
     formatDescAccumulationResult.setColorTarget(3, Falcor::ResourceFormat::R16Float);    // Gradient difference ratio
     mpAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
     mpPrevAccumulationBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescAccumulationResult);
+    // No Accumulation
+    Fbo::Desc formatDescResult;
+    formatDescResult.setSampleCount(0);
+    formatDescResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float,true); // color
+    mpBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescResult);
+    mpPrevBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDescResult);
 
     // Atrous full screen
     Fbo::Desc formatAtrousFullScreenResult;
@@ -248,8 +256,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext)
     formatDebugFullScreenResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
     mpDebugBuffer = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatDebugFullScreenResult);
 
-    mpTestColorTexture = Texture::create2D(
-        mpDevice, screenWidth, screenHeight, ResourceFormat::RGBA32Float, 1, 1, nullptr,
+    mpTestColorTexture = mpDevice->createTexture2D(screenWidth, screenHeight, ResourceFormat::RGBA32Float, 1, 1, nullptr,
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
@@ -358,7 +365,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             std::swap(mpGradientResultPingPongBuffer[0], mpGradientResultPingPongBuffer[1]);
         }
     }
-    
+
+    if (!mUseCSVGF)
     //Temporal Accumulation
     {
         auto perImageAccumulationCB = mpPrgTemporalAccumulation->getRootVar()["PerImageCB"];
@@ -391,6 +399,45 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 #endif
 
         mpPrgTemporalAccumulation->execute(pRenderContext, mpAccumulationBuffer);
+    }
+    else
+    // CSVGF Temporal Accumulation
+    {
+        auto perImageAccumulationCB = mpPrgCSVGFTemporalAccumulation->getRootVar()["PerImageCB"];
+        perImageAccumulationCB["gColor"] = pInputColorTexture;
+        perImageAccumulationCB["gMotionVectorsTexture"] = pInputMotionVectors;
+        perImageAccumulationCB["gPrevAccumColorTexture"] = mpPrevAccumulationBuffer->getColorTexture(0);
+        perImageAccumulationCB["gPrevAccumMomentsTexture"] = mpPrevAccumulationBuffer->getColorTexture(1);
+        perImageAccumulationCB["gPrevColorTexture"] = mpPrevBuffer->getColorTexture(0);
+        perImageAccumulationCB["gCurrColorTexture"] = mpBuffer->getColorTexture(0);
+        perImageAccumulationCB["gPrevHistLenTexture"] = mpPrevAccumulationBuffer->getColorTexture(2);
+        perImageAccumulationCB["gLinearZTexture"] = pInputLinearZTexture;
+        perImageAccumulationCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
+        perImageAccumulationCB["gNormalsTexture"] = pInputNormalVectors;
+        perImageAccumulationCB["gPrevNormalsTexture"] = pInternalPrevNormalsTexture;
+        perImageAccumulationCB["gVisibilityBuffer"] = pInputCurrVisibilityBuffer;
+        perImageAccumulationCB["gPrevVisibilityBuffer"] = pInternalPrevVisBufferTexture;
+        perImageAccumulationCB["gAlbedoTexture"] = pInputAlbedoTexture;
+        perImageAccumulationCB["gPrevAlbedoTexture"] = pInternalPrevAlbedoTexture;
+        perImageAccumulationCB["gEmissionTexture"] = pInputEmissionTexture;
+        perImageAccumulationCB["gSpecularAlbedo"] = pInputSpecularAlbedo;
+        perImageAccumulationCB["gPrevSpecularAlbedo"] = pInternalPrevSpecularAlbedo;
+        perImageAccumulationCB["gGradientDifferenceTexture"] = mpGradientResultPingPongBuffer[0]->getColorTexture(0);
+        perImageAccumulationCB["gGradientDownsample"] = gradientDownsample;
+        perImageAccumulationCB["gScreenDimension"] = float2(screenWidth, screenHeight);
+        perImageAccumulationCB["gJitterOffset"] = jitterOffset;
+        perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
+        perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
+        perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
+        perImageAccumulationCB["gLumDimSize"] = mLumDimSize;
+        perImageAccumulationCB["gDepthDimSize"] = mDepthDimSize;
+        perImageAccumulationCB["gAntilagLUTBuffer"] = mpCSVGFTemporalLUTBuffer;
+
+#if IS_DEBUG_PASS
+        perImageAccumulationCB["gColorTest"] = mpTestColorTexture;
+#endif
+
+        mpPrgCSVGFTemporalAccumulation->execute(pRenderContext, mpAccumulationBuffer);
     }
 
     // Estimate variance
@@ -468,8 +515,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 #if IS_DEBUG_PASS // Print temporal MI CALC
             if (mDebugLogMICalc)
             {
-                pRenderContext->flush();
-                float* lRead = reinterpret_cast<float*>(mpTemporalDebugMICalc->map(Falcor::Buffer::MapType::Read));
+                pRenderContext->submit();
+                float* lRead = reinterpret_cast<float*>(mpTemporalDebugMICalc->map());
 
                 float historyLength = lRead[0];
                 float MIResult = lRead[1];
@@ -530,8 +577,8 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
 #if IS_DEBUG_PASS // Print spatial MI CALC
             if (mDebugLogMICalc)
             {
-                pRenderContext->flush();
-                float* lRead = reinterpret_cast<float*>(mpSpatialDebugMICalc->map(Falcor::Buffer::MapType::Read));
+                pRenderContext->submit();
+                float* lRead = reinterpret_cast<float*>(mpSpatialDebugMICalc->map());
 
                 float acceptedPixelCount = lRead[0];
                 float MIResult = lRead[1];
@@ -627,6 +674,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     pRenderContext->blit(mpTemporalMutualInfResultBuffer->getColorTexture(0)->getSRV(), pInternalPrevMutualInfTexture->getRTV());
     
     std::swap(mpAccumulationBuffer, mpPrevAccumulationBuffer);
+    std::swap(mpBuffer, mpPrevBuffer);
     std::swap( mpMutualInformationCalcBuffer, mpPrevMutualInformationCalcBuffer);
     mPrevFrameJitter = cameraJitter;
     mCurrentFrameNumber++;
@@ -695,7 +743,6 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             mCurrentLightFlickerFrameIndex++;
         }
     }
-    
     #endif
 }
 
@@ -707,6 +754,8 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearFbo(mpAtrousFullScreenResultPingPong[1].get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpPrevAccumulationBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
+    pRenderContext->clearFbo(mpPrevBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     pRenderContext->clearFbo(mpTemporalMutualInfResultBuffer.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
     
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevColorTexture).get());
@@ -718,7 +767,27 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     pRenderContext->clearTexture(renderData.getTexture(kInternalPrevSpecularAlbedoTexture).get());
 
     pRenderContext->clearUAV(renderData.getTexture(kInternalPrevVisibilityBuffer)->getUAV().get(), uint4(0, 0, 0, 0));
-    
+
+    if (mUseCSVGF)
+    {
+        mpCSVGFTemporalLUTBuffer = mpDevice->createBuffer(mLumDimSize * mLumDimSize * mDepthDimSize * sizeof(float), ResourceBindFlags::UnorderedAccess|ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal);
+        std::ifstream lutFile(kCSVGFTemporalLUT, std::ios::binary);
+        if (!lutFile)
+        {
+            FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
+        }
+        std::vector<double> mCSVGFTemporalLUTOri(mLumDimSize * mLumDimSize * mDepthDimSize);
+        lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUTOri.data()), mCSVGFTemporalLUTOri.size() * sizeof(double));
+        lutFile.close();
+        std::vector<float> mCSVGFTemporalLUT(mLumDimSize * mLumDimSize * mDepthDimSize);
+        for (int i = 0; i < mLumDimSize * mLumDimSize * mDepthDimSize; i++)
+        {
+            mCSVGFTemporalLUT[i] = (float)mCSVGFTemporalLUTOri[i];
+        }
+        mpCSVGFTemporalLUTBuffer->setBlob(&mCSVGFTemporalLUT[0], 0, mCSVGFTemporalLUT.size() * sizeof(float));
+        float res = mpCSVGFTemporalLUTBuffer->getElement<float>(0);
+        FALCOR_ASSERT(res == mCSVGFTemporalLUT[0]);
+    }
     if (mUseMutualInformation)
     {
         uint2 textureDims = renderData.getDefaultTextureDims();
@@ -741,23 +810,23 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     temporalDefines.add("IS_DEBUG_PASS", std::to_string(1));
     spatialDefines.add("IS_DEBUG_PASS", std::to_string(1));
     
-    mpTemporalDebugMICalc = Buffer::create(
-        mpDevice,
+    mpTemporalDebugMICalc = mpDevice->createBuffer(
         (sizeof(float) /* History */ + sizeof(float) /* MI */ + mNumFramesInMICalc * sizeof(float) + mNumFramesInMICalc * sizeof(float) +
          mNumFramesInMICalc * sizeof(float) + mFrameLumBinCountInTempMI * sizeof(float)),
-        Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
+        ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess,
+        MemoryType::DeviceLocal
     );
 
     const int SPATIAL_PIXEL_BIN_COUNT = (mSpatialMutualInfRadius * 2 + 1) * (mSpatialMutualInfRadius * 2 + 1);
-    mpSpatialDebugMICalc = Buffer::create(
-        mpDevice,
+    mpSpatialDebugMICalc = mpDevice->createBuffer(
         sizeof(float) /* accepted pixel count */ + sizeof(float) /* MI */ + SPATIAL_PIXEL_BIN_COUNT * sizeof(float) +
             SPATIAL_PIXEL_BIN_COUNT * sizeof(float) + SPATIAL_PIXEL_BIN_COUNT * sizeof(float),
-        Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Falcor::Buffer::CpuAccess::None
+        ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess,
+        MemoryType::DeviceLocal
     );
 #else
-    temporalDefines.add("IS_DEBUG_PASS", std::to_string(0));
-    spatialDefines.add("IS_DEBUG_PASS", std::to_string(0));
+        temporalDefines.add("IS_DEBUG_PASS", std::to_string(0));
+        spatialDefines.add("IS_DEBUG_PASS", std::to_string(0));
 
 
 #endif IS_DEBUG_PASS
@@ -797,6 +866,7 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, newDefines);
     mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader, newDefines);
     mpPrgTemporalAccumulation       = FullScreenPass::create(mpDevice, kTemporalAccumulationShader, newDefines);
+    mpPrgCSVGFTemporalAccumulation  = FullScreenPass::create(mpDevice, kCSVGFTemporalAccumulationShader, newDefines);
     mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader, newDefines);
     mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader, newDefines);
     
@@ -900,7 +970,6 @@ bool ASVGFPass::onMouseEvent(const MouseEvent& a_mouseEvent)
     {
         float2 screenDims(screenWidth, screenHeight);
         mDebugSelectedPixel = clamp((int2)(a_mouseEvent.pos * screenDims), {0, 0}, (int2)screenDims - 1);
-
         logInfo("Debug Mouse Selected Pixel : {},{}\n", mDebugSelectedPixel.x, mDebugSelectedPixel.y);
     }
     #endif

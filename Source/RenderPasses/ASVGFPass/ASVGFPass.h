@@ -34,8 +34,8 @@
 #include "RenderGraph/RenderPass.h"
 #include "Core/Pass/FullScreenPass.h"
 #include "Utils/Timing/FrameRate.h"
-
-#define IS_DEBUG_PASS 0
+#include <fstream>
+#define IS_DEBUG_PASS 1
 
 using namespace Falcor;
 
@@ -72,6 +72,7 @@ private:
         MI_ONLY_TEMPORAL = 1,
         MI_ONLY_SPATIAL = 2,
         MI_TEMPORAL_AND_SPATIAL = 3,
+        CSVGF_ONLY_TEMPORAL = 4,
     };
 
     enum class InformationCalcType
@@ -101,6 +102,7 @@ private:
     float weightPhiColor = 3.0f;
     float weightPhiNormal = 128.0f;
     bool mUseMutualInformation = false;
+    bool mUseCSVGF = true;
     int mSpatialMutualInfRadius = 1;
     int mNumFramesInMICalc = 20;
     int mFrameLumBinCountInTempMI = 5;
@@ -108,6 +110,8 @@ private:
     float mSpatialMIThreshold = 0.05f;
     int mMinHistoryCountSpatialThreshold = 1;
     int mSpatialLumBinCount = 5;
+    int mLumDimSize = 8;
+    int mDepthDimSize = 8;
 
     int screenWidth = 0;
     int screenHeight = 0;
@@ -120,7 +124,8 @@ private:
         {(uint32_t)DenoisingAlgorithm::ASVGF, "ASVGF"},
         {(uint32_t)DenoisingAlgorithm::MI_ONLY_TEMPORAL, "MI:Only Temporal"},
         {(uint32_t)DenoisingAlgorithm::MI_ONLY_SPATIAL, "MI:Only Spatial"},
-        {(uint32_t)DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL, "MI:Temporal and Spatial"}};
+        {(uint32_t)DenoisingAlgorithm::MI_TEMPORAL_AND_SPATIAL, "MI:Temporal and Spatial"},
+        {(uint32_t)DenoisingAlgorithm::CSVGF_ONLY_TEMPORAL, "CSVGF:Only Temporal"}};
 
     const Falcor::Gui::DropdownList INFORMATION_CALC_TYPE_LIST = {
         {(uint32_t)InformationCalcType::MI, "MI"},
@@ -148,6 +153,7 @@ private:
     ref<FullScreenPass> mpPrgAtrousFullScreen;
     ref<FullScreenPass> mpPrgTemporalMutualInfCalc;
     ref<FullScreenPass> mpPrgSpatialMutualInfCalc;
+    ref<FullScreenPass> mpPrgCSVGFTemporalAccumulation;
 
     //FBOs
     ref<Fbo> mpGradientResultPingPongBuffer[2];
@@ -155,10 +161,15 @@ private:
     ref<Fbo> mpAccumulationBuffer;
     ref<Fbo> mpPrevAccumulationBuffer;
     ref<Fbo> mpTemporalMutualInfResultBuffer;
+    ref<Fbo> mpBuffer;
+    ref<Fbo> mpPrevBuffer;
 
     //Mutual Information
     ref<Buffer> mpMutualInformationCalcBuffer;
     ref<Buffer> mpPrevMutualInformationCalcBuffer;
+
+    // Temporal filter coef lookup table
+    ref<Buffer> mpCSVGFTemporalLUTBuffer;
 
     ref<Buffer> mpFrameTimeSteps;
 
@@ -170,7 +181,7 @@ private:
     ref<Buffer> mpTemporalDebugMICalc;
     ref<Buffer> mpSpatialDebugMICalc;
 
-    int2 mDebugSelectedPixel;
+    int2 mDebugSelectedPixel = int2(0,0);
     bool mDebugLogMICalc = false;
 
     int mNumFramesLightTest = 10;

@@ -13,6 +13,8 @@ target_sources(ASVGFPass PRIVATE
 	AtrousFullScreen.ps.slang
 	TemporalMutualInformationCalculation.ps.slang
 	SpatialMutualInformationCalculation.ps.slang
+	CSVGFTemporalAccumulation.ps.slang
+	CSVGFTemporalLUT.bin
 	DebugPass.ps.slang
 )
 
