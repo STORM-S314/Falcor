@@ -36,6 +36,7 @@ import torch
 import torchvision
 import warnings
 from skimage.color import rgb2gray
+import pyfvvdp
 warnings.filterwarnings("ignore")
 
 def skimage_to_torch(img):
@@ -45,8 +46,10 @@ def skimage_to_torch(img):
     return tensor
 
 if __name__ == '__main__':
-	filename_gt = sys.argv[1]
-	filename_approx = sys.argv[2]
+	# filename_gt = sys.argv[1]
+	# filename_approx = sys.argv[2]
+	filename_gt = 'D:/data/frames/GT/Mogwai.ToneMapper.dst.100.exr'
+	filename_approx = 'D:/data/frames/CSVGF/Mogwai.ToneMapper.dst.100.exr'
 	img_gt = skimage.io.imread(filename_gt)
 	img_approx = skimage.io.imread(filename_approx)
 	mse = skimage.metrics.mean_squared_error(img_gt, img_approx)
@@ -66,9 +69,14 @@ if __name__ == '__main__':
 	d_alex = loss_fn_alex(img0, img1).item()
 	d_vgg = loss_fn_vgg(img0, img1).item()
 
+	fv = pyfvvdp.fvvdp(display_name='standard_4k', heatmap='threshold', device='cuda')
+
+	Q_JOB, status = fv.predict(img_approx, img_gt, dim_order='WHC')
+
 	print(f'MSE: {mse}')
 	print(f'RMSE: {math.sqrt(mse)}')
 	print(f'PSNR: {psnr}')
 	print(f'SSIM: {ssim}')
 	print(f'LPIPS (Alex): {d_alex}')
 	print(f'LPIPS (VGG): {d_vgg}')
+	print(f"FoVVDP: {Q_JOB}")

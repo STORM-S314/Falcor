@@ -139,29 +139,30 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
             { 
                 mStartAggregation = false;
                 mAggregationComplete = true;
-                auto ext = Bitmap::getFileExtFromResourceFormat(mpImageAggregatorFullScreen->getColorTexture(0)->getFormat());
-                auto fileformat = Bitmap::getFormatFromFileExtension(ext);
+                //auto ext = Bitmap::getFileExtFromResourceFormat(mpImageAggregatorFullScreen->getColorTexture(0)->getFormat());
+                //auto fileformat = Bitmap::getFormatFromFileExtension(ext);
 
-                time_t now = time(0);
-                struct tm tstruct;
-                char buf[80];
-                tstruct = *localtime(&now);
-                strftime(buf, sizeof(buf), "%Y%m%d_%X", &tstruct);
-                //logWarning("DateTime: {}", buf);
+                //time_t now = time(0);
+                //struct tm tstruct;
+                //char buf[80];
+                //tstruct = *localtime(&now);
+                //strftime(buf, sizeof(buf), "%Y%m%d_%X", &tstruct);
+                ////logWarning("DateTime: {}", buf);
 
-                std::string savePath = "FrameCapture\\" + std::string(buf) + "." + ext;
-                savePath.erase(std::remove(savePath.begin(), savePath.end(), ':'), savePath.end());
+                //std::string savePath = "D:/data/frames/GT/" + std::string(buf) + "." + ext;
+                //savePath.erase(std::remove(savePath.begin(), savePath.end(), ':'), savePath.end());
 
-                mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(0, 0, std::filesystem::path(savePath), fileformat,
-                    Falcor::Bitmap::ExportFlags::None, true
-                );
+                //mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(0, 0, std::filesystem::path(savePath), fileformat,
+                //    Falcor::Bitmap::ExportFlags::None, true
+                //);
 
-                std::string savePathPNG = "FrameCapture\\" + std::string(buf) + "png" + "." + "png";
-                savePathPNG.erase(std::remove(savePathPNG.begin(), savePathPNG.end(), ':'), savePathPNG.end());
+                //std::string savePathPNG = "D:/data/frames/GT/" + std::string(buf) + "png" + "." + "png";
+                //savePathPNG.erase(std::remove(savePathPNG.begin(), savePathPNG.end(), ':'), savePathPNG.end());
 
-                mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(
-                    0, 0, std::filesystem::path(savePathPNG), Falcor::Bitmap::FileFormat::PngFile, Falcor::Bitmap::ExportFlags::None, true
-                );
+                //mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(
+                //    0, 0, std::filesystem::path(savePathPNG), Falcor::Bitmap::FileFormat::PngFile, Falcor::Bitmap::ExportFlags::None, true
+                //);
+                //logInfo("Image Aggregation Completed to Path {}", savePathPNG);
                 mCurrentAggregateImagesAccumulated = 0;
             }
             mCurrentImagesAccumulated = 0;

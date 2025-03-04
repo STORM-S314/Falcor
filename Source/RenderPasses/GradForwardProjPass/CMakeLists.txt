@@ -7,5 +7,6 @@ target_sources(GradForwardProjPass PRIVATE
 	GradForwardProjCommon.slang
 	GradientForwardProjection.cs.slang
 )
+target_copy_shaders(GradForwardProjPass RenderPasses/GradForwardProjPass)
 
 target_source_group(GradForwardProjPass "RenderPasses")

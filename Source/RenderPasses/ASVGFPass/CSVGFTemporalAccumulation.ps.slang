@@ -100,9 +100,10 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float4  prevAccumColor          = float4(0);
     float2  prevMoments             = float2(0);
     if(currentHitInfo.isValid()){
+        //TODO: Find min / average antilagAlpha around the current pixel
         float4  prevColor               = gPrevColorTexture[iPrevPos].xyzw;
-        prevAccumColor          = gPrevAccumColorTexture[iPrevPos].xyzw;
-        prevMoments             = gPrevAccumMomentsTexture[iPrevPos].xy;
+        prevAccumColor                  = gPrevAccumColorTexture[iPrevPos].xyzw;
+        prevMoments                     = gPrevAccumMomentsTexture[iPrevPos].xy;
         float2  prevDepth               = gPrevLinearZTexture[iPrevPos].xy;
         float3  prevNormals             = gPrevNormalsTexture[iPrevPos].xyz;
         histLen                         = gPrevHistLenTexture[iPrevPos].x;

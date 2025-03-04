@@ -36,7 +36,7 @@ cbuffer PerImageCB
     RWBuffer<float>     gAccumulationBuffer;
     int                 gInputImageIndex;
     float2              gImageDimensions;
-    float               gPixelsInFrame;
+    uint               gPixelsInFrame;
 };
 
 float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0

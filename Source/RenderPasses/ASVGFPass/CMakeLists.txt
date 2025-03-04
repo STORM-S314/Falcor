@@ -17,5 +17,6 @@ target_sources(ASVGFPass PRIVATE
 	CSVGFTemporalLUT.bin
 	DebugPass.ps.slang
 )
+target_copy_shaders(ASVGFPass RenderPasses/ASVGFPass)
 
 target_source_group(ASVGFPass "RenderPasses")

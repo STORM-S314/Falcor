@@ -120,7 +120,7 @@ private:
     /// Selected output size.
     RenderPassHelpers::IOSize mOutputSizeSelection = RenderPassHelpers::IOSize::Default;
     /// Output format (uses default when set to ResourceFormat::Unknown).
-    ResourceFormat mOutputFormat = ResourceFormat::Unknown;
+    ResourceFormat mOutputFormat = ResourceFormat::RGBA32Float;
     /// Output size in pixels when 'Fixed' size is selected.
     uint2 mFixedOutputSize = {512, 512};
 

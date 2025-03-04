@@ -73,6 +73,7 @@ const char kNumLumGroupsInMICalc[]      = "NumLumGroupsInMICalc";
 const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
 const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
 const char kSpatialLumBinCount[]        = "SpatialLumBinCount";
+const char kUseCSVGF[] = "UseCSVGF";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -118,7 +119,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kFrameBinCountInTempMI)    mFrameLumBinCountInTempMI = value;
         else if (key == kMinHistoryCountSpatialThreshold) mMinHistoryCountSpatialThreshold = value;
         else if (key == kSpatialLumBinCount) mSpatialLumBinCount= value;
-        
+        else if (key == kUseCSVGF) mUseCSVGF = value;
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 

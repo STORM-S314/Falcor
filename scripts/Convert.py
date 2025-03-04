@@ -36,4 +36,4 @@ def convert_all_exr_to_png_and_delete(directory, max_workers=4):
                 print(f"Error processing {exr_file}: {e}")
 
 # 示例用法
-convert_all_exr_to_png_and_delete("D:\\data\\frames\\SVGF", max_workers=24)
+convert_all_exr_to_png_and_delete("D:\\data\\frames\\ASVGF", max_workers=24)
