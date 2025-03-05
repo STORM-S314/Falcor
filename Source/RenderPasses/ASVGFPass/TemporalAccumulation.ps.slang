@@ -167,7 +167,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 		psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
         psOut.gradDiffRatio.r   =   antilagAlpha;
 #if IS_DEBUG_PASS
-    gColorTest[iPos] = float4(antilagAlpha, 0.0 , 0.0 , 1.0);
+    gColorTest[iPos] = float4(alphaColor, 0.0 , 0.0 , 1.0);
 #endif     
     }
     else {

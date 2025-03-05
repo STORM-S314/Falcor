@@ -136,7 +136,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     for (int i = 0; i < mLumDimSize * mLumDimSize * mDepthDimSize; i++)
     {
         // TODO: Trian better LUT
-        mCSVGFTemporalLUT[i] = 1.0f - pow((float)mCSVGFTemporalLUTOri[i], 0.0001f);
+        mCSVGFTemporalLUT[i] = pow((float)mCSVGFTemporalLUTOri[i], 1.0f);
     }
     
 }
@@ -158,7 +158,7 @@ Properties ASVGFPass::getProperties() const
     props[kFrameBinCountInTempMI]   = mFrameLumBinCountInTempMI;
     props[kMinHistoryCountSpatialThreshold] = mMinHistoryCountSpatialThreshold;
     props[kSpatialLumBinCount] = mSpatialLumBinCount;
-
+    props[kUseCSVGF]                = mUseCSVGF;
     return props;
 }
 
@@ -185,8 +185,11 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
     reflector.addInput(kInputGradVisibilityBufferTexture, "GradientVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
     reflector.addInput(kInputCurrVisibilityBufferTexture, "CurrentVisibilityBuffer").format(ResourceFormat::RGBA32Uint);
     reflector.addInput(kInputMotionVectors, "MotionVectors");
-    reflector.addInput(kInputGradientSamplesTexture, "GradSamples").format(ResourceFormat::R32Uint);
-
+    if (!mUseCSVGF)
+    {
+        reflector.addInput(kInputGradientSamplesTexture, "GradSamples").format(ResourceFormat::R32Uint);
+    }
+    
     // Internal buffers
     reflector.addInternal(kInternalPrevColorTexture, "Previous Color")
         .format(ResourceFormat::RGBA32Float)
@@ -294,11 +297,15 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         IsClearBuffers = false;
     }
 
-    ref<Texture> pInputColorTexture             = renderData.getTexture(kInputColorTexture);
-    ref<Texture> pInputAlbedoTexture            = renderData.getTexture(kInputAlbedoTexture);
-    ref<Texture> pInputEmissionTexture          = renderData.getTexture(kInputEmissionTexture);
-    ref<Texture> pInputLinearZTexture           = renderData.getTexture(kInputLinearZTexture);
-    ref<Texture> pInputGradientSamples          = renderData.getTexture(kInputGradientSamplesTexture);
+    ref<Texture> pInputColorTexture = renderData.getTexture(kInputColorTexture);
+    ref<Texture> pInputAlbedoTexture = renderData.getTexture(kInputAlbedoTexture);
+    ref<Texture> pInputEmissionTexture = renderData.getTexture(kInputEmissionTexture);
+    ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputLinearZTexture);
+    ref<Texture> pInputGradientSamples;
+    if (!mUseCSVGF)
+    {
+        pInputGradientSamples = renderData.getTexture(kInputGradientSamplesTexture);
+    }
     ref<Texture> pInputCurrVisibilityBuffer     = renderData.getTexture(kInputCurrVisibilityBufferTexture);
     ref<Texture> pInputGradVisibilityBuffer     = renderData.getTexture(kInputGradVisibilityBufferTexture);
     ref<Texture> pInputMotionVectors            = renderData.getTexture(kInputMotionVectors);
@@ -992,7 +999,12 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     ref<Texture> pInputColorTexture = renderData.getTexture(kInputColorTexture);
     ref<Texture> pInputAlbedoTexture = renderData.getTexture(kInputAlbedoTexture);
     ref<Texture> pInputLinearZTexture = renderData.getTexture(kInputLinearZTexture);
-    ref<Texture> pInputGradientSamples = renderData.getTexture(kInputGradientSamplesTexture);
+    ref<Texture> pInputGradientSamples;
+    if (!mUseCSVGF)
+    {
+        pInputGradientSamples = renderData.getTexture(kInputGradientSamplesTexture);
+    }
+    
     ref<Texture> pInputVisibilityBuffer = renderData.getTexture(kInputCurrVisibilityBufferTexture);
     ref<Texture> pInputMotionVectors = renderData.getTexture(kInputMotionVectors);
     ref<Texture> pInputNormalVectors = renderData.getTexture(kInputNormalsTexture);

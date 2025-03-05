@@ -57,6 +57,8 @@ private:
     int gradientDownsample = 3;
     int gradient_res(int x);
 
+    bool mUseCSVGF = false;
+
     //Render passes
     ref<FullScreenPass> mpPrgRandomNumberGenerator;
     ref<ComputePass> mpPrgGradientForwardProjection;

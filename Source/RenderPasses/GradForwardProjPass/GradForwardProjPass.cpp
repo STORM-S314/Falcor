@@ -27,6 +27,8 @@
  **************************************************************************/
 #include "GradForwardProjPass.h"
 #include "Utils/Logger.h"
+// Names of valid entries in the dictionary
+const char kUseCSVGF[] = "UseCSVGF";
 
 // Internal buffer names
 const char kInternalPrevWNormalBuffer[]     = "InternalPrevWNormalBuffer";
@@ -67,11 +69,20 @@ extern "C" FALCOR_API_EXPORT void registerPlugin(Falcor::PluginRegistry& registr
 GradForwardProjPass::GradForwardProjPass(ref<Device> pDevice, const Properties& props)
     : RenderPass(pDevice)
 {
+    for (const auto& [key, value] : props)
+    {
+        if (key == kUseCSVGF)
+            mUseCSVGF = value;
+        else
+            logWarning("Unknown field '" + key + "' in a GradForwardProjPass dictionary");
+    }
     m_pGraphicsState = GraphicsState::create(pDevice);
 }
 
 Properties GradForwardProjPass::getProperties() const
 {
+    Properties props;
+    props[kUseCSVGF] = mUseCSVGF;
     return {};
 }
 
@@ -156,7 +167,7 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
     {
         return;
     }
-
+    
     ref<Texture> pInputWorldNormalTexture       = renderData.getTexture(kInputBufferWorldNormal);
     ref<Texture> pInputLinearZTexture           = renderData.getTexture(kInputBufferLinearZ);
     ref<Texture> pInputVisibilityBuffer         = renderData.getTexture(kInputVisibilityBuffer);
@@ -183,36 +194,38 @@ void GradForwardProjPass::execute(RenderContext* pRenderContext, const RenderDat
         mpPrgRandomNumberGenerator->execute(pRenderContext, mpRandomNumberGenerationFBO);
         pRenderContext->blit(mpRandomNumberGenerationFBO->getColorTexture(0)->getSRV(), mpRandomNumberTexture->getRTV());
     }
-    
-    //Gradient forward projection generation pass
+    if (!mUseCSVGF)
     {
-        float screenWidth = pInputWPosBuffer->getWidth();
-        float screenHeight = pInputWPosBuffer->getHeight();
-        float gradResWidth = gradient_res(screenWidth);
-        float gradResHeight = gradient_res(screenHeight);
+        // Gradient forward projection generation pass
+        {
+            float screenWidth = pInputWPosBuffer->getWidth();
+            float screenHeight = pInputWPosBuffer->getHeight();
+            float gradResWidth = gradient_res(screenWidth);
+            float gradResHeight = gradient_res(screenHeight);
 
-        auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
-        perImageGradForwardProjCB["gPrevRandomNumberTexture"] = mpPrevRandomNumberTexture;
-        perImageGradForwardProjCB["gCurrentRandomNumberTexture"] = mpRandomNumberTexture;
-        perImageGradForwardProjCB["gLinearZTexture"] = pInputLinearZTexture;
-        perImageGradForwardProjCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
-        perImageGradForwardProjCB["gWNormalTexture"] = pInputWorldNormalTexture;
-        perImageGradForwardProjCB["gPrevWNormalTexture"] = pInternalPrevWNormalTexture;
-        perImageGradForwardProjCB["gVisibilityBuffer"] = mpVisibilityBufferTexture;
-        perImageGradForwardProjCB["gPrevVisibilityBuffer"] = pInternalPrevVisibilityBuffer;
-        perImageGradForwardProjCB["gGradientSamplesTexture"] = mpGradientSamplesTexture;
-        perImageGradForwardProjCB["gPosTexture"] = pInputWPosBuffer;
-        perImageGradForwardProjCB["gPrevWPosTexture"] = pInternalPrevWPositionBuffer;
-        perImageGradForwardProjCB["gWViewBuffer"] = mpWViewBufferTexture;
-        perImageGradForwardProjCB["gPrevWViewBuffer"] = pInternalPrevWViewBuffer;
-        perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrix();
-        perImageGradForwardProjCB["gTextureWidth"] = screenWidth;
-        perImageGradForwardProjCB["gTextureHeight"] = screenHeight;
-        perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;
-        perImageGradForwardProjCB["gFrameNumber"] = frameNumber;
-        perImageGradForwardProjCB["gColorTestTexture"] = mpColorTestTexture;
+            auto perImageGradForwardProjCB = mpPrgGradientForwardProjection->getRootVar()["PerImageCB"];
+            perImageGradForwardProjCB["gPrevRandomNumberTexture"] = mpPrevRandomNumberTexture;
+            perImageGradForwardProjCB["gCurrentRandomNumberTexture"] = mpRandomNumberTexture;
+            perImageGradForwardProjCB["gLinearZTexture"] = pInputLinearZTexture;
+            perImageGradForwardProjCB["gPrevLinearZTexture"] = pInternalPrevLinearZTexture;
+            perImageGradForwardProjCB["gWNormalTexture"] = pInputWorldNormalTexture;
+            perImageGradForwardProjCB["gPrevWNormalTexture"] = pInternalPrevWNormalTexture;
+            perImageGradForwardProjCB["gVisibilityBuffer"] = mpVisibilityBufferTexture;
+            perImageGradForwardProjCB["gPrevVisibilityBuffer"] = pInternalPrevVisibilityBuffer;
+            perImageGradForwardProjCB["gGradientSamplesTexture"] = mpGradientSamplesTexture;
+            perImageGradForwardProjCB["gPosTexture"] = pInputWPosBuffer;
+            perImageGradForwardProjCB["gPrevWPosTexture"] = pInternalPrevWPositionBuffer;
+            perImageGradForwardProjCB["gWViewBuffer"] = mpWViewBufferTexture;
+            perImageGradForwardProjCB["gPrevWViewBuffer"] = pInternalPrevWViewBuffer;
+            perImageGradForwardProjCB["gViewProjMat"] = m_pScene->getCamera()->getViewProjMatrix();
+            perImageGradForwardProjCB["gTextureWidth"] = screenWidth;
+            perImageGradForwardProjCB["gTextureHeight"] = screenHeight;
+            perImageGradForwardProjCB["gGradientDownsample"] = gradientDownsample;
+            perImageGradForwardProjCB["gFrameNumber"] = frameNumber;
+            perImageGradForwardProjCB["gColorTestTexture"] = mpColorTestTexture;
 
-        mpPrgGradientForwardProjection->execute(pRenderContext, gradResWidth, gradResHeight);
+            mpPrgGradientForwardProjection->execute(pRenderContext, gradResWidth, gradResHeight);
+        }
     }
 
     //Blit outputs

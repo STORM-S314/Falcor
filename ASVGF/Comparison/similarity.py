@@ -62,12 +62,8 @@ if __name__ == '__main__':
 	data_range=ref_image_gray.max() - impaired_image_gray.min()
 	ssim = skimage.metrics.structural_similarity(ref_image_gray, impaired_image_gray, data_range=data_range, multichannel=True)
 
-	loss_fn_alex = lpips.LPIPS(net='alex')
-	loss_fn_vgg = lpips.LPIPS(net='vgg')
 	img0 = skimage_to_torch(img_gt)
 	img1 = skimage_to_torch(img_approx)
-	d_alex = loss_fn_alex(img0, img1).item()
-	d_vgg = loss_fn_vgg(img0, img1).item()
 
 	fv = pyfvvdp.fvvdp(display_name='standard_4k', heatmap='threshold', device='cuda')
 
@@ -77,6 +73,4 @@ if __name__ == '__main__':
 	print(f'RMSE: {math.sqrt(mse)}')
 	print(f'PSNR: {psnr}')
 	print(f'SSIM: {ssim}')
-	print(f'LPIPS (Alex): {d_alex}')
-	print(f'LPIPS (VGG): {d_vgg}')
 	print(f"FoVVDP: {Q_JOB}")

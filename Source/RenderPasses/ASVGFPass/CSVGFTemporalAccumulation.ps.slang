@@ -62,7 +62,7 @@ cbuffer PerImageCB
     int         gGradientFilterRadius;
     int         gLumDimSize;
     int         gDepthDimSize;
-    Buffer<float> gAntilagLUTBuffer;
+    const Buffer<float> gAntilagLUTBuffer;
 #if IS_DEBUG_PASS
     RWTexture2D<float4>         gColorTest;
 #endif
@@ -82,10 +82,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     int2 iPos = int2(vsOut.posH.xy);
     float2 currentMotion = gMotionVectorsTexture[iPos].rg;
+    const float2 jitterOffset = float2(0.5, 0.5);
+    const int2 iPrevPos = int2(float2(iPos) + currentMotion.xy * gScreenDimension.xy + jitterOffset - gJitterOffset.xy);
+    const float2 prevPos = floor(vsOut.posH.xy) + currentMotion.xy * gScreenDimension.xy - gJitterOffset.xy;
 
-    const int2 iPrevPos = int2(float2(iPos) + currentMotion.xy * gScreenDimension.xy + float2(0.5,0.5) - gJitterOffset.xy);
-
-    float4  currentColor            = gColor[iPos].xyzw;
+    float4  currentColor            = gColor[iPos];
     float2  currentDepth            = gLinearZTexture[iPos].xy;
     float3  currentIllumination     = getIllumination(currentColor.xyz, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb);
     float   currentLuminance        = luminance(currentColor.rgb);
@@ -95,52 +96,84 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float3  currentNormal           = gNormalsTexture[iPos].xyz;
 
     float   antilagAlpha            = 0.0;
-    bool    isAccept                = false;
     float   histLen                 = 0.0;
-    float4  prevAccumColor          = float4(0);
-    float2  prevMoments             = float2(0);
-    if(currentHitInfo.isValid()){
-        //TODO: Find min / average antilagAlpha around the current pixel
-        float4  prevColor               = gPrevColorTexture[iPrevPos].xyzw;
-        prevAccumColor                  = gPrevAccumColorTexture[iPrevPos].xyzw;
-        prevMoments                     = gPrevAccumMomentsTexture[iPrevPos].xy;
-        float2  prevDepth               = gPrevLinearZTexture[iPrevPos].xy;
-        float3  prevNormals             = gPrevNormalsTexture[iPrevPos].xyz;
-        histLen                         = gPrevHistLenTexture[iPrevPos].x;
-        isAccept = isReprojectionValid(iPrevPos, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz);
-        isAccept = isAccept && isPixelWithinScreenDimensions(iPrevPos, gScreenDimension.xy);
-        HitInfo pHitInfo    = HitInfo(gPrevVisibilityBuffer[iPrevPos]);
-        uint pMeshID = getMeshInstanceID(pHitInfo);
-        isAccept  = isAccept && pHitInfo.isValid() && (currentMeshID == pMeshID);
-        if(isAccept){
-            // Quantize
-            int currLumIdx = int(nomalize(luminance(currentColor.rgb)) * (gLumDimSize - 1));
-            int prevLumIdx = int(nomalize(luminance(prevColor.rgb)) * (gLumDimSize - 1));
-            int currDepthIdx = int(nomalize(currentDepth.y) * (gDepthDimSize - 1));
-            int DepthDiffIdx = int(nomalize(abs(currentDepth.x - prevDepth.x)) * (gDepthDimSize - 1));
-            // Compute the index into the LUT
-            int lutIdx = currLumIdx + prevLumIdx * gLumDimSize + DepthDiffIdx * gLumDimSize * gLumDimSize;
-            // Get the antilag value from the LUT
-            antilagAlpha = gAntilagLUTBuffer[lutIdx];
+    float4  weightedColorPrev       = float4(0);
+    float2  weightedMomentsPrev     = float2(0);
+    float   weightedSum             = 0.0;
+
+
+    float x = frac(prevPos.x);
+    float y = frac(prevPos.y);
+    const int2 offset[4] = { int2(0, 0), int2(1, 0), int2(0, 1), int2(1, 1) };
+    // bilinear weights
+    const float bilinearWeights[4] = {  (1.0 - x)   * (1.0 - y),
+                                        x           * (1.0 - y),
+                                        (1.0 - x)   * y,
+                                        x           * y  };
+
+    if(currentHitInfo.isValid())
+    {
+        for (int sampleIdx = 0; sampleIdx < 4; sampleIdx ++)
+        {
+            const int2 offsetLoc    = int2(prevPos) + offset[sampleIdx];
+            float2  prevDepth       = gPrevLinearZTexture[offsetLoc].xy;
+            float3  prevNormals     = gPrevNormalsTexture[offsetLoc].xyz;
+
+            bool isAccept = isReprojectionValid(offsetLoc, gScreenDimension.xy, currentDepth.xy, prevDepth.xy, currentNormal.xyz, prevNormals.xyz);
+
+            isAccept = isAccept && isPixelWithinScreenDimensions(iPrevPos, gScreenDimension.xy);
+
+            HitInfo pHitInfo    = HitInfo(gPrevVisibilityBuffer[offsetLoc]);
+            uint pMeshID        = getMeshInstanceID(pHitInfo);
+
+            isAccept  = isAccept && pHitInfo.isValid() && (currentMeshID == pMeshID);
+            //Find min antilagAlpha around the current pixel
+            if(isAccept){
+                float4  prevColor               = gPrevAccumColorTexture[offsetLoc];
+                // Quantize
+                int currLumIdx = int(nomalize(luminance(currentColor.rgb)) * (gLumDimSize - 1));
+                int prevLumIdx = int(nomalize(luminance(prevColor.rgb)) * (gLumDimSize - 1));
+                int currDepthIdx = int(nomalize(currentDepth.y) * (gDepthDimSize - 1));
+                int DepthDiffIdx = int(nomalize(abs(currentDepth.x - prevDepth.x)) * (gDepthDimSize - 1));
+                // Compute the index into the LUT
+                int lutIdx = currLumIdx + prevLumIdx * gLumDimSize + DepthDiffIdx * gLumDimSize * gLumDimSize;
+                // Get the antilag value from the LUT
+                float currentBilinearWeight = bilinearWeights[sampleIdx];
+                antilagAlpha        += gAntilagLUTBuffer[lutIdx] * currentBilinearWeight;
+                weightedColorPrev   += gPrevAccumColorTexture[offsetLoc].xyzw * currentBilinearWeight;
+                weightedMomentsPrev += gPrevAccumMomentsTexture[offsetLoc].xy * currentBilinearWeight;
+                histLen             += gPrevHistLenTexture[offsetLoc].x * currentBilinearWeight;
+                weightedSum         += currentBilinearWeight;
+            }
         }
     }
-    if(isAccept){
-        // Compute the alpha values for the temporal accumulation
-        float alphaColor = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));
-        float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));
-	    alphaColor   = lerp(alphaColor, 1.0, antilagAlpha);
-	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
-
-        // TODO: Reuse the prevAccumColor around the current pixel before temporal accumulation
-        psOut.accumulated.rgb   =   lerp(prevAccumColor.rgb, currentIllumination.rgb, alphaColor);
-        psOut.accumulated.a     =   min(64, histLen + 1.0);
-	    psOut.moments.rg        =   lerp(prevMoments.rg, currentMomemnts.rg, alphaMoments);
-	    psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
-        psOut.gradDiffRatio.r   =   antilagAlpha;
-        gCurrColorTexture[iPos] =   currentColor;
+    if(weightedSum > 0.01)/* found sufficiently reliable history information */
+    {
+        weightedColorPrev   /= weightedSum;
+		weightedMomentsPrev /= weightedSum;
+		histLen             /= weightedSum;
+        //antilagAlpha        /= weightedSum;
     #if IS_DEBUG_PASS
         gColorTest[iPos] = float4(antilagAlpha, 0, 0, 1);
     #endif
+        antilagAlpha        =0;
+
+        // Compute the alpha values for the temporal accumulation
+        float alphaColor = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));
+        float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));
+
+        //Equation 15 as per the paper
+        alphaColor   = lerp(alphaColor, 1.0, antilagAlpha);
+	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
+        
+        // TODO: Reuse the prevAccumColor around the current pixel before temporal accumulation
+        psOut.accumulated.rgb   =   lerp(weightedColorPrev.rgb, currentIllumination.rgb, alphaColor);
+        psOut.accumulated.a     =   min(64, histLen + 1.0);
+	    psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
+	    psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
+        psOut.gradDiffRatio.r   =   antilagAlpha;
+        gCurrColorTexture[iPos] =   currentColor;
+
     }else{
         psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;
