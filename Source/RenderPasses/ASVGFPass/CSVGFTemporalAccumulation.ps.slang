@@ -89,7 +89,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     float4  currentColor            = gColor[iPos];
     float2  currentDepth            = gLinearZTexture[iPos].xy;
     float3  currentIllumination     = getIllumination(currentColor.xyz, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb);
-    float   currentLuminance        = luminance(currentColor.rgb);
+    float   currentLuminance        = luminance(currentIllumination);
     float2  currentMomemnts         = float2(currentLuminance, currentLuminance * currentLuminance);
     HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);
 	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
@@ -127,13 +127,16 @@ PS_OUT main(FullScreenPassVsOut vsOut)
             uint pMeshID        = getMeshInstanceID(pHitInfo);
 
             isAccept  = isAccept && pHitInfo.isValid() && (currentMeshID == pMeshID);
+
+            float3  prevIllumination = gPrevAccumColorTexture[offsetLoc].xyz;
+            isAccept = isAccept && isLuminanceVarianceValid(currentLuminance, luminance(prevIllumination));
             //Find min antilagAlpha around the current pixel
             if(isAccept){
-                float4  prevColor               = gPrevAccumColorTexture[offsetLoc];
+                
                 // Quantize
-                int currLumIdx = int(nomalize(luminance(currentColor.rgb)) * (gLumDimSize - 1));
-                int prevLumIdx = int(nomalize(luminance(prevColor.rgb)) * (gLumDimSize - 1));
-                int currDepthIdx = int(nomalize(currentDepth.y) * (gDepthDimSize - 1));
+                int currLumIdx = int(nomalize(luminance(currentIllumination)) * (gLumDimSize - 1));
+                int prevLumIdx = int(nomalize(luminance(prevIllumination)) * (gLumDimSize - 1));
+                //int currDepthIdx = int(nomalize(currentDepth.y) * (gDepthDimSize - 1));
                 int DepthDiffIdx = int(nomalize(abs(currentDepth.x - prevDepth.x)) * (gDepthDimSize - 1));
                 // Compute the index into the LUT
                 int lutIdx = currLumIdx + prevLumIdx * gLumDimSize + DepthDiffIdx * gLumDimSize * gLumDimSize;
@@ -152,28 +155,28 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         weightedColorPrev   /= weightedSum;
 		weightedMomentsPrev /= weightedSum;
 		histLen             /= weightedSum;
-        //antilagAlpha        /= weightedSum;
-    #if IS_DEBUG_PASS
-        gColorTest[iPos] = float4(antilagAlpha, 0, 0, 1);
-    #endif
-        antilagAlpha        =0;
+        antilagAlpha        /= weightedSum;
+    
+        //antilagAlpha        =0;
 
         // Compute the alpha values for the temporal accumulation
         float alphaColor = max(gTemporalColorAlpha, 1.0 / (histLen + 1.0));
         float alphaMoments = max(gTemporalMomentsAlpha, 1.0 / (histLen + 1.0));
 
-        //Equation 15 as per the paper
+        // Equation 15 as per the paper
         alphaColor   = lerp(alphaColor, 1.0, antilagAlpha);
 	    alphaMoments = lerp(alphaMoments, 1.0, antilagAlpha);
         
-        // TODO: Reuse the prevAccumColor around the current pixel before temporal accumulation
+        // Reuse the prevAccumColor around the current pixel before temporal accumulation
         psOut.accumulated.rgb   =   lerp(weightedColorPrev.rgb, currentIllumination.rgb, alphaColor);
         psOut.accumulated.a     =   min(64, histLen + 1.0);
 	    psOut.moments.rg        =   lerp(weightedMomentsPrev.rg, currentMomemnts.rg, alphaMoments);
 	    psOut.histLen.r         =   clamp(1.0 / alphaColor, 0.0, 64.0);
         psOut.gradDiffRatio.r   =   antilagAlpha;
         gCurrColorTexture[iPos] =   currentColor;
-
+    #if IS_DEBUG_PASS
+        gColorTest[iPos] = float4(alphaColor, 0.0 , 0.0 , 1.0);
+    #endif
     }else{
         psOut.accumulated.xyzw  =   float4(currentIllumination.rgb, 1.0);
 		psOut.moments.xy        =   currentMomemnts.xy;

@@ -29,32 +29,32 @@ import Scene.HitInfo;
 
 uint getMeshInstanceID(HitInfo hit)
 {
-    uint instanceID = 10000000;
+    uint instanceID = 0;
 
     switch (hit.getType())
     {
         case HitType::Triangle:
         {
             const TriangleHit triangleHit = hit.getTriangleHit();
-            instanceID = triangleHit.instanceID.index;
+            instanceID = triangleHit.instanceID.index + 1;
             break;
         }
         case HitType::DisplacedTriangle:
         {
             const DisplacedTriangleHit displacedTriangleHit = hit.getDisplacedTriangleHit();
-            instanceID = displacedTriangleHit.instanceID.index;
+            instanceID = displacedTriangleHit.instanceID.index + 1;
             break;
         }
         case HitType::Curve:
         {
             const CurveHit curveHit = hit.getCurveHit();
-            instanceID = curveHit.instanceID.index;
+            instanceID = curveHit.instanceID.index + 1;
             break;
         }
         case HitType::SDFGrid:
         {
             const SDFGridHit sdfGridHit = hit.getSDFGridHit();
-            instanceID = sdfGridHit.instanceID.index;
+            instanceID = sdfGridHit.instanceID.index + 1;
             break;
         }
     }

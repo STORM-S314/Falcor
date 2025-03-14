@@ -2,7 +2,9 @@ from pathlib import WindowsPath, PosixPath
 from falcor import *
 import time
 import os
-
+import logging
+import traceback
+logging.basicConfig(filename=r'D:\data\frames\error_log.txt', level=logging.ERROR, format='%(asctime)s %(message)s')
 def render_graph_ASVGF(useCSVGF = False):
     g = RenderGraph('ASVGF')
     g.create_pass('TAA', 'TAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0, 'antiFlicker': True})
@@ -80,49 +82,49 @@ try:
     # scene_path = "C:\\Users\\storm\\Documents\\GitHub\\Falcor\\media\\test_scenes\\cornell_box_bunny.pyscene"
     # scene_path = "D:\\data\\ZeroDay_v1\\ZeroDay_One.pyscene"
     m.loadScene(scene_path, buildFlags=SceneBuilderFlags.UseCache)
-    m.addGraph(ASVGF)
     camera = m.scene.camera
-    camera.nearPlane = 0.1 
-    
+    camera.nearPlane = 0.1     
     m.clock.pause()
     m.clock.framerate = 144
-    frames = 300
-    m.profiler.enabled = True
-    m.profiler.start_capture()
-    # frame capture
-    if not useCSVGF:
-        m.frameCapture.outputDir = "D:\\data\\frames\\ASVGF"
-    else:
-        m.frameCapture.outputDir = "D:\\data\\frames\\CSVGF"
-    for i in range(frames + 1):
-        m.clock.frame = i
-        m.renderFrame()
-        if i >= 100:
-            m.frameCapture.capture()
-            print(f"\rProgress: {i}/{frames} frames captured")
-        # m.frameCapture.capture()
-        # print(f"\rProgress: {i}/{frames} frames captured")
-    capture = m.profiler.end_capture()
-    m.profiler.enabled = False
-
-    frameCount = capture["frame_count"]
-    if not useCSVGF:
-        lastFrameTime_reProj = capture["events"]["/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time"]["records"][frameCount - 1]
-        meanFrameTime_reProj = capture["events"]["/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time"]["stats"]["mean"]
-    else:
-        lastFrameTime_reProj = 0
-        meanFrameTime_reProj = 0
-    lastFrameTime_denoise = capture["events"]["/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time"]["records"][frameCount - 1]
-    meanFrameTime_denoise = capture["events"]["/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time"]["stats"]["mean"]
-    print(f"Frame Count: {frameCount}")
-    print(f"Last frame gpu time:\n\t GradReproj {lastFrameTime_reProj} ms \n\tDenoise {lastFrameTime_denoise} ms")
-    print(f"Mean frame gpu time:\n\t GradReproj {meanFrameTime_reProj} ms \n\tDenoise {meanFrameTime_denoise} ms")
-    exit()
-
-
-
+    m.addGraph(ASVGF)
+    while True:
+        while True:        
+            try:
+                time.sleep(0.1)
+                with open(r"D:\data\frames\Msg.txt","r") as f:
+                    msg = f.readlines()
+                    if msg.__contains__("Exit"):
+                        exit()
+                    if msg.__contains__("Start"):   
+                        break
+            except Exception as e:
+                logging.error("An error occurred: %s", e)
+                logging.error(traceback.format_exc())
+                time.sleep(1)
+                continue 
+        frames = 100
+        # frame capture
+        if not useCSVGF:
+            m.frameCapture.outputDir = "D:\\data\\frames\\ASVGF"
+        else:
+            m.frameCapture.outputDir = "D:\\data\\frames\\CSVGF"
+        for i in range(frames + 1):
+            m.clock.frame = i
+            m.renderFrame()
+            if i == frames:
+                m.frameCapture.capture()
+        while True:
+            try:
+                time.sleep(0.1)
+                with open(r"D:\data\frames\Msg.txt","w") as f:
+                        f.write('Done')
+                        break
+            except Exception as e:
+                logging.error("An error occurred: %s", e)
+                logging.error(traceback.format_exc())
+                time.sleep(1)
+                continue                                   
 except NameError: None
 except Exception as e:
-    print(e)
-#C:\Users\storm\Documents\GitHub\Falcor\build\windows-vs2022\bin\Release\Mogwai.exe --headless --script="C:\Users\storm\Documents\GitHub\Falcor\scripts\ASVGF.py" -v2 --width=1280 --height=720 --gpu=0
-#.\RenderGraphEditor --editor --graph-file "C:\Users\storm\Documents\GitHub\Falcor\scripts\ASVGF.py" --graph-name ASVGF
+    logging.error("An error occurred: %s", e)
+    logging.error(traceback.format_exc())

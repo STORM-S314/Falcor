@@ -27,6 +27,7 @@
 import ColorSpace;
 import Scene.HitInfo;
 #include "ASVGFCommon.slang"
+#include "ASVGFUtils.slang"
 
 cbuffer PerImageCB
 {
@@ -48,5 +49,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
 
     //return float4(abs(gGradLuminanceDiff[iPos / 3].g) / gGradLuminanceDiff[iPos / 3].r ,0.0, 0.0, 1.0);
     return float4(gColor[iPos]);
+    //HitInfo currentHitInfo         = HitInfo(gVisibilityBuffer[iPos]);
+    //float   currentMeshID          = float(getMeshInstanceID(currentHitInfo));
+    //float   currentHitInfoValid    = float(currentHitInfo.isValid() ? 1 : 0);
+    //return float4(currentMeshID, currentHitInfoValid, 0, 0);
 	
 }

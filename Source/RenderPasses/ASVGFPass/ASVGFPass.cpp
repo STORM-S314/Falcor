@@ -52,7 +52,7 @@ const char kTemporalMutualInfCalcShader[]           = "RenderPasses/ASVGFPass/Te
 const char kSpatialMutualInfCalcShader[]            = "RenderPasses/ASVGFPass/SpatialMutualInformationCalculation.ps.slang";
 const char kCSVGFTemporalAccumulationShader[]       = "RenderPasses/ASVGFPass/CSVGFTemporalAccumulation.ps.slang";
 // LUT files
-const char kCSVGFTemporalLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/CSVGFTemporalLUT.bin";
+const char kCSVGFTemporalLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/BestCSVGFTemporalLUT.bin";
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
@@ -123,22 +123,15 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
-    // Init
+    // Init Lut
     std::ifstream lutFile(kCSVGFTemporalLUT, std::ios::binary);
     if (!lutFile)
     {
         FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
     }
-    std::vector<double> mCSVGFTemporalLUTOri(mLumDimSize * mLumDimSize * mDepthDimSize);
-    lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUTOri.data()), mCSVGFTemporalLUTOri.size() * sizeof(double));
-    lutFile.close();
     mCSVGFTemporalLUT = std::vector<float>(mLumDimSize * mLumDimSize * mDepthDimSize);
-    for (int i = 0; i < mLumDimSize * mLumDimSize * mDepthDimSize; i++)
-    {
-        // TODO: Trian better LUT
-        mCSVGFTemporalLUT[i] = pow((float)mCSVGFTemporalLUTOri[i], 1.0f);
-    }
-    
+    lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
+    lutFile.close();
 }
 
 Properties ASVGFPass::getProperties() const
@@ -429,6 +422,16 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     else
     // CSVGF Temporal Accumulation
     {
+        // Init Lut
+        std::ifstream lutFile(kCSVGFTemporalLUT, std::ios::binary);
+        if (!lutFile)
+        {
+            FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
+        }
+        mCSVGFTemporalLUT = std::vector<float>(mLumDimSize * mLumDimSize * mDepthDimSize);
+        lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
+        lutFile.close();
+
         mpCSVGFTemporalLUTBuffer->setBlob(&mCSVGFTemporalLUT[0], 0, mCSVGFTemporalLUT.size() * sizeof(float));
 
         auto perImageAccumulationCB = mpPrgCSVGFTemporalAccumulation->getRootVar()["PerImageCB"];

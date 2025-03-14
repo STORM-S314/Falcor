@@ -40,6 +40,8 @@ const char kOutputAggregatedImage[] = "AggregatedImage";
 
 const char kImageAggregationCount[] = "ImageAggregationCount";
 
+const char kIsAggregating[] = "IsAggregating";
+
 // Shader source files
 const char kImageAggregator[] = "RenderPasses/ImageAggregator/ImageAggregator.ps.slang";
 
@@ -50,6 +52,8 @@ ImageAggregator::ImageAggregator(ref<Device> pDevice, const Properties& props)
     {
         if (key == kImageAggregationCount)
             mImageAggregationCount = value;
+        else if (key == kIsAggregating)
+            mStartAggregation = value;
         else
             logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
@@ -59,6 +63,7 @@ Properties ImageAggregator::getProperties() const
 {
     Properties props;
     props[kImageAggregationCount] = mImageAggregationCount;
+    props[kIsAggregating] = mStartAggregation;
     return props;
 }
 
@@ -121,9 +126,6 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
         mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
         mCurrentImagesAccumulated++;
 
-         logWarning("Percentage Completed: {}", ((((float)mCurrentImagesAccumulated + (float)mCurrentAggregateImagesAccumulated * (float)mImageAggregationCount) /
-          (mImageAggregationCount * mImageAggregationCount)) * 100.0f));
-
         if (mCurrentImagesAccumulated >= (mImageAggregationCount))
         {
             auto perImageImgAggregationCB1 = mpPrgImageAggregation->getRootVar()["PerImageCB"];
@@ -134,7 +136,12 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
             perImageImgAggregationCB1["gPixelsInFrame"] = pInputColorTexture->getWidth() * pInputColorTexture->getHeight();
             mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
             mCurrentAggregateImagesAccumulated++;
-
+            logWarning(
+                "Percentage Completed: {}",
+                ((((float)mCurrentImagesAccumulated + (float)mCurrentAggregateImagesAccumulated * (float)mImageAggregationCount) /
+                  (mImageAggregationCount * mImageAggregationCount)) *
+                 100.0f)
+            );
             if (mCurrentAggregateImagesAccumulated >= (mImageAggregationCount))
             { 
                 mStartAggregation = false;

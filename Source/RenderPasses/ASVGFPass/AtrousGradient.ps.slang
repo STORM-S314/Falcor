@@ -52,7 +52,7 @@ float computeWeight(
     const float weightZ       = (phiDepth == 0) ? 0.0f : abs(depthCenter - depthP) / phiDepth;
     const float weightLillum  = abs(luminanceIllumCenter - luminanceIllumP) / phiIllum;
 
-    const float weightIllum   = exp(0.0 - weightLillum * weightLillum - weightZ);
+    const float weightIllum   = exp(- weightLillum * weightLillum - weightZ);
 
     return weightIllum;
 }
@@ -101,7 +101,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float computedVarianceCenter = computeVarianceCenter(ipos);
 
     const float2 zCenter = color2.ba;
-    if (zCenter.x < 0.0 || color1.b == 0.0)
+    if (zCenter.x < 0.0)
     {
         // not a valid depth => must be envmap => do not filter
         psOut.gradientLuminanceAtrous   = color1;
@@ -122,12 +122,11 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     {
         for (int xx = -1; xx <= 1; xx++)
         {
-            const int2 p        = ipos + int2(xx, yy) * int2(gStepSize, gStepSize);
-            const bool inside   = isPixelWithinScreenDimensions(p, gGradientResDimensions);
+            const int2 p        = ipos + int2(xx, yy) * int2(gStepSize, gStepSize);            
 
             const float kernel = 1.0;//kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
 
-            if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
+            if (xx != 0 || yy != 0) // skip center pixel, it is already accumulated
             {
                 const float4 currentGradientVarianceP = gGradientVariance[p].rgba;
                 const float luminanceP  =   currentGradientVarianceP.r;
@@ -146,7 +145,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
                 if(currentGradientDifferenceP.b > 0.0)
                 {
                     sumWIllumination        +=  wIllumination;
-                    sumGradientDifference   +=  float4(wIllumination.xx, 0.0, 0.0) * float4(currentGradientDifferenceP.xy, 1.0, 1.0);
+                    sumGradientDifference   +=  wIllumination * currentGradientDifferenceP;
                     sumVariance             +=  wIllumination * wIllumination * varianceP;
                     sumLuminance            +=  wIllumination * luminanceP;
                 }
@@ -154,7 +153,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         }
     }
 
-    psOut.gradientLuminanceAtrous   = sumGradientDifference / float4(sumWIllumination.xx, 1.0, 1.0);
+    psOut.gradientLuminanceAtrous   = sumGradientDifference / sumWIllumination;
     psOut.gradientVarianceAtrous    = float4(sumLuminance, sumVariance, zCenter.r, zCenter.g) / float4(sumWIllumination.x, sumWIllumination.x * sumWIllumination.x, 1.0, 1.0);
 
     return psOut;

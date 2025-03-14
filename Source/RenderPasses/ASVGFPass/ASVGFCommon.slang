@@ -42,7 +42,7 @@ struct FullScreenPassVsOut
 
 float3 getIllumination(float3 a_Color, float3 a_Albedo, float3 a_SpecularAlbedo, float3 a_Emission)
 {
-    return ((a_Color.rgb - a_Emission.rgb) / (max(float3(0.001, 0.001, 0.001), a_Albedo.rgb + a_SpecularAlbedo )));
+    return ((a_Color.rgb) / (max(float3(0.001, 0.001, 0.001), a_Albedo.rgb + a_SpecularAlbedo + a_Emission.rgb)));
 }
 
 bool isPixelWithinScreenDimensions(float2 pixelPos, float2 screenDimensions)
@@ -62,6 +62,10 @@ bool isReprojectionValid(float2 pixelPos, float2 screenDimensions, float2 curren
     if (dot(currentNormal, prevNormal) < 0.9) {return false;}
 
     return true;
+}
+
+bool isLuminanceVarianceValid(float currentLuminance, float prevLuminance){
+    return abs(currentLuminance - prevLuminance) < 125.f;
 }
 
 int2 getTextureDims(Texture2D tex, uint mip)

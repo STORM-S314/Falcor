@@ -15,6 +15,7 @@ target_sources(ASVGFPass PRIVATE
 	SpatialMutualInformationCalculation.ps.slang
 	CSVGFTemporalAccumulation.ps.slang
 	CSVGFTemporalLUT.bin
+    BestCSVGFTemporalLUT.bin
 	DebugPass.ps.slang
 )
 target_copy_shaders(ASVGFPass RenderPasses/ASVGFPass)

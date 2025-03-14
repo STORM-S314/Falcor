@@ -81,7 +81,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     float luminance_p = luminance(color_p.rgb);
 
 					float weightDepth = abs(depth_p - centerDepth.x) / (centerDepth.y * length(float2(xx, yy)) + 1e-2);
-                    float weightNormals = pow(saturate(dot(normals_p, centerNormals)), 128.0); 
+                    float weightNormals = pow(max(0.0, dot(normals_p, centerNormals)), 128.0); 
 
 					uint meshID_p =  getMeshInstanceID(HitInfo(gVisibilityBuffer[p]));
 
