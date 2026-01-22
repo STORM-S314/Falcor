@@ -129,7 +129,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     {
         FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
     }
-    mCSVGFTemporalLUT = std::vector<float>(mLumDimSize * mLumDimSize * mDepthDimSize);
+    mCSVGFTemporalLUT = std::vector<float>(pow(mLutDimSize,mLutIdxSize));
     lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
     lutFile.close();
 }
@@ -428,7 +428,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         {
             FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
         }
-        mCSVGFTemporalLUT = std::vector<float>(mLumDimSize * mLumDimSize * mDepthDimSize);
+        mCSVGFTemporalLUT = std::vector<float>(pow(mLutDimSize, mLutIdxSize));
         lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
         lutFile.close();
 
@@ -460,8 +460,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
         perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
         perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
-        perImageAccumulationCB["gLumDimSize"] = mLumDimSize;
-        perImageAccumulationCB["gDepthDimSize"] = mDepthDimSize;
+        perImageAccumulationCB["gLutDimSize"] = mLutDimSize;
         perImageAccumulationCB["gAntilagLUTBuffer"] = mpCSVGFTemporalLUTBuffer;
 
 #if IS_DEBUG_PASS
@@ -801,7 +800,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 
     if (mUseCSVGF)
     {
-        mpCSVGFTemporalLUTBuffer = mpDevice->createBuffer(mLumDimSize * mLumDimSize * mDepthDimSize * sizeof(float), ResourceBindFlags::UnorderedAccess|ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal);
+        mpCSVGFTemporalLUTBuffer = mpDevice->createBuffer(pow(mLutDimSize, mLutIdxSize) * sizeof(float), ResourceBindFlags::UnorderedAccess|ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal);
     }
     if (mUseMutualInformation)
     {

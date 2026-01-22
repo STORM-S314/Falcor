@@ -4,7 +4,7 @@ import time
 import os
 import logging
 import traceback
-logging.basicConfig(filename=r'D:\data\frames\error_log.txt', level=logging.ERROR, format='%(asctime)s %(message)s')
+logging.basicConfig(filename=r'D:\\data\\frames\\error_log.txt', level=logging.ERROR, format='%(asctime)s %(message)s')
 def render_graph_ASVGF(useCSVGF = False):
     g = RenderGraph('ASVGF')
     g.create_pass('TAA', 'TAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0, 'antiFlicker': True})
@@ -23,6 +23,9 @@ def render_graph_ASVGF(useCSVGF = False):
 
     g.add_edge('TAA.colorOut', 'ToneMapper.src')
     g.add_edge('ASVGFPass.Filtered image', 'TAA.colorIn')
+
+    #g.add_edge('ASVGFPass.Filtered image', 'ToneMapper.src')
+
     if not useCSVGF:
         g.add_edge('PathTracerMod.albedo', 'ASVGFPass.Albedo')
         g.add_edge('PathTracerMod.color', 'ASVGFPass.Color')
@@ -50,9 +53,9 @@ def render_graph_ASVGF(useCSVGF = False):
         g.add_edge('GBufferRaster.mvec', 'PathTracer.mvec')
         g.add_edge('GBufferRaster.viewW', 'PathTracer.viewW')
         g.add_edge('GBufferRaster.vbuffer', 'ASVGFPass.GradientVisibilityBuffer')
-        g.mark_output('PathTracer.albedo')
-        g.mark_output('PathTracer.color')
-        g.mark_output('PathTracer.specularAlbedo')
+        # g.mark_output('PathTracer.albedo')
+        # g.mark_output('PathTracer.color')
+        # g.mark_output('PathTracer.specularAlbedo')
         
     g.add_edge('GBufferRaster.mvec', 'TAA.motionVecs')
     g.add_edge('GBufferRaster.emissive', 'ASVGFPass.Emission')
@@ -63,12 +66,11 @@ def render_graph_ASVGF(useCSVGF = False):
     
     
     
-    g.mark_output('GBufferRaster.emissive')
-    g.mark_output('GBufferRaster.linearZ')
-    g.mark_output('GBufferRaster.normW')
-    g.mark_output('GBufferRaster.vbuffer')
-    g.mark_output('GBufferRaster.mvec')
-    # g.mark_output('GBufferRaster.pnFwidth')
+    # g.mark_output('GBufferRaster.emissive')
+    # g.mark_output('GBufferRaster.linearZ')
+    # g.mark_output('GBufferRaster.normW')
+    # g.mark_output('GBufferRaster.vbuffer')
+    # g.mark_output('GBufferRaster.mvec')
     return g
 useCSVGF = True
 ASVGF = render_graph_ASVGF(useCSVGF)
@@ -85,17 +87,20 @@ try:
     camera = m.scene.camera
     camera.nearPlane = 0.1     
     m.clock.pause()
-    m.clock.framerate = 144
+    m.clock.framerate = 60
     m.addGraph(ASVGF)
+    frame_idx = 0
     while True:
         while True:        
             try:
                 time.sleep(0.1)
-                with open(r"D:\data\frames\Msg.txt","r") as f:
-                    msg = f.readlines()
+                with open(r"D:\\data\\frames\\Msg.txt","r") as f:
+                    msg = f.readline()
+                    msgs = msg.split(':')
                     if msg.__contains__("Exit"):
                         exit()
-                    if msg.__contains__("Start"):   
+                    if msgs[0] == "Start":
+                        frame_idx = int(msgs[1])
                         break
             except Exception as e:
                 logging.error("An error occurred: %s", e)
@@ -108,11 +113,12 @@ try:
             m.frameCapture.outputDir = "D:\\data\\frames\\ASVGF"
         else:
             m.frameCapture.outputDir = "D:\\data\\frames\\CSVGF"
-        for i in range(frames + 1):
+        for i in range(frame_idx - 10, frame_idx + 1):
             m.clock.frame = i
             m.renderFrame()
-            if i == frames:
+            if i == frame_idx:
                 m.frameCapture.capture()
+                break
         while True:
             try:
                 time.sleep(0.1)
@@ -128,3 +134,6 @@ except NameError: None
 except Exception as e:
     logging.error("An error occurred: %s", e)
     logging.error(traceback.format_exc())
+
+#示例用法
+#C:\Users\storm\Documents\GitHub\Falcor\build\windows-vs2022\bin\Release\Mogwai.exe --script="C:\Users\storm\Documents\GitHub\Falcor\scripts\CSVGF.py" -v2 --width=1280 --height=720 --gpu=0 --headless -v0
