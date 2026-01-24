@@ -112,8 +112,11 @@ private:
     int mSpatialLumBinCount = 5;
     int mLutDimSize = 16;
     int mLutIdxSize = 3;
+    int mSpatialLutDimSize = 16;
+    int mSpatialLutIdxSize = 3;
 
     std::vector<float> mCSVGFTemporalLUT;
+    std::vector<float> mCSVGFSpatialLUT;
 
     int screenWidth = 0;
     int screenHeight = 0;
@@ -153,6 +156,7 @@ private:
     ref<FullScreenPass> mpPrgTemporalAccumulation;
     ref<FullScreenPass> mpPrgEstimateVariance;
     ref<FullScreenPass> mpPrgAtrousFullScreen;
+    ref<FullScreenPass> mpPrgCSVGFAtrousFullScreen;
     ref<FullScreenPass> mpPrgTemporalMutualInfCalc;
     ref<FullScreenPass> mpPrgSpatialMutualInfCalc;
     ref<FullScreenPass> mpPrgCSVGFTemporalAccumulation;
@@ -172,6 +176,8 @@ private:
 
     // Temporal filter coef lookup table
     ref<Buffer> mpCSVGFTemporalLUTBuffer;
+    // Spatial filter coef lookup table
+    ref<Buffer> mpCSVGFSpatialLUTBuffer;
 
     ref<Buffer> mpFrameTimeSteps;
 
