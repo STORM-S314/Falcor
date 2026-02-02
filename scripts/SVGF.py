@@ -63,33 +63,34 @@ try:
     camera = m.scene.camera
     camera.nearPlane = 0.1 
     
-    # m.clock.pause()
-    # m.clock.framerate = 120
-    # m.clock.frame = 0
-    # frame_count = 2401
-    # # frame capture
-    # m.frameCapture.outputDir = "D:\\data\\frames\\SVGF"
-    # for frame_id in range(frame_count):
-    #     m.renderFrame()
-    #     m.clock.step(1)
-    #     # m.frameCapture.capture()
-    #     # if (frame_id + 1% 10 == 0) or frame_id == frame_count - 1:
-    #     #     print(f"\rProgress: {frame_id + 1}/{frame_count} frames captured")
-    #     #     time.sleep(0.01)
-    # # exit()
+    m.clock.pause()
+    m.clock.framerate = 60
+    frames = 300
+    start_frame_idx = 100
+    m.profiler.enabled = True
+    m.profiler.start_capture()
+    # frame capture
+    m.frameCapture.outputDir = "D:\\data\\frames\\SVGF"
+    for i in range(start_frame_idx + frames + 1):
+        m.clock.frame = i
+        m.renderFrame()
+        if i >= start_frame_idx:        
+            m.frameCapture.capture()
+            print(f"\rProgress: {i - start_frame_idx}/{frames} frames captured")
+    capture = m.profiler.end_capture()
+    m.profiler.enabled = False
 
-    # # camera = m.scene.camera
-    # # start_time = time.time()
-    # # while True:
-    # #     current_time = time.time()
-    # #     elapsed_time = current_time - start_time
-    # #     amplitude = 1
-    # #     frequency = 1
-    # #     x = amplitude * math.sin(frequency * elapsed_time) - 1.0
-    # #     z = -amplitude * math.sin(frequency * elapsed_time) + 2.0
-    # #     camera.position = float3(x, 2.28, z)
-    # #     # camera.target = float3(x, 1.4863656759262086, z)
-    # #     renderFrame()
+    frameCount = capture["frame_count"]    
+    lastFrameTime_denoise = capture["events"]["/onFrameRender/RenderGraphExe::execute()/SVGFPass/gpu_time"]["records"][frameCount - 1] + capture["events"]["/onFrameRender/RenderGraphExe::execute()/SVGFPass0/gpu_time"]["records"][frameCount - 1]
+    meanFrameTime_denoise = capture["events"]["/onFrameRender/RenderGraphExe::execute()/SVGFPass/gpu_time"]["stats"]["mean"] + capture["events"]["/onFrameRender/RenderGraphExe::execute()/SVGFPass0/gpu_time"]["stats"]["mean"]
+    print(f"Frame Count: {frameCount}")
+    print(f"Last frame gpu time:\n\t Denoise {lastFrameTime_denoise} ms")
+    print(f"Mean frame gpu time:\n\t Denoise {meanFrameTime_denoise} ms")
+    with open(r"D:\\data\\frames\\SVGF\\SVGF.csv", "w") as f:
+        f.write("Frame ID, Denoise Time\n")
+        for i in range(frameCount):
+            f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/SVGFPass/gpu_time']['records'][i] + capture['events']['/onFrameRender/RenderGraphExe::execute()/SVGFPass0/gpu_time']['records'][i]}\n")
+    exit()
     
     
 except NameError: None

@@ -110,9 +110,9 @@ private:
     float mSpatialMIThreshold = 0.05f;
     int mMinHistoryCountSpatialThreshold = 1;
     int mSpatialLumBinCount = 5;
-    int mLutDimSize = 16;
+    int mLutDimSize = 4;
     int mLutIdxSize = 3;
-    int mSpatialLutDimSize = 16;
+    int mSpatialLutDimSize = 4;
     int mSpatialLutIdxSize = 3;
 
     std::vector<float> mCSVGFTemporalLUT;

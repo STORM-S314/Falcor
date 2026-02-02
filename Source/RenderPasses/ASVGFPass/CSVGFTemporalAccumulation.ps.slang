@@ -175,23 +175,23 @@ PS_OUT main(FullScreenPassVsOut vsOut)
         int velocityIdx = int(nomalize(currentVelocity) * (gLutDimSize - 1));
         // Compute the index into the LUT
         int lutIdx = 0;
-        //lutIdx += albedoLumIdx;
-        //lutIdx *= gLutDimSize;
-        lutIdx += emissionLumIdx;
-        lutIdx *= gLutDimSize;
-        lutIdx += specularAlbedoIdx;
-        lutIdx *= gLutDimSize;
-        //lutIdx += normalIdx;
-        //lutIdx *= gLutDimSize;
-        //lutIdx += prevDepthIdx;
-        //lutIdx *= gLutDimSize;
-        //lutIdx += depthIdx;
-        //lutIdx *= gLutDimSize;
-        //lutIdx += prevLumIdx;
-        //lutIdx *= gLutDimSize;
-        lutIdx += lumIdx;
-        //lutIdx *= gLutDimSize;
-        //lutIdx += velocityIdx;
+        //lutIdx |= albedoLumIdx;
+        //lutIdx = lutIdx << int(log2(float(gLutDimSize)));
+        lutIdx |= emissionLumIdx;
+        lutIdx = lutIdx << int(log2(float(gLutDimSize)));
+        lutIdx |= specularAlbedoIdx;
+        lutIdx = lutIdx << int(log2(float(gLutDimSize)));
+        //lutIdx |= normalIdx;
+        //lutIdx << int(log2(float(gLutDimSize)));
+        //lutIdx |= prevDepthIdx;
+        //lutIdx << int(log2(float(gLutDimSize)));
+        //lutIdx |= depthIdx;
+        //lutIdx << int(log2(float(gLutDimSize)));
+        //lutIdx |= prevLumIdx;
+        //lutIdx << int(log2(float(gLutDimSize)));
+        lutIdx |= lumIdx;
+        //lutIdx << int(log2(float(gLutDimSize)));
+        //lutIdx |= velocityIdx;
         // Get the antilag value from the LUT
         antilagAlpha        =gAntilagLUTBuffer[lutIdx];        
 

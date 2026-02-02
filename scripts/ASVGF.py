@@ -88,8 +88,8 @@ try:
     
     m.clock.pause()
     m.clock.framerate = 60
-    frames = 100
-    start_frame_idx = 300
+    frames = 300
+    start_frame_idx = 100
     m.profiler.enabled = True
     m.profiler.start_capture()
     # frame capture
@@ -102,9 +102,7 @@ try:
         m.renderFrame()
         if i >= start_frame_idx:
             m.frameCapture.capture()
-            print(f"\rProgress: {i - start_frame_idx}/{frames} frames captured")
-        # m.frameCapture.capture()
-        # print(f"\rProgress: {i}/{frames} frames captured")
+            print(f"\rProgress: {i - start_frame_idx}/{frames} frames captured")        
     capture = m.profiler.end_capture()
     m.profiler.enabled = False
 
@@ -123,12 +121,12 @@ try:
     if not useCSVGF:
         with open(r"D:\\data\\frames\\ASVGF\\ASVGF.csv", "w") as f:
             f.write("Frame ID, GradReproj Time, Denoise Time\n")
-            for i in range(100):
+            for i in range(frameCount):
                 f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i]}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
     else:
         with open(r"D:\\data\\frames\\CSVGF\\CSVGF.csv", "w") as f:
             f.write("Frame ID, Denoise Time\n")
-            for i in range(100):
+            for i in range(frameCount):
                 f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
     exit()
 

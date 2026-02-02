@@ -27,6 +27,10 @@
 import ColorSpace;
 #include "ASVGFCommon.slang"
 
+float nomalize(float x){
+    return 1.0 - exp(-x);
+}
+
 cbuffer PerImageCB
 {
 	Texture2D   gColorAndVariance;
@@ -63,6 +67,26 @@ float computeWeight(
     return weightIllum;
 }
 
+float computeWeightLUT(
+    float depthCenter, float depthP, float phiDepth,
+    float3 normalCenter, float3 normalP, float phiNormal,
+    float luminanceIllumCenter, float luminanceIllumP, float phiIllum
+){
+    // Quantize
+    int normalDiffIdx = int(1.0 - nomalize(pow(max(0.0, dot(normalCenter, normalP)), phiNormal)) * (gSpatialLutDimSize - 1));
+    int depthDiffIdx = int(1.0 - nomalize(3.0 * abs(depthCenter - depthP) / phiDepth) * (gSpatialLutDimSize - 1));
+    int lumDiffIdx = int(nomalize(abs(luminanceIllumCenter - luminanceIllumP) / phiIllum) * (gSpatialLutDimSize - 1));
+    // Compute the index into the LUT
+    int lutIdx = 0;
+    lutIdx |= normalDiffIdx;
+    lutIdx = lutIdx << int(log2(float(gSpatialLutDimSize)));
+    lutIdx |= depthDiffIdx;
+    lutIdx = lutIdx << int(log2(float(gSpatialLutDimSize)));
+    lutIdx |= lumDiffIdx;
+    // Get the value from the LUT
+    float weightIllum = gSpatialLutBuffer[lutIdx];
+    return weightIllum;
+}
 float computeVarianceDiffCenter(int2 ipos)
 {
     const float kernel[2][2] = {
@@ -147,7 +171,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     int2 ipos = int2(vsOut.posH.xy);
 
     const float epsVariance      = 1e-10;
-    //const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
+    const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
     const float4 illuminationCenter = gColorAndVariance[ipos].rgba;
     const float lIlluminationCenter = luminance(illuminationCenter.rgb);
@@ -169,8 +193,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     float sumWIllumination   = 1.0;
     float4  sumIllumination  = illuminationCenter;
 
-    //if(varDiff > 0.1f){
-        const float radius = 1;
+    //if(varDiff > 0.01f){
+        const float radius = 1.0;
         for (int yy = -radius; yy <= radius; yy++)
         {
             for (int xx = -radius; xx <= radius; xx++)
@@ -178,7 +202,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                 const int2 p     = ipos + int2(xx, yy) * int2(gStepSize, gStepSize);
                 const bool inside = isPixelWithinScreenDimensions(p, gScreenDimension);
 
-                const float kernel = 1.0;
+                const float kernel = kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
 
                 if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
                 {
@@ -188,7 +212,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     const float3 nP = gNormalsTexture[p].xyz;
 
                     // compute the edge-stopping functions
-                    const float w = computeWeight(
+                    const float w = computeWeightLUT(
                         zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize) * float2(gStepSize, gStepSize)),
                         nCenter, nP, gPhiNormal,
                         lIlluminationCenter, lIlluminationP, phiLIllumination);
