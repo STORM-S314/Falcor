@@ -54,7 +54,7 @@ const char kCSVGFTemporalAccumulationShader[]       = "RenderPasses/ASVGFPass/CS
 const char kCSVGFAtrousFullScreenShader[]           = "RenderPasses/ASVGFPass/CSVGFAtrousFullScreen.ps.slang";
 // LUT files
 const char kCSVGFTemporalLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/BestCSVGFTemporalLUT.bin";
-const char kCSVGFSpatialLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/CSVGFSpatialLUT.bin";
+const char kCSVGFSpatialLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/BestCSVGFSpatialLUT.bin";
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
