@@ -74,7 +74,8 @@ const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
 const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
 const char kSpatialLumBinCount[]        = "SpatialLumBinCount";
 const char kUseCSVGF[] = "UseCSVGF";
-const char kIsTrain[] = "IsTrain";
+const char kIsTemporalTrain[] = "IsTemporalTrain";
+const char kIsSpatialTrain[] = "IsSpatialTrain";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -121,12 +122,13 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kMinHistoryCountSpatialThreshold) mMinHistoryCountSpatialThreshold = value;
         else if (key == kSpatialLumBinCount) mSpatialLumBinCount = value;
         else if (key == kUseCSVGF) mUseCSVGF = value;
-        else if (key == kIsTrain) isTrain = value;
+        else if (key == kIsTemporalTrain) mIsTemporalTrain = value;
+        else if (key == kIsSpatialTrain) mIsSpatialTrain = value;
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
     // Init Lut
-    std::ifstream temporalLutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
+    std::ifstream temporalLutFile(mIsTemporalTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
     if (!temporalLutFile)
     {
         std::string msg = "Failed to open " + mCSVGFTemporalLUTPath + "\n" + \
@@ -137,7 +139,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     temporalLutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
     temporalLutFile.close();
 
-    std::ifstream spatialLutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath , std::ios::binary);
+    std::ifstream spatialLutFile(mIsSpatialTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath , std::ios::binary);
     if (!spatialLutFile)
     {
         std::string msg = "Failed to open " + mCSVGFSpatialLUTPath  + "\n" + \
@@ -438,7 +440,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     // CSVGF Temporal Accumulation
     {
         // Init Lut
-        std::ifstream lutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
+        std::ifstream lutFile(mIsTemporalTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
         if (!lutFile)
         {
             std::string msg = "Failed to open " + mCSVGFTemporalLUTPath + "\n" + \
@@ -704,7 +706,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         // CSVGF A-trous filtering
 
         // Init Lut
-        std::ifstream lutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath, std::ios::binary);
+        std::ifstream lutFile(mIsSpatialTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath, std::ios::binary);
         if (!lutFile)
         {
             std::string msg = "Failed to open " + mCSVGFSpatialLUTPath + "\n" + \

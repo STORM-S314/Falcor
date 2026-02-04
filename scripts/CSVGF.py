@@ -10,11 +10,11 @@ csvgf_path = denoised_frame_path + '/CSVGF'
 asvgf_path = denoised_frame_path + '/ASVGF'
 scenes_path = r'D:/data' if os.name == 'nt' else os.path.expanduser('~/data/scenes')
 logging.basicConfig(filename=frame_output_path + '/error_log.txt', level=logging.ERROR, format='%(asctime)s %(message)s')
-def render_graph_ASVGF(useCSVGF = False, isTrain = True):
+def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain = False):
     g = RenderGraph('ASVGF')
     g.create_pass('TAA', 'TAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0, 'antiFlicker': True})
     g.create_pass('GBufferRT', 'GBufferRT', {'outputSize': 'Default', 'samplePattern': 'Center', 'sampleCount': 16, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back'})
-    g.create_pass('ASVGFPass', 'ASVGFPass', {'UseCSVGF': useCSVGF,'IsTrain': isTrain})
+    g.create_pass('ASVGFPass', 'ASVGFPass', {'UseCSVGF': useCSVGF,'IsTemporalTrain': isTemporalTrain, 'IsSpatialTrain': isSpatialTrain})
     if not useCSVGF:
         g.create_pass('GradForwardProjPass', 'GradForwardProjPass', {'UseCSVGF': useCSVGF})
         g.create_pass('PathTracerMod', 'PathTracerMod', {'samplesPerPixel': 1, 'maxSurfaceBounces': 1, 'maxDiffuseBounces': 1, 'maxSpecularBounces': 1, 'maxTransmissionBounces': 0, 'sampleGenerator': 0, 'useBSDFSampling': True, 'useRussianRoulette': False, 'useNEE': True, 'useMIS': True, 'misHeuristic': 'Balance', 'misPowerExponent': 2.0, 'emissiveSampler': 'LightBVH', 'lightBVHOptions': {'buildOptions': {'splitHeuristicSelection': 'BinnedSAOH', 'maxTriangleCountPerLeaf': 10, 'binCount': 16, 'volumeEpsilon': 0.0010000000474974513, 'splitAlongLargest': False, 'useVolumeOverSA': False, 'useLeafCreationCost': True, 'createLeavesASAP': True, 'allowRefitting': True, 'usePreintegration': True, 'useLightingCones': True}, 'useBoundingCone': True, 'useLightingCone': True, 'disableNodeFlux': False, 'useUniformTriangleSampling': True, 'solidAngleBoundMethod': 'Sphere'}, 'useRTXDI': False, 'RTXDIOptions': {'mode': 'SpatiotemporalResampling', 'presampledTileCount': 128, 'presampledTileSize': 1024, 'storeCompactLightInfo': True, 'localLightCandidateCount': 24, 'infiniteLightCandidateCount': 8, 'envLightCandidateCount': 8, 'brdfCandidateCount': 1, 'brdfCutoff': 0.0, 'testCandidateVisibility': True, 'biasCorrection': 'Basic', 'depthThreshold': 0.10000000149011612, 'normalThreshold': 0.5, 'samplingRadius': 30.0, 'spatialSampleCount': 1, 'spatialIterations': 5, 'maxHistoryLength': 20, 'boilingFilterStrength': 0.0, 'rayEpsilon': 0.0010000000474974513, 'useEmissiveTextures': False, 'enableVisibilityShortcut': False, 'enablePermutationSampling': False}, 'useAlphaTest': True, 'adjustShadingNormals': False, 'maxNestedMaterials': 2, 'useLightsInDielectricVolumes': False, 'disableCaustics': False, 'specularRoughnessThreshold': 0.25, 'primaryLodMode': 'Mip0', 'lodBias': 0.0, 'useNRDDemodulation': False, 'outputSize': 'Default', 'colorFormat': 'LogLuvHDR'})
@@ -78,7 +78,7 @@ def render_graph_ASVGF(useCSVGF = False, isTrain = True):
     # g.mark_output('GBufferRT.mvec')
     return g
 useCSVGF = True
-ASVGF = render_graph_ASVGF(useCSVGF)
+ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=True)
 try: 
     print("==================CAPUTRE======================")
     scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'

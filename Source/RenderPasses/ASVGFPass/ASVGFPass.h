@@ -125,8 +125,9 @@ private:
 
     std::string mCSVGFTemporalLUTPath ="./Source/RenderPasses/ASVGFPass/CSVGFTemporalLUT.bin";
     std::string mCSVGFSpatialLUTPath ="./Source/RenderPasses/ASVGFPass/CSVGFSpatialLUT.bin";
-
-    bool isTrain = false;
+    
+    bool mIsTemporalTrain = false;
+    bool mIsSpatialTrain = false;
     int screenWidth = 0;
     int screenHeight = 0;
 
