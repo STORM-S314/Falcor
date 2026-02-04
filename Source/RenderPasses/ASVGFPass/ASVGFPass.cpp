@@ -52,9 +52,7 @@ const char kTemporalMutualInfCalcShader[]           = "RenderPasses/ASVGFPass/Te
 const char kSpatialMutualInfCalcShader[]            = "RenderPasses/ASVGFPass/SpatialMutualInformationCalculation.ps.slang";
 const char kCSVGFTemporalAccumulationShader[]       = "RenderPasses/ASVGFPass/CSVGFTemporalAccumulation.ps.slang";
 const char kCSVGFAtrousFullScreenShader[]           = "RenderPasses/ASVGFPass/CSVGFAtrousFullScreen.ps.slang";
-// LUT files
-const char kCSVGFTemporalLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/BestCSVGFTemporalLUT.bin";
-const char kCSVGFSpatialLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/BestCSVGFSpatialLUT.bin";
+
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
@@ -76,6 +74,7 @@ const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
 const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
 const char kSpatialLumBinCount[]        = "SpatialLumBinCount";
 const char kUseCSVGF[] = "UseCSVGF";
+const char kIsTrain[] = "IsTrain";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -120,25 +119,30 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
         else if (key == kFrameBinCountInTempMI)    mFrameLumBinCountInTempMI = value;
         else if (key == kMinHistoryCountSpatialThreshold) mMinHistoryCountSpatialThreshold = value;
-        else if (key == kSpatialLumBinCount) mSpatialLumBinCount= value;
+        else if (key == kSpatialLumBinCount) mSpatialLumBinCount = value;
         else if (key == kUseCSVGF) mUseCSVGF = value;
+        else if (key == kIsTrain) isTrain = value;
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
     // Init Lut
-    std::ifstream temporalLutFile(kCSVGFTemporalLUT, std::ios::binary);
+    std::ifstream temporalLutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
     if (!temporalLutFile)
     {
-        FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
+        std::string msg = "Failed to open" + mCSVGFTemporalLUTPath + "\n" + \
+            "Current Work Path" + std::filesystem::current_path().string();
+        FALCOR_THROW(msg);
     }
     mCSVGFTemporalLUT = std::vector<float>(pow(mLutDimSize,mLutIdxSize));
     temporalLutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
     temporalLutFile.close();
 
-    std::ifstream spatialLutFile(kCSVGFSpatialLUT, std::ios::binary);
+    std::ifstream spatialLutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath , std::ios::binary);
     if (!spatialLutFile)
     {
-        FALCOR_THROW("Failed to open CSVGFSpatialLUT.bin");
+        std::string msg = "Failed to open" + mCSVGFSpatialLUTPath  + "\n" + \
+            "Current Work Path" + std::filesystem::current_path().string();
+        FALCOR_THROW(msg);
     }
     mCSVGFSpatialLUT = std::vector<float>(pow(mSpatialLutDimSize, mSpatialLutIdxSize));
     spatialLutFile.read(reinterpret_cast<char*>(mCSVGFSpatialLUT.data()), mCSVGFSpatialLUT.size() * sizeof(float));
@@ -434,10 +438,12 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     // CSVGF Temporal Accumulation
     {
         // Init Lut
-        std::ifstream lutFile(kCSVGFTemporalLUT, std::ios::binary);
+        std::ifstream lutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
         if (!lutFile)
         {
-            FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
+            std::string msg = "Failed to open" + mCSVGFTemporalLUTPath + "\n" + \
+                "Current Work Path" + std::filesystem::current_path().string();
+            FALCOR_THROW(msg);
         }
         mCSVGFTemporalLUT = std::vector<float>(pow(mLutDimSize, mLutIdxSize));
         lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
@@ -698,10 +704,12 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         // CSVGF A-trous filtering
 
         // Init Lut
-        std::ifstream lutFile(kCSVGFSpatialLUT, std::ios::binary);
+        std::ifstream lutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath, std::ios::binary);
         if (!lutFile)
         {
-            FALCOR_THROW("Failed to open CSVGFSpatialLUT.bin");
+            std::string msg = "Failed to open" + mCSVGFSpatialLUTPath + "\n" + \
+                "Current Work Path" + std::filesystem::current_path().string();
+            FALCOR_THROW(msg);
         }
         mCSVGFSpatialLUT = std::vector<float>(pow(mSpatialLutDimSize, mSpatialLutIdxSize));
         lutFile.read(reinterpret_cast<char*>(mCSVGFSpatialLUT.data()), mCSVGFSpatialLUT.size() * sizeof(float));

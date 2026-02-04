@@ -3,11 +3,11 @@ from falcor import *
 import time
 import os
 
-def render_graph_ASVGF(useCSVGF = False):
+def render_graph_ASVGF(useCSVGF = False, isTrain = False):
     g = RenderGraph('ASVGF')
     g.create_pass('TAA', 'TAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0, 'antiFlicker': True})
     g.create_pass('GBufferRaster', 'GBufferRaster', {'outputSize': 'Default', 'samplePattern': 'Center', 'sampleCount': 16, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back'})
-    g.create_pass('ASVGFPass', 'ASVGFPass', {'UseCSVGF': useCSVGF})
+    g.create_pass('ASVGFPass', 'ASVGFPass', {'UseCSVGF': useCSVGF,"IsTrain": isTrain})
     if not useCSVGF:
         g.create_pass('GradForwardProjPass', 'GradForwardProjPass', {'UseCSVGF': useCSVGF})
         g.create_pass('PathTracerMod', 'PathTracerMod', {'samplesPerPixel': 1, 'maxSurfaceBounces': 10, 'maxDiffuseBounces': 3, 'maxSpecularBounces': 3, 'maxTransmissionBounces': 10, 'sampleGenerator': 0, 'useBSDFSampling': True, 'useRussianRoulette': False, 'useNEE': True, 'useMIS': True, 'misHeuristic': 'Balance', 'misPowerExponent': 2.0, 'emissiveSampler': 'LightBVH', 'lightBVHOptions': {'buildOptions': {'splitHeuristicSelection': 'BinnedSAOH', 'maxTriangleCountPerLeaf': 10, 'binCount': 16, 'volumeEpsilon': 0.0010000000474974513, 'splitAlongLargest': False, 'useVolumeOverSA': False, 'useLeafCreationCost': True, 'createLeavesASAP': True, 'allowRefitting': True, 'usePreintegration': True, 'useLightingCones': True}, 'useBoundingCone': True, 'useLightingCone': True, 'disableNodeFlux': False, 'useUniformTriangleSampling': True, 'solidAngleBoundMethod': 'Sphere'}, 'useRTXDI': False, 'RTXDIOptions': {'mode': 'SpatiotemporalResampling', 'presampledTileCount': 128, 'presampledTileSize': 1024, 'storeCompactLightInfo': True, 'localLightCandidateCount': 24, 'infiniteLightCandidateCount': 8, 'envLightCandidateCount': 8, 'brdfCandidateCount': 1, 'brdfCutoff': 0.0, 'testCandidateVisibility': True, 'biasCorrection': 'Basic', 'depthThreshold': 0.10000000149011612, 'normalThreshold': 0.5, 'samplingRadius': 30.0, 'spatialSampleCount': 1, 'spatialIterations': 5, 'maxHistoryLength': 20, 'boilingFilterStrength': 0.0, 'rayEpsilon': 0.0010000000474974513, 'useEmissiveTextures': False, 'enableVisibilityShortcut': False, 'enablePermutationSampling': False}, 'useAlphaTest': True, 'adjustShadingNormals': False, 'maxNestedMaterials': 2, 'useLightsInDielectricVolumes': False, 'disableCaustics': False, 'specularRoughnessThreshold': 0.25, 'primaryLodMode': 'Mip0', 'lodBias': 0.0, 'useNRDDemodulation': True, 'useSER' : False, 'outputSize': 'Default', 'colorFormat': 'LogLuvHDR'})
@@ -71,7 +71,8 @@ def render_graph_ASVGF(useCSVGF = False):
     # g.mark_output('GBufferRaster.pnFwidth')
     return g
 useCSVGF = True
-ASVGF = render_graph_ASVGF(useCSVGF)
+isTrain = False
+ASVGF = render_graph_ASVGF(useCSVGF, isTrain)
 try: 
     print("==================CAPUTRE======================")
     scene_path = "D:\\data\\Bistro_v5_2\\BistroExterior.pyscene"

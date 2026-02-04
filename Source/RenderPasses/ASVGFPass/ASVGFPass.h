@@ -115,9 +115,38 @@ private:
     int mSpatialLutDimSize = 4;
     int mSpatialLutIdxSize = 3;
 
+    // LUT File Buffer
     std::vector<float> mCSVGFTemporalLUT;
     std::vector<float> mCSVGFSpatialLUT;
 
+    // LUT File Path
+    std::string mBestCSVGFTemporalLUTPath =
+#ifdef WIN32
+        "./Source/RenderPasses/ASVGFPass/BestCSVGFTemporalLUT.bin";
+#else
+        ".\Source\RenderPasses\ASVGFPass\BestCSVGFTemporalLUT.bin";
+#endif //WIN32
+    std::string mBestCSVGFSpatialLUTPath =
+#ifdef WIN32
+        "./Source/RenderPasses/ASVGFPass/BestCSVGFSpatialLUT.bin";
+#else
+        ".\Source\RenderPasses\ASVGFPass\BestCSVGFSpatialLUT.bin";
+#endif // WIN32
+
+    std::string mCSVGFTemporalLUTPath =
+#ifdef WIN32
+        "./Source/RenderPasses/ASVGFPass/CSVGFTemporalLUT.bin";
+#else
+        ".\Source\RenderPasses\ASVGFPass\CSVGFTemporalLUT.bin";
+#endif //WIN32
+    std::string mCSVGFSpatialLUTPath =
+#ifdef WIN32
+        "./Source/RenderPasses/ASVGFPass/CSVGFSpatialLUT.bin";
+#else
+        ".\Source\RenderPasses\ASVGFPass\CSVGFSpatialLUT.bin";
+#endif // WIN32
+
+    bool isTrain = false;
     int screenWidth = 0;
     int screenHeight = 0;
 
