@@ -31,3 +31,6 @@
 *.tlog
 *.bak
 *.swp
+GT
+scenes
+Denoised

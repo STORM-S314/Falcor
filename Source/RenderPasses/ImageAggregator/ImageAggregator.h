@@ -60,7 +60,7 @@ private:
     bool mAggregationComplete = false;
 
     ref<Buffer> mpImageAccumulationBuffer[2];
-    ref<Fbo> mpImageAggregatorFullScreen;
+    ref<Fbo> mpImageAggregatorFullScreen;    
 
     // Full screen passes
     ref<FullScreenPass> mpPrgImageAggregation;

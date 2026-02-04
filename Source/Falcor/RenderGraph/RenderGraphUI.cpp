@@ -734,13 +734,13 @@ void RenderPassUI::renderPinUI(const std::string& passName, RenderGraphUI* pGrap
     {
         logError("Is input : {} pins Greater than vec size {}", input, mInputPins.size());
         return;
-        throw std::exception("Input pins Greater than vec size");
+        throw std::invalid_argument("Input pins Greater than vec size");
     }
     else if (!input && index >= mOutputPins.size())
     {
         logError("Is input : {} pins Greater than vec size {}", input, mInputPins.size());
         return;
-        throw std::exception("Output pins Greater than vec size");
+        throw std::invalid_argument("Output pins Greater than vec size");
     }
 
     RenderPassUI::PinUI& pinUI = input ? mInputPins[index] : mOutputPins[index];

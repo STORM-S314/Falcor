@@ -69,6 +69,15 @@ Properties ImageAggregator::getProperties() const
 
 void ImageAggregator::compile(RenderContext* pRenderContext, const CompileData& compileData)
 {
+    if(!mpPrgImageAggregation){
+        int screenWidth = compileData.defaultTexDims.x;
+        int screenHeight = compileData.defaultTexDims.y;
+        // aggregated image result
+        Fbo::Desc formatAggregatedImageResult;
+        formatAggregatedImageResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
+        mpImageAggregatorFullScreen = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAggregatedImageResult);
+        mpPrgImageAggregation = FullScreenPass::create(mpDevice, kImageAggregator);
+    }
 }
 
 RenderPassReflection ImageAggregator::reflect(const CompileData& compileData)
@@ -87,26 +96,10 @@ RenderPassReflection ImageAggregator::reflect(const CompileData& compileData)
 
 void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& renderData)
 {
+
     if (mIsDirty)
     {
-        int screenWidth = renderData.getDefaultTextureDims().x;
-        int screenHeight = renderData.getDefaultTextureDims().y;
-        // aggregated image result
-        Fbo::Desc formatAggregatedImageResult;
-        formatAggregatedImageResult.setColorTarget(0, Falcor::ResourceFormat::RGBA32Float);
-
-        mpImageAggregatorFullScreen = Fbo::create2D(mpDevice, screenWidth, screenHeight, formatAggregatedImageResult);
-        
-        mpImageAccumulationBuffer[0] = mpDevice->createBuffer(
-            screenWidth * screenHeight * sizeof(float) * 3, ResourceBindFlags::UnorderedAccess
-        );
-        mpImageAccumulationBuffer[1] = mpDevice->createBuffer(
-            screenWidth * screenHeight * sizeof(float) * 3, ResourceBindFlags::UnorderedAccess
-        );
-
-        DefineList newDefines;
-        newDefines.add("AGGREGATION_IMAGE_COUNT", std::to_string(mImageAggregationCount));
-        mpPrgImageAggregation = FullScreenPass::create(mpDevice, kImageAggregator, newDefines);
+        pRenderContext->clearFbo(mpImageAggregatorFullScreen.get(), float4(0), 1.0f, 0, FboAttachmentType::All);
         mIsDirty = false;
     }
 
@@ -117,73 +110,25 @@ void ImageAggregator::execute(RenderContext* pRenderContext, const RenderData& r
     // Image Aggregation
     if (mStartAggregation)
     {
+        mCurrentImagesAccumulated++;
         auto perImageImgAggregationCB = mpPrgImageAggregation->getRootVar()["PerImageCB"];
         perImageImgAggregationCB["gColor"] = pInputColorTexture;
-        perImageImgAggregationCB["gAccumulationBuffer"] = mpImageAccumulationBuffer[0]->asBuffer();
+        perImageImgAggregationCB["gPrevAccumulationColor"] = mpImageAggregatorFullScreen->getColorTexture(0);                
         perImageImgAggregationCB["gInputImageIndex"] = mCurrentImagesAccumulated;
-        perImageImgAggregationCB["gImageDimensions"] = float2(pInputColorTexture->getWidth(), pInputColorTexture->getHeight());
-        perImageImgAggregationCB["gPixelsInFrame"] = pInputColorTexture->getWidth() * pInputColorTexture->getHeight();
-        mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
-        mCurrentImagesAccumulated++;
-
+        mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);    
         if (mCurrentImagesAccumulated >= (mImageAggregationCount))
         {
-            auto perImageImgAggregationCB1 = mpPrgImageAggregation->getRootVar()["PerImageCB"];
-            perImageImgAggregationCB1["gColor"] = mpImageAggregatorFullScreen->getColorTexture(0);
-            perImageImgAggregationCB1["gAccumulationBuffer"] = mpImageAccumulationBuffer[1]->asBuffer();
-            perImageImgAggregationCB1["gInputImageIndex"] = mCurrentAggregateImagesAccumulated;
-            perImageImgAggregationCB1["gImageDimensions"] = float2(pInputColorTexture->getWidth(), pInputColorTexture->getHeight());
-            perImageImgAggregationCB1["gPixelsInFrame"] = pInputColorTexture->getWidth() * pInputColorTexture->getHeight();
-            mpPrgImageAggregation->execute(pRenderContext, mpImageAggregatorFullScreen);
-            mCurrentAggregateImagesAccumulated++;
             logWarning(
                 "Percentage Completed: {}",
-                ((((float)mCurrentImagesAccumulated + (float)mCurrentAggregateImagesAccumulated * (float)mImageAggregationCount) /
-                  (mImageAggregationCount * mImageAggregationCount)) *
+                ((((float)mCurrentImagesAccumulated) /
+                  mImageAggregationCount) *
                  100.0f)
             );
-            if (mCurrentAggregateImagesAccumulated >= (mImageAggregationCount))
-            { 
-                mStartAggregation = false;
-                mAggregationComplete = true;
-                //auto ext = Bitmap::getFileExtFromResourceFormat(mpImageAggregatorFullScreen->getColorTexture(0)->getFormat());
-                //auto fileformat = Bitmap::getFormatFromFileExtension(ext);
-
-                //time_t now = time(0);
-                //struct tm tstruct;
-                //char buf[80];
-                //tstruct = *localtime(&now);
-                //strftime(buf, sizeof(buf), "%Y%m%d_%X", &tstruct);
-                ////logWarning("DateTime: {}", buf);
-
-                //std::string savePath = "D:/data/frames/GT/" + std::string(buf) + "." + ext;
-                //savePath.erase(std::remove(savePath.begin(), savePath.end(), ':'), savePath.end());
-
-                //mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(0, 0, std::filesystem::path(savePath), fileformat,
-                //    Falcor::Bitmap::ExportFlags::None, true
-                //);
-
-                //std::string savePathPNG = "D:/data/frames/GT/" + std::string(buf) + "png" + "." + "png";
-                //savePathPNG.erase(std::remove(savePathPNG.begin(), savePathPNG.end(), ':'), savePathPNG.end());
-
-                //mpImageAggregatorFullScreen->getColorTexture(0)->captureToFile(
-                //    0, 0, std::filesystem::path(savePathPNG), Falcor::Bitmap::FileFormat::PngFile, Falcor::Bitmap::ExportFlags::None, true
-                //);
-                //logInfo("Image Aggregation Completed to Path {}", savePathPNG);
-                mCurrentAggregateImagesAccumulated = 0;
-            }
+            mStartAggregation = false;            
             mCurrentImagesAccumulated = 0;
         }
-    }
-
-    if (mAggregationComplete)
-    {
-        pRenderContext->blit(mpImageAggregatorFullScreen->getColorTexture(0)->getSRV(), pOutputAggregatedTexture->getRTV());
-    }
-    else
-    {
-        pRenderContext->blit(pInputColorTexture->getSRV(), pOutputAggregatedTexture->getRTV());
-    }
+    }    
+    pRenderContext->blit(mpImageAggregatorFullScreen->getColorTexture(0)->getSRV(), pOutputAggregatedTexture->getRTV());
 }
 
 void ImageAggregator::renderUI(Gui::Widgets& widget)
