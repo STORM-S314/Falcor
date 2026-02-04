@@ -55,7 +55,7 @@ const char kCSVGFAtrousFullScreenShader[]           = "RenderPasses/ASVGFPass/CS
 
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
 
 // Names of valid entries in the parameter dictionary.
 const char kNumIterations[]             = "NumIterations";
@@ -129,7 +129,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     std::ifstream temporalLutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
     if (!temporalLutFile)
     {
-        std::string msg = "Failed to open" + mCSVGFTemporalLUTPath + "\n" + \
+        std::string msg = "Failed to open " + mCSVGFTemporalLUTPath + "\n" + \
             "Current Work Path" + std::filesystem::current_path().string();
         FALCOR_THROW(msg);
     }
@@ -140,7 +140,7 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
     std::ifstream spatialLutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath , std::ios::binary);
     if (!spatialLutFile)
     {
-        std::string msg = "Failed to open" + mCSVGFSpatialLUTPath  + "\n" + \
+        std::string msg = "Failed to open " + mCSVGFSpatialLUTPath  + "\n" + \
             "Current Work Path" + std::filesystem::current_path().string();
         FALCOR_THROW(msg);
     }
@@ -233,7 +233,7 @@ RenderPassReflection ASVGFPass::reflect(const CompileData& compileData)
 
 #if IS_DEBUG_PASS
     reflector.addOutput(kDebugOutputBufferImage, "Debug output image").format(ResourceFormat::RGBA32Float);
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
     
     return reflector;
 }
@@ -289,7 +289,7 @@ void ASVGFPass::allocateBuffers(RenderContext* a_pRenderContext)
         ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
     );
 
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
 }
 
 void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderData)
@@ -441,7 +441,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         std::ifstream lutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
         if (!lutFile)
         {
-            std::string msg = "Failed to open" + mCSVGFTemporalLUTPath + "\n" + \
+            std::string msg = "Failed to open " + mCSVGFTemporalLUTPath + "\n" + \
                 "Current Work Path" + std::filesystem::current_path().string();
             FALCOR_THROW(msg);
         }
@@ -707,7 +707,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         std::ifstream lutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath, std::ios::binary);
         if (!lutFile)
         {
-            std::string msg = "Failed to open" + mCSVGFSpatialLUTPath + "\n" + \
+            std::string msg = "Failed to open " + mCSVGFSpatialLUTPath + "\n" + \
                 "Current Work Path" + std::filesystem::current_path().string();
             FALCOR_THROW(msg);
         }
@@ -912,7 +912,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
         spatialDefines.add("IS_DEBUG_PASS", std::to_string(0));
 
 
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
 
         mpPrgTemporalMutualInfCalc = FullScreenPass::create(mpDevice, kTemporalMutualInfCalcShader, temporalDefines);
         mpPrgSpatialMutualInfCalc = FullScreenPass::create(mpDevice, kSpatialMutualInfCalcShader, spatialDefines);
@@ -926,7 +926,7 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
     {
         mLightValuesPerFrame.push_back((rand() % (int)(mMaxLightValue - mMinLightValue)) + mMinLightValue);
     }
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
 
     mCurrentFrameNumber = 0;
     mdqTimeStep.clear();
@@ -944,7 +944,7 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     newDefines.add("IS_DEBUG_PASS", std::to_string(1));
 #else
     newDefines.add("IS_DEBUG_PASS", std::to_string(0));
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
 
     mpPrgGradientForwardProjection  = FullScreenPass::create(mpDevice, kCreateGradientSamplesShader, newDefines);
     mpPrgAtrousGradientCalculation  = FullScreenPass::create(mpDevice, kAtrousGradientShader, newDefines);
@@ -956,7 +956,7 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     
 #if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
 }
 
 void ASVGFPass::renderUI(Gui::Widgets& widget)
@@ -1106,4 +1106,4 @@ void ASVGFPass::debugPass(RenderContext* pRenderContext, const RenderData& rende
     perImageDebugFullScreenCB["gPrevVisibilityBuffer"] = pInternalPrevVisBufferTexture;
     mpPrgDebugFullScreen->execute(pRenderContext, mpDebugBuffer);
 }
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS

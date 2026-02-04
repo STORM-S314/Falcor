@@ -68,4 +68,4 @@ try:
     
 except NameError: None
 
-#/home/lijing/Falcor/build/linux-gcc/bin/Release/Mogwai --script="/home/lijing/Falcor/ASVGF/RenderPasses/Optix.py" -v2 --width=1280 --height=720 --gpu=0 --headless -v5
+#/home/lijing/Falcor/build/linux-gcc/bin/Release/Mogwai --script="/home/lijing/Falcor/ASVGF/RenderPasses/Optix.py" -v2 --width=1280 --height=720 --gpu=0 --headless

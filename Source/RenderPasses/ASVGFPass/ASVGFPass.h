@@ -63,7 +63,7 @@ public:
 
 #if IS_DEBUG_PASS
     void debugPass(RenderContext* pRenderContext, const RenderData&);
-#endif IS_DEBUG_PASS
+#endif //IS_DEBUG_PASS
 
 private:
     enum class DenoisingAlgorithm
@@ -120,31 +120,11 @@ private:
     std::vector<float> mCSVGFSpatialLUT;
 
     // LUT File Path
-    std::string mBestCSVGFTemporalLUTPath =
-#ifdef WIN32
-        "./Source/RenderPasses/ASVGFPass/BestCSVGFTemporalLUT.bin";
-#else
-        ".\Source\RenderPasses\ASVGFPass\BestCSVGFTemporalLUT.bin";
-#endif //WIN32
-    std::string mBestCSVGFSpatialLUTPath =
-#ifdef WIN32
-        "./Source/RenderPasses/ASVGFPass/BestCSVGFSpatialLUT.bin";
-#else
-        ".\Source\RenderPasses\ASVGFPass\BestCSVGFSpatialLUT.bin";
-#endif // WIN32
+    std::string mBestCSVGFTemporalLUTPath ="./Source/RenderPasses/ASVGFPass/BestCSVGFTemporalLUT.bin";
+    std::string mBestCSVGFSpatialLUTPath ="./Source/RenderPasses/ASVGFPass/BestCSVGFSpatialLUT.bin";
 
-    std::string mCSVGFTemporalLUTPath =
-#ifdef WIN32
-        "./Source/RenderPasses/ASVGFPass/CSVGFTemporalLUT.bin";
-#else
-        ".\Source\RenderPasses\ASVGFPass\CSVGFTemporalLUT.bin";
-#endif //WIN32
-    std::string mCSVGFSpatialLUTPath =
-#ifdef WIN32
-        "./Source/RenderPasses/ASVGFPass/CSVGFSpatialLUT.bin";
-#else
-        ".\Source\RenderPasses\ASVGFPass\CSVGFSpatialLUT.bin";
-#endif // WIN32
+    std::string mCSVGFTemporalLUTPath ="./Source/RenderPasses/ASVGFPass/CSVGFTemporalLUT.bin";
+    std::string mCSVGFSpatialLUTPath ="./Source/RenderPasses/ASVGFPass/CSVGFSpatialLUT.bin";
 
     bool isTrain = false;
     int screenWidth = 0;
@@ -232,5 +212,5 @@ private:
     int mLightId = 0;
     std::string mEmissiveMatName;
 
-    #endif IS_DEBUG_PASS
+    #endif //IS_DEBUG_PASS
 };
