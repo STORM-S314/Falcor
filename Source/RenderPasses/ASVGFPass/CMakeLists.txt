@@ -11,11 +11,14 @@ target_sources(ASVGFPass PRIVATE
 	TemporalAccumulation.ps.slang
 	VarianceEstimation.ps.slang
 	AtrousFullScreen.ps.slang
+	CSVGFAtrousFullScreen.ps.slang
 	TemporalMutualInformationCalculation.ps.slang
 	SpatialMutualInformationCalculation.ps.slang
 	CSVGFTemporalAccumulation.ps.slang
 	CSVGFTemporalLUT.bin
-    BestCSVGFTemporalLUT.bin
+    	BestCSVGFTemporalLUT.bin
+	CSVGFSpatialLUT.bin
+	BestCSVGFSpatialLUT.bin
 	DebugPass.ps.slang
 )
 target_copy_shaders(ASVGFPass RenderPasses/ASVGFPass)

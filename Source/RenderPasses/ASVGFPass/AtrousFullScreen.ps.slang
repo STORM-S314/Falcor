@@ -120,7 +120,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     int2 ipos = int2(vsOut.posH.xy);
 
     const float epsVariance      = 1e-10;
-    //const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
+    const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
     const float4 illuminationCenter = gColorAndVariance[ipos].rgba;
     const float lIlluminationCenter = luminance(illuminationCenter.rgb);
@@ -150,7 +150,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             const int2 p     = ipos + int2(xx, yy) * int2(gStepSize, gStepSize);
             const bool inside = isPixelWithinScreenDimensions(p, gScreenDimension);
 
-            const float kernel = 1.0;
+            const float kernel = kernelWeights[abs(xx)] * kernelWeights[abs(yy)];
 
             if (inside && (xx != 0 || yy != 0)) // skip center pixel, it is already accumulated
             {

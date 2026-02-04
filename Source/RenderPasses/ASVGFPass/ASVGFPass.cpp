@@ -51,8 +51,8 @@ const char kAtrousGradientShader[]                  = "RenderPasses/ASVGFPass/At
 const char kTemporalMutualInfCalcShader[]           = "RenderPasses/ASVGFPass/TemporalMutualInformationCalculation.ps.slang";
 const char kSpatialMutualInfCalcShader[]            = "RenderPasses/ASVGFPass/SpatialMutualInformationCalculation.ps.slang";
 const char kCSVGFTemporalAccumulationShader[]       = "RenderPasses/ASVGFPass/CSVGFTemporalAccumulation.ps.slang";
-// LUT files
-const char kCSVGFTemporalLUT[] = "C:/Users/storm/Documents/GitHub/Falcor/Source/RenderPasses/ASVGFPass/BestCSVGFTemporalLUT.bin";
+const char kCSVGFAtrousFullScreenShader[]           = "RenderPasses/ASVGFPass/CSVGFAtrousFullScreen.ps.slang";
+
 #if IS_DEBUG_PASS
 const char kDebugPassShader[] = "RenderPasses/ASVGFPass/DebugPass.ps.slang";
 #endif IS_DEBUG_PASS
@@ -74,6 +74,7 @@ const char kFrameBinCountInTempMI[]     = "FrameBinCountInTempMI";
 const char kMinHistoryCountSpatialThreshold[] = "MinHistoryCountSpatialThreshold";
 const char kSpatialLumBinCount[]        = "SpatialLumBinCount";
 const char kUseCSVGF[] = "UseCSVGF";
+const char kIsTrain[] = "IsTrain";
 
 //Input buffer names
 const char kInputColorTexture[]                 = "Color";
@@ -118,20 +119,34 @@ ASVGFPass::ASVGFPass(ref<Device> pDevice, const Properties& props)
         else if (key == kSpatialMIThreshold)    mSpatialMIThreshold = value;
         else if (key == kFrameBinCountInTempMI)    mFrameLumBinCountInTempMI = value;
         else if (key == kMinHistoryCountSpatialThreshold) mMinHistoryCountSpatialThreshold = value;
-        else if (key == kSpatialLumBinCount) mSpatialLumBinCount= value;
+        else if (key == kSpatialLumBinCount) mSpatialLumBinCount = value;
         else if (key == kUseCSVGF) mUseCSVGF = value;
+        else if (key == kIsTrain) isTrain = value;
         else logWarning("Unknown property '{}' in ASVGFPass properties.", key);
     }
 
     // Init Lut
-    std::ifstream lutFile(kCSVGFTemporalLUT, std::ios::binary);
-    if (!lutFile)
+    std::ifstream temporalLutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
+    if (!temporalLutFile)
     {
-        FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
+        std::string msg = "Failed to open" + mCSVGFTemporalLUTPath + "\n" + \
+            "Current Work Path" + std::filesystem::current_path().string();
+        FALCOR_THROW(msg);
     }
-    mCSVGFTemporalLUT = std::vector<float>(mLumDimSize * mLumDimSize * mDepthDimSize);
-    lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
-    lutFile.close();
+    mCSVGFTemporalLUT = std::vector<float>(pow(mLutDimSize,mLutIdxSize));
+    temporalLutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
+    temporalLutFile.close();
+
+    std::ifstream spatialLutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath , std::ios::binary);
+    if (!spatialLutFile)
+    {
+        std::string msg = "Failed to open" + mCSVGFSpatialLUTPath  + "\n" + \
+            "Current Work Path" + std::filesystem::current_path().string();
+        FALCOR_THROW(msg);
+    }
+    mCSVGFSpatialLUT = std::vector<float>(pow(mSpatialLutDimSize, mSpatialLutIdxSize));
+    spatialLutFile.read(reinterpret_cast<char*>(mCSVGFSpatialLUT.data()), mCSVGFSpatialLUT.size() * sizeof(float));
+    spatialLutFile.close();
 }
 
 Properties ASVGFPass::getProperties() const
@@ -423,12 +438,14 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     // CSVGF Temporal Accumulation
     {
         // Init Lut
-        std::ifstream lutFile(kCSVGFTemporalLUT, std::ios::binary);
+        std::ifstream lutFile(isTrain ? mCSVGFTemporalLUTPath : mBestCSVGFTemporalLUTPath, std::ios::binary);
         if (!lutFile)
         {
-            FALCOR_THROW("Failed to open CSVGFTemporalLUT.bin");
+            std::string msg = "Failed to open" + mCSVGFTemporalLUTPath + "\n" + \
+                "Current Work Path" + std::filesystem::current_path().string();
+            FALCOR_THROW(msg);
         }
-        mCSVGFTemporalLUT = std::vector<float>(mLumDimSize * mLumDimSize * mDepthDimSize);
+        mCSVGFTemporalLUT = std::vector<float>(pow(mLutDimSize, mLutIdxSize));
         lutFile.read(reinterpret_cast<char*>(mCSVGFTemporalLUT.data()), mCSVGFTemporalLUT.size() * sizeof(float));
         lutFile.close();
 
@@ -460,8 +477,7 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
         perImageAccumulationCB["gTemporalColorAlpha"] = mTemporalColorAlpha;
         perImageAccumulationCB["gTemporalMomentsAlpha"] = mTemporalMomentsAlpha;
         perImageAccumulationCB["gGradientFilterRadius"] = mGradientFilterRadius;
-        perImageAccumulationCB["gLumDimSize"] = mLumDimSize;
-        perImageAccumulationCB["gDepthDimSize"] = mDepthDimSize;
+        perImageAccumulationCB["gLutDimSize"] = mLutDimSize;
         perImageAccumulationCB["gAntilagLUTBuffer"] = mpCSVGFTemporalLUTBuffer;
 
 #if IS_DEBUG_PASS
@@ -650,7 +666,9 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
     }
 
     // Atrous full screen
+    if (!mUseCSVGF)
     {
+        // ASVGF A-trous filtering
         auto perImageAtrousFullScreenCB = mpPrgAtrousFullScreen->getRootVar()["PerImageCB"];
         perImageAtrousFullScreenCB["gLinearZTexture"]       = pInputLinearZTexture;
         perImageAtrousFullScreenCB["gNormalsTexture"]       = pInputNormalVectors;
@@ -678,6 +696,55 @@ void ASVGFPass::execute(RenderContext* pRenderContext, const RenderData& renderD
             perImageAtrousFullScreenCB["gIsModulateAlbedo"] = int(i == (mNumIterations - 1));
 
             mpPrgAtrousFullScreen->execute(pRenderContext, mpAtrousFullScreenResultPingPong[1]);
+
+            std::swap(mpAtrousFullScreenResultPingPong[0], mpAtrousFullScreenResultPingPong[1]);
+        }
+    }
+    else {
+        // CSVGF A-trous filtering
+
+        // Init Lut
+        std::ifstream lutFile(isTrain ? mCSVGFSpatialLUTPath : mBestCSVGFSpatialLUTPath, std::ios::binary);
+        if (!lutFile)
+        {
+            std::string msg = "Failed to open" + mCSVGFSpatialLUTPath + "\n" + \
+                "Current Work Path" + std::filesystem::current_path().string();
+            FALCOR_THROW(msg);
+        }
+        mCSVGFSpatialLUT = std::vector<float>(pow(mSpatialLutDimSize, mSpatialLutIdxSize));
+        lutFile.read(reinterpret_cast<char*>(mCSVGFSpatialLUT.data()), mCSVGFSpatialLUT.size() * sizeof(float));
+        lutFile.close();
+
+        mpCSVGFSpatialLUTBuffer->setBlob(&mCSVGFSpatialLUT[0], 0, mCSVGFSpatialLUT.size() * sizeof(float));
+
+        auto perImageAtrousFullScreenCB = mpPrgCSVGFAtrousFullScreen->getRootVar()["PerImageCB"];
+        perImageAtrousFullScreenCB["gLinearZTexture"]       = pInputLinearZTexture;
+        perImageAtrousFullScreenCB["gNormalsTexture"]       = pInputNormalVectors;
+        perImageAtrousFullScreenCB["gAlbedoTexture"]        = pInputAlbedoTexture;
+        perImageAtrousFullScreenCB["gEmissionTexture"]      = pInputEmissionTexture;
+        perImageAtrousFullScreenCB["gSpecularAlbedo"]       = pInputSpecularAlbedo;
+        perImageAtrousFullScreenCB["gPhiColor"]             = weightPhiColor;
+        perImageAtrousFullScreenCB["gPhiNormal"]            = weightPhiNormal;
+        perImageAtrousFullScreenCB["gScreenDimension"]      = int2(screenWidth, screenHeight);        
+        perImageAtrousFullScreenCB["gGradDifferenceRatio"]  = mpAccumulationBuffer->getColorTexture(3);
+        perImageAtrousFullScreenCB["gSpatialLutDimSize"]    = mSpatialLutDimSize;
+        perImageAtrousFullScreenCB["gSpatialLutBuffer"]     = mpCSVGFSpatialLUTBuffer;
+#if IS_DEBUG_PASS
+        perImageAtrousFullScreenCB["gColorTest"]            = mpTestColorTexture;
+#endif
+
+        for (int i = 0; i < mNumIterations; i++)
+        {
+            if ((i - 1) == mHistoryTap)
+            {
+                pRenderContext->blit(mpAtrousFullScreenResultPingPong[0]->getColorTexture(0)->getSRV(), mpAccumulationBuffer->getColorTexture(0)->getRTV());
+            }
+
+            perImageAtrousFullScreenCB["gColorAndVariance"] = mpAtrousFullScreenResultPingPong[0]->getColorTexture(0);
+            perImageAtrousFullScreenCB["gStepSize"] = (1 << i);
+            perImageAtrousFullScreenCB["gIsModulateAlbedo"] = int(i == (mNumIterations - 1));
+
+            mpPrgCSVGFAtrousFullScreen->execute(pRenderContext, mpAtrousFullScreenResultPingPong[1]);
 
             std::swap(mpAtrousFullScreenResultPingPong[0], mpAtrousFullScreenResultPingPong[1]);
         }
@@ -801,7 +868,8 @@ void ASVGFPass::resetBuffers(RenderContext* pRenderContext, const RenderData& re
 
     if (mUseCSVGF)
     {
-        mpCSVGFTemporalLUTBuffer = mpDevice->createBuffer(mLumDimSize * mLumDimSize * mDepthDimSize * sizeof(float), ResourceBindFlags::UnorderedAccess|ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal);
+        mpCSVGFTemporalLUTBuffer = mpDevice->createBuffer(pow(mLutDimSize, mLutIdxSize) * sizeof(float), ResourceBindFlags::UnorderedAccess|ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal);
+        mpCSVGFSpatialLUTBuffer = mpDevice->createBuffer(pow(mSpatialLutDimSize, mSpatialLutIdxSize) * sizeof(float), ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal);
     }
     if (mUseMutualInformation)
     {
@@ -884,6 +952,7 @@ void ASVGFPass::setScene(RenderContext* a_pRenderContext, const ref<Scene>& a_pS
     mpPrgCSVGFTemporalAccumulation  = FullScreenPass::create(mpDevice, kCSVGFTemporalAccumulationShader, newDefines);
     mpPrgEstimateVariance           = FullScreenPass::create(mpDevice, kEstimateVarianceShader, newDefines);
     mpPrgAtrousFullScreen           = FullScreenPass::create(mpDevice, kAtrousShader, newDefines);
+    mpPrgCSVGFAtrousFullScreen      = FullScreenPass::create(mpDevice, kCSVGFAtrousFullScreenShader, newDefines);
     
 #if IS_DEBUG_PASS
     mpPrgDebugFullScreen = FullScreenPass::create(mpDevice, kDebugPassShader, sceneDefines);
