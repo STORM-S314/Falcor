@@ -76,6 +76,8 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     # g.mark_output('GBufferRT.normW')
     # g.mark_output('GBufferRT.vbuffer')
     # g.mark_output('GBufferRT.mvec')
+    # g.mark_output('GBufferRT.posW')
+    # g.mark_output('GBufferRT.depth')
     return g
 useCSVGF = True
 ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=True)

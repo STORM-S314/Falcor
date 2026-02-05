@@ -329,7 +329,7 @@ struct GBufferRT
             float3 ddxPosW = computeDdxPosW(sd.posW, sd.faceN, invFrameDim);
             float3 ddyPosW = computeDdyPosW(sd.posW, sd.faceN, invFrameDim);
             float4 curPosH_dx = mul(gScene.camera.data.viewProjMatNoJitter, float4(sd.posW + ddxPosW, 1.f));
-            float4 curPosH_dy = mul(gScene.camera.data.viewProjMatNoJitter, float4(sd.posW + ddxPosW, 1.f));
+            float4 curPosH_dy = mul(gScene.camera.data.viewProjMatNoJitter, float4(sd.posW + ddyPosW, 1.f));
             float ddxLinearZ = abs(curPosH_dx.w - curLinearZ);
             float ddyLinearZ = abs(curPosH_dy.w - curLinearZ);
             float dLinearZ = max(ddxLinearZ, ddyLinearZ);
