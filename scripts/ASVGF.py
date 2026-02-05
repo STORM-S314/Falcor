@@ -3,11 +3,17 @@ from falcor import *
 import time
 import os
 
-def render_graph_ASVGF(useCSVGF = False, isTrain = False):
+frame_output_path = r'D:/data/' if os.name == 'nt' else os.path.expanduser('~/data/')
+denoised_frame_path = frame_output_path + '/Denoised'
+csvgf_path = denoised_frame_path + '/CSVGF'
+asvgf_path = denoised_frame_path + '/ASVGF'
+scenes_path = r'D:/data' if os.name == 'nt' else os.path.expanduser('~/data/scenes')
+
+def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain = False):
     g = RenderGraph('ASVGF')
     g.create_pass('TAA', 'TAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0, 'antiFlicker': True})
-    g.create_pass('GBufferRaster', 'GBufferRaster', {'outputSize': 'Default', 'samplePattern': 'Center', 'sampleCount': 16, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back'})
-    g.create_pass('ASVGFPass', 'ASVGFPass', {'UseCSVGF': useCSVGF,"IsTrain": isTrain})
+    g.create_pass('GBufferRT', 'GBufferRT', {'outputSize': 'Default', 'samplePattern': 'Center', 'sampleCount': 16, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back'})
+    g.create_pass('ASVGFPass', 'ASVGFPass', {'UseCSVGF': useCSVGF,'IsTemporalTrain': isTemporalTrain, 'IsSpatialTrain': isSpatialTrain})
     if not useCSVGF:
         g.create_pass('GradForwardProjPass', 'GradForwardProjPass', {'UseCSVGF': useCSVGF})
         g.create_pass('PathTracerMod', 'PathTracerMod', {'samplesPerPixel': 1, 'maxSurfaceBounces': 10, 'maxDiffuseBounces': 3, 'maxSpecularBounces': 3, 'maxTransmissionBounces': 10, 'sampleGenerator': 0, 'useBSDFSampling': True, 'useRussianRoulette': False, 'useNEE': True, 'useMIS': True, 'misHeuristic': 'Balance', 'misPowerExponent': 2.0, 'emissiveSampler': 'LightBVH', 'lightBVHOptions': {'buildOptions': {'splitHeuristicSelection': 'BinnedSAOH', 'maxTriangleCountPerLeaf': 10, 'binCount': 16, 'volumeEpsilon': 0.0010000000474974513, 'splitAlongLargest': False, 'useVolumeOverSA': False, 'useLeafCreationCost': True, 'createLeavesASAP': True, 'allowRefitting': True, 'usePreintegration': True, 'useLightingCones': True}, 'useBoundingCone': True, 'useLightingCone': True, 'disableNodeFlux': False, 'useUniformTriangleSampling': True, 'solidAngleBoundMethod': 'Sphere'}, 'useRTXDI': False, 'RTXDIOptions': {'mode': 'SpatiotemporalResampling', 'presampledTileCount': 128, 'presampledTileSize': 1024, 'storeCompactLightInfo': True, 'localLightCandidateCount': 24, 'infiniteLightCandidateCount': 8, 'envLightCandidateCount': 8, 'brdfCandidateCount': 1, 'brdfCutoff': 0.0, 'testCandidateVisibility': True, 'biasCorrection': 'Basic', 'depthThreshold': 0.10000000149011612, 'normalThreshold': 0.5, 'samplingRadius': 30.0, 'spatialSampleCount': 1, 'spatialIterations': 5, 'maxHistoryLength': 20, 'boilingFilterStrength': 0.0, 'rayEpsilon': 0.0010000000474974513, 'useEmissiveTextures': False, 'enableVisibilityShortcut': False, 'enablePermutationSampling': False}, 'useAlphaTest': True, 'adjustShadingNormals': False, 'maxNestedMaterials': 2, 'useLightsInDielectricVolumes': False, 'disableCaustics': False, 'specularRoughnessThreshold': 0.25, 'primaryLodMode': 'Mip0', 'lodBias': 0.0, 'useNRDDemodulation': True, 'useSER' : False, 'outputSize': 'Default', 'colorFormat': 'LogLuvHDR'})
@@ -28,15 +34,15 @@ def render_graph_ASVGF(useCSVGF = False, isTrain = False):
         g.add_edge('PathTracerMod.color', 'ASVGFPass.Color')
         g.add_edge('PathTracerMod.specularAlbedo', 'ASVGFPass.SpecularAlbedo')
         g.add_edge('GradForwardProjPass.OutGradVisibilityBuffer', 'PathTracerMod.vbuffer')
-        g.add_edge('GBufferRaster.mvec', 'PathTracerMod.mvec')
+        g.add_edge('GBufferRT.mvec', 'PathTracerMod.mvec')
         g.add_edge('GradForwardProjPass.OutGradWViewBuffer', 'PathTracerMod.viewW')
         g.add_edge('GradForwardProjPass.OutRandomNumberBuffer', 'PathTracerMod.randomNumbers')
         g.add_edge('GradForwardProjPass.OutGradSamplesBuffer', 'ASVGFPass.GradientSamples')
-        g.add_edge('GBufferRaster.normW', 'GradForwardProjPass.InWorldNormal')
-        g.add_edge('GBufferRaster.vbuffer', 'GradForwardProjPass.InVisibilityBuffer')
-        g.add_edge('GBufferRaster.posW', 'GradForwardProjPass.InWPos')
-        g.add_edge('GBufferRaster.viewW', 'GradForwardProjPass.InWViewBuffer')
-        g.add_edge('GBufferRaster.linearZ', 'GradForwardProjPass.InLinearZ')
+        g.add_edge('GBufferRT.normW', 'GradForwardProjPass.InWorldNormal')
+        g.add_edge('GBufferRT.vbuffer', 'GradForwardProjPass.InVisibilityBuffer')
+        g.add_edge('GBufferRT.posW', 'GradForwardProjPass.InWPos')
+        g.add_edge('GBufferRT.viewW', 'GradForwardProjPass.InWViewBuffer')
+        g.add_edge('GBufferRT.linearZ', 'GradForwardProjPass.InLinearZ')
         g.add_edge('GradForwardProjPass.OutGradVisibilityBuffer', 'ASVGFPass.GradientVisibilityBuffer')
         # g.mark_output('PathTracerMod.albedo')
         # g.mark_output('PathTracerMod.color')
@@ -46,36 +52,35 @@ def render_graph_ASVGF(useCSVGF = False, isTrain = False):
         g.add_edge('PathTracer.albedo', 'ASVGFPass.Albedo')
         g.add_edge('PathTracer.color', 'ASVGFPass.Color')
         g.add_edge('PathTracer.specularAlbedo', 'ASVGFPass.SpecularAlbedo')
-        g.add_edge('GBufferRaster.vbuffer', 'PathTracer.vbuffer')
-        g.add_edge('GBufferRaster.mvec', 'PathTracer.mvec')
-        g.add_edge('GBufferRaster.viewW', 'PathTracer.viewW')
-        g.add_edge('GBufferRaster.vbuffer', 'ASVGFPass.GradientVisibilityBuffer')
+        g.add_edge('GBufferRT.vbuffer', 'PathTracer.vbuffer')
+        g.add_edge('GBufferRT.mvec', 'PathTracer.mvec')
+        g.add_edge('GBufferRT.viewW', 'PathTracer.viewW')
+        g.add_edge('GBufferRT.vbuffer', 'ASVGFPass.GradientVisibilityBuffer')
         # g.mark_output('PathTracer.albedo')
         # g.mark_output('PathTracer.color')
         # g.mark_output('PathTracer.specularAlbedo')
         
-    g.add_edge('GBufferRaster.mvec', 'TAA.motionVecs')
-    g.add_edge('GBufferRaster.emissive', 'ASVGFPass.Emission')
-    g.add_edge('GBufferRaster.linearZ', 'ASVGFPass.LinearZ')
-    g.add_edge('GBufferRaster.normW', 'ASVGFPass.Normals')
-    g.add_edge('GBufferRaster.vbuffer', 'ASVGFPass.CurrentVisibilityBuffer')
-    g.add_edge('GBufferRaster.mvec', 'ASVGFPass.MotionVectors')
+    g.add_edge('GBufferRT.mvec', 'TAA.motionVecs')
+    g.add_edge('GBufferRT.emissive', 'ASVGFPass.Emission')
+    g.add_edge('GBufferRT.linearZ', 'ASVGFPass.LinearZ')
+    g.add_edge('GBufferRT.normW', 'ASVGFPass.Normals')
+    g.add_edge('GBufferRT.vbuffer', 'ASVGFPass.CurrentVisibilityBuffer')
+    g.add_edge('GBufferRT.mvec', 'ASVGFPass.MotionVectors')
     
     
     
-    # g.mark_output('GBufferRaster.emissive')
-    # g.mark_output('GBufferRaster.linearZ')
-    # g.mark_output('GBufferRaster.normW')
-    # g.mark_output('GBufferRaster.vbuffer')
-    # g.mark_output('GBufferRaster.mvec')
-    # g.mark_output('GBufferRaster.pnFwidth')
+    # g.mark_output('GBufferRT.emissive')
+    # g.mark_output('GBufferRT.linearZ')
+    # g.mark_output('GBufferRT.normW')
+    # g.mark_output('GBufferRT.vbuffer')
+    # g.mark_output('GBufferRT.mvec')
+    # g.mark_output('GBufferRT.pnFwidth')
     return g
 useCSVGF = True
-isTrain = False
-ASVGF = render_graph_ASVGF(useCSVGF, isTrain)
+ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=False)
 try: 
     print("==================CAPUTRE======================")
-    scene_path = "D:\\data\\Bistro_v5_2\\BistroExterior.pyscene"
+    scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
     # scene_path = "D:\\data\\Bistro_v5_2\\BistroInterior_Wine.pyscene"
     # scene_path = "D:\\data\\SunTemple_v4\\SunTemple\\SunTemple.pyscene"
     # scene_path = "D:\\data\\EmeraldSquare_v4_1\\EmeraldSquare_Day.pyscene"
@@ -95,9 +100,9 @@ try:
     m.profiler.start_capture()
     # frame capture
     if not useCSVGF:
-        m.frameCapture.outputDir = "D:\\data\\frames\\ASVGF"
+        m.frameCapture.outputDir = asvgf_path
     else:
-        m.frameCapture.outputDir = "D:\\data\\frames\\CSVGF"
+        m.frameCapture.outputDir = csvgf_path
     for i in range(start_frame_idx + frames + 1):
         m.clock.frame = i
         m.renderFrame()
@@ -120,12 +125,12 @@ try:
     print(f"Last frame gpu time:\n\t GradReproj {lastFrameTime_reProj} ms \n\tDenoise {lastFrameTime_denoise} ms")
     print(f"Mean frame gpu time:\n\t GradReproj {meanFrameTime_reProj} ms \n\tDenoise {meanFrameTime_denoise} ms")
     if not useCSVGF:
-        with open(r"D:\\data\\frames\\ASVGF\\ASVGF.csv", "w") as f:
+        with open(asvgf_path + "/ASVGF.csv", "w") as f:
             f.write("Frame ID, GradReproj Time, Denoise Time\n")
             for i in range(frameCount):
                 f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i]}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
     else:
-        with open(r"D:\\data\\frames\\CSVGF\\CSVGF.csv", "w") as f:
+        with open(csvgf_path + "/CSVGF.csv", "w") as f:
             f.write("Frame ID, Denoise Time\n")
             for i in range(frameCount):
                 f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
