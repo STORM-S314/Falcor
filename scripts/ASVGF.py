@@ -76,38 +76,47 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     # g.mark_output('GBufferRT.mvec')
     # g.mark_output('GBufferRT.pnFwidth')
     return g
-useCSVGF = True
+useCSVGF = False
 ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=False)
 try: 
     print("==================CAPUTRE======================")
-    scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
+    # scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
+    # scene_path = scenes_path + '/Bistro_v5_2/BistroInterior_Wine.pyscene'
+    # scene_path = scenes_path + "/SunTemple_v4/SunTemple/SunTemple.pyscene"
     # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Day.pyscene"
-    # scene_path = "D:\\data\\Bistro_v5_2\\BistroInterior_Wine.pyscene"
-    # scene_path = "D:\\data\\SunTemple_v4\\SunTemple\\SunTemple.pyscene"    
+    # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Dusk.pyscene"
+    # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_One.pyscene"
+    scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_Seven.pyscene"
     # scene_path = "D:\\data\\bathroom\\bathroom.pyscene"
-    # scene_path = "C:\\Users\\storm\\Documents\\GitHub\\Falcor\\media\\test_scenes\\cornell_box_bunny.pyscene"
-    # scene_path = "D:\\data\\ZeroDay_v1\\ZeroDay_One.pyscene"
+    # scene_path = "C:\\Users\\storm\\Documents\\GitHub\\Falcor\\media\\test_scenes\\cornell_box_bunny.pyscene"    
     m.loadScene(scene_path, buildFlags=SceneBuilderFlags.UseCache)
     m.addGraph(ASVGF)
     camera = m.scene.camera
     camera.nearPlane = 0.1 
     
     m.clock.pause()
-    m.clock.framerate = 60    
+    m.clock.framerate = 60
+    frames = 100
     start_frame_idx = 100
-    end_frame_idx = 400
-    step = 10
+    end_frame_idx = start_frame_idx + frames
+    step = 1
     m.profiler.enabled = True
     m.profiler.start_capture()
+    asvgf_path += '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
+    csvgf_path += '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
+    if not os.path.exists(asvgf_path):
+        os.makedirs(asvgf_path)
+    if not os.path.exists(csvgf_path):
+        os.makedirs(csvgf_path)
     # frame capture
     if not useCSVGF:
-        m.frameCapture.outputDir = asvgf_path + '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
+        m.frameCapture.outputDir = asvgf_path
     else:
-        m.frameCapture.outputDir = csvgf_path + '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
-    for i in range(start_frame_idx, end_frame_idx):
+        m.frameCapture.outputDir = csvgf_path
+    for i in range(end_frame_idx):
         m.clock.frame = i
         m.renderFrame()
-        if i % step == 0:
+        if i>=start_frame_idx  and i% step == 0:
             m.frameCapture.capture()
             print(f"\rProgress: {i + 1 - start_frame_idx}/{end_frame_idx - start_frame_idx} frames captured")        
     capture = m.profiler.end_capture()
@@ -116,25 +125,33 @@ try:
     frameCount = capture["frame_count"]
     if not useCSVGF:
         lastFrameTime_reProj = capture["events"]["/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time"]["records"][frameCount - 1]
-        meanFrameTime_reProj = capture["events"]["/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time"]["stats"]["mean"]
+        meanFrameTime_reProj = 0
     else:
         lastFrameTime_reProj = 0
         meanFrameTime_reProj = 0
     lastFrameTime_denoise = capture["events"]["/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time"]["records"][frameCount - 1]
-    meanFrameTime_denoise = capture["events"]["/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time"]["stats"]["mean"]
+    meanFrameTime_denoise = 0
     print(f"Frame Count: {frameCount}")
     print(f"Last frame gpu time:\n\t GradReproj {lastFrameTime_reProj} ms \n\tDenoise {lastFrameTime_denoise} ms")
-    print(f"Mean frame gpu time:\n\t GradReproj {meanFrameTime_reProj} ms \n\tDenoise {meanFrameTime_denoise} ms")
+    
     if not useCSVGF:
-        with open(str(m.frameCapture.outputDir) + "/ASVGF.csv", "w") as f:
+        with open(asvgf_path + "/ASVGF.csv", "w") as f:
             f.write("Frame ID, GradReproj Time, Denoise Time\n")
             for i in range(frameCount):
-                f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i]}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
+                if i >=start_frame_idx and i%step == 0:
+                    meanFrameTime_reProj += capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i]
+                    meanFrameTime_denoise += capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i] + capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]
+                    f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i]}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
     else:
-        with open(str(m.frameCapture.outputDir) + "/CSVGF.csv", "w") as f:
+        with open(csvgf_path + "/CSVGF.csv", "w") as f:
             f.write("Frame ID, Denoise Time\n")
             for i in range(frameCount):
-                f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
+                if i >=start_frame_idx and i%step == 0:
+                    meanFrameTime_denoise += capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]
+                    f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
+    meanFrameTime_reProj /= frames
+    meanFrameTime_denoise /= frames
+    print(f"Mean frame gpu time:\n\t GradReproj {meanFrameTime_reProj} ms \n\tDenoise {meanFrameTime_denoise} ms")                
     exit()
 
 

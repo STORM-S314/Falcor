@@ -122,6 +122,8 @@ float computeVarianceCenter(int2 ipos)
 
     float sum = gColorAndVariance[ipos].a * kernel[0][0];
 
+    float sumLuminance = luminance(gColorAndVariance[ipos].rgb) * kernel[0][0];
+    float sumLuminance2 = sumLuminance * sumLuminance;
     const int radius = 1;
     for (int yy = -radius; yy <= radius; yy++)
     {
@@ -132,10 +134,18 @@ float computeVarianceCenter(int2 ipos)
                 const int2 p = ipos + int2(xx, yy);
                 const float k = kernel[abs(xx)][abs(yy)];
                 sum += gColorAndVariance[p].a * k;
+                const float l = luminance(gColorAndVariance[p].rgb) * k;
+                sumLuminance += l;
+                sumLuminance2 += l * l;
             }
         }
     }
 
+    float meanLuminance = sumLuminance;
+    float varLuminance = sumLuminance2  - meanLuminance * meanLuminance;
+    float diff = pow(abs(varLuminance - sum),1.0f /gStepSize);
+    
+    //sum *=  exp(-diff);
     return sum;
 }
 
@@ -212,7 +222,7 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
                     const float3 nP = gNormalsTexture[p].xyz;
 
                     // compute the edge-stopping functions
-                    const float w = computeWeightLUT(
+                    const float w = computeWeight(
                         zCenter.x, zP, phiDepth * length(float2(xx, yy) * float2(gStepSize, gStepSize) * float2(gStepSize, gStepSize)),
                         nCenter, nP, gPhiNormal,
                         lIlluminationCenter, lIlluminationP, phiLIllumination);

@@ -70,7 +70,7 @@ float computeVarianceCenter(int2 ipos)
     };
 
     float sum = gColorAndVariance[ipos].a * kernel[0][0];
-
+    
     const int radius = 1;
     for (int yy = -radius; yy <= radius; yy++)
     {
@@ -80,7 +80,7 @@ float computeVarianceCenter(int2 ipos)
             {
                 const int2 p = ipos + int2(xx, yy);
                 const float k = kernel[abs(xx)][abs(yy)];
-                sum += gColorAndVariance[p].a * k;
+                sum += gColorAndVariance[p].a * k;                
             }
         }
     }
@@ -182,6 +182,8 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     {
         filteredIllumination.rgba = float4(((filteredIllumination.rgb) * (gAlbedoTexture[ipos].rgb + gSpecularAlbedo[ipos].rgb + gEmissionTexture[ipos].rgb)), 1.0);
 	}
-
+    //if(gStepSize == 32){
+        gColorTest[ipos].rg =float2(luminance(filteredIllumination.rgb), sqrt(max(0.0, epsVariance + computeVarianceCenter(ipos))));
+    //}
     return filteredIllumination;
 }
