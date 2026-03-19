@@ -49,6 +49,7 @@ cbuffer PerImageCB
     Texture2D   gAlbedoTexture;
 	Texture2D   gPrevAlbedoTexture;
     Texture2D   gEmissionTexture;
+    Texture2D   gPrevEmissionTexture;
     Texture2D   gSpecularAlbedo;
     Texture2D   gPrevSpecularAlbedo;
     Texture2D<float4>   gGradientDifferenceTexture;
@@ -75,6 +76,7 @@ struct PS_OUT
 
 PS_OUT main(FullScreenPassVsOut vsOut) 
 {
+    const float eps = 1e-10f;
     PS_OUT psOut;
 
     int2 iPos = int2(vsOut.posH.xy);
@@ -86,23 +88,42 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
     float4  currentColor            = gColor[iPos];
     float2  currentDepth            = gLinearZTexture[iPos].xy;
+    float2  prevDepth               = gPrevLinearZTexture[iPrevPos].xy;
+    const float phiDepth            = max(eps, currentDepth.y) * length(abs(iPrevPos - iPos));
+
     float3  currentIllumination     = getIllumination(currentColor.xyz, gAlbedoTexture[iPos].rgb, gSpecularAlbedo[iPos].rgb, gEmissionTexture[iPos].rgb);
     float   currentLuminance        = luminance(currentIllumination);
+    float3  prevIllumination        = getIllumination(gPrevColorTexture[iPrevPos].xyz, gPrevAlbedoTexture[iPrevPos].rgb, gPrevSpecularAlbedo[iPrevPos].rgb, gPrevEmissionTexture[iPrevPos].rgb);
+    float   prevLuminance           = luminance(prevIllumination);
+    const float sigmaLuminance        = 3.f;
+    
+
     float2  currentMomemnts         = float2(currentLuminance, currentLuminance * currentLuminance);
     HitInfo currentHitInfo          = HitInfo(gVisibilityBuffer[iPos]);
 	uint    currentMeshID           = getMeshInstanceID(currentHitInfo);
     float3  currentNormal           = gNormalsTexture[iPos].xyz;
-    float   currentEmissionLuminance        = luminance(gEmissionTexture[iPos].rgb);
-    float   currentAlbedoLuminance           = luminance(gAlbedoTexture[iPos].rgb);
-    float   currentSpecularAlbedoLuminance   = luminance(gSpecularAlbedo[iPos].rgb);
+    float3  prevNormal              = gPrevNormalsTexture[iPrevPos].xyz;
+    const float phiNormal = 128.f;
 
+    const float emissionCompressionFactor = 4.f;
+    float   currentEmissionLuminance        = log(1 + emissionCompressionFactor * luminance(gEmissionTexture[iPos].rgb));
+    float   prevEmissionLuminance           = log(1 + emissionCompressionFactor * luminance(gPrevEmissionTexture[iPrevPos].rgb));
+    const float   sigmaEmission = 0.5f;
+
+    float   currentAlbedoLuminance           = luminance(gAlbedoTexture[iPos].rgb);
+    float   prevAlbedoLuminance              = luminance(gPrevAlbedoTexture[iPrevPos].rgb);
+    const float   sigmaDiffuseAlbedo = 0.2f;
+
+    float   currentSpecularAlbedoLuminance   = luminance(gSpecularAlbedo[iPos].rgb);
+    float   prevSpecularAlbedoLuminance      = luminance(gPrevSpecularAlbedo[iPrevPos].rgb);
+    const float   sigmaSpecularAlbedo = 0.2f;
 
     float   antilagAlpha            = 0.0;
     float   histLen                 = 0.0;
     float4  weightedColorPrev       = float4(0);
     float2  weightedMomentsPrev     = float2(0);
-    float2  prevDepth               = gPrevLinearZTexture[iPrevPos].xy;
-    float3  prevNormal              = gPrevNormalsTexture[iPrevPos].xyz;
+    
+    
     float   weightedSum             = 0.0;
 
 
@@ -161,37 +182,35 @@ PS_OUT main(FullScreenPassVsOut vsOut)
 
         float prevWeightedLuminance    = luminance(weightedColorPrev.rgb);
         float2 prevWeightedMoments      = float2(prevWeightedLuminance, prevWeightedLuminance * prevWeightedLuminance);
+        float phiLuminance = sigmaLuminance * sqrt(max(0.0f, eps + weightedMomentsPrev.r));
+        // Normalize the differences
+        float diffuseAlbedoDiff = exp( - abs(currentAlbedoLuminance - prevAlbedoLuminance) / sigmaDiffuseAlbedo+ eps);
+        float specularAlbedoDiff = exp( - abs(currentSpecularAlbedoLuminance - prevSpecularAlbedoLuminance) / 0.2 + eps);
+        float emissionDiff = exp( - abs(currentEmissionLuminance - prevEmissionLuminance) / sigmaEmission + eps);
+        float normalDiff = pow(max(0.0, dot(currentNormal, prevNormal)), phiNormal);
+        float depthDiff = 3.0 * abs(currentDepth.x - prevDepth.x) / phiDepth;
+        float lumDiff = exp( - abs(currentLuminance - prevLuminance) / phiLuminance);
+        // Quantize the differences
+        float diffuseAlbedoDiffIdx = int(diffuseAlbedoDiff * (gLutDimSize - 1));
+        float specularAlbedoDiffIdx = int(specularAlbedoDiff * (gLutDimSize - 1));
+        float emissionDiffIdx = int(emissionDiff * (gLutDimSize - 1));
+        float normalDiffIdx = int(normalDiff * (gLutDimSize - 1));
+        float depthDiffIdx = int(depthDiff * (gLutDimSize - 1));
+        float lumDiffIdx = int(lumDiff * (gLutDimSize - 1));
 
-        // Quantize
-        int lumIdx = int(nomalize(currentLuminance) * (gLutDimSize - 1));
-        //int lumIdx = int(nomalize(currentWeightedColor.r) * (gLutDimSize - 1));
-        int prevLumIdx = int(nomalize(prevWeightedLuminance) * (gLutDimSize - 1));
-        int depthIdx = int(nomalize(currentDepth.x) * (gLutDimSize - 1));
-        int prevDepthIdx = int(nomalize(abs(prevDepth.x)) * (gLutDimSize - 1));
-        int normalIdx = int(nomalize(dot(currentNormal, prevNormal)) * (gLutDimSize - 1));
-        int specularAlbedoIdx = int(nomalize(currentSpecularAlbedoLuminance) * (gLutDimSize - 1));
-        int emissionLumIdx = int(nomalize(currentEmissionLuminance) * (gLutDimSize - 1));
-        int albedoLumIdx = int(nomalize(currentAlbedoLuminance) * (gLutDimSize - 1));
-        int velocityIdx = int(nomalize(currentVelocity) * (gLutDimSize - 1));
         // Compute the index into the LUT
         int lutIdx = 0;
-        //lutIdx |= albedoLumIdx;
-        //lutIdx = lutIdx << int(log2(float(gLutDimSize)));
-        lutIdx |= emissionLumIdx;
+        lutIdx |= diffuseAlbedoDiffIdx;
         lutIdx = lutIdx << int(log2(float(gLutDimSize)));
-        lutIdx |= specularAlbedoIdx;
+        lutIdx |= specularAlbedoDiffIdx;
         lutIdx = lutIdx << int(log2(float(gLutDimSize)));
-        //lutIdx |= normalIdx;
-        //lutIdx << int(log2(float(gLutDimSize)));
-        //lutIdx |= prevDepthIdx;
-        //lutIdx << int(log2(float(gLutDimSize)));
-        //lutIdx |= depthIdx;
-        //lutIdx << int(log2(float(gLutDimSize)));
-        //lutIdx |= prevLumIdx;
-        //lutIdx << int(log2(float(gLutDimSize)));
-        lutIdx |= lumIdx;
-        //lutIdx << int(log2(float(gLutDimSize)));
-        //lutIdx |= velocityIdx;
+        lutIdx |= emissionDiffIdx;
+        lutIdx = lutIdx << int(log2(float(gLutDimSize)));
+        lutIdx |= normalDiffIdx;
+        lutIdx = lutIdx << int(log2(float(gLutDimSize)));
+        lutIdx |= depthDiffIdx;
+        lutIdx = lutIdx << int(log2(float(gLutDimSize)));
+        lutIdx |= lumDiffIdx;
         // Get the antilag value from the LUT
         antilagAlpha        =gAntilagLUTBuffer[lutIdx];        
 

@@ -24,7 +24,7 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     
     
     g.mark_output('ToneMapper.dst')
-    g.mark_output('ASVGFPass.Debug Output image')
+    # g.mark_output('ASVGFPass.Debug Output image')
 
     g.add_edge('TAA.colorOut', 'ToneMapper.src')
     g.add_edge('ASVGFPass.Filtered image', 'TAA.colorIn')
@@ -80,7 +80,7 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     # g.mark_output('GBufferRT.depth')
     return g
 useCSVGF = True
-ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=True)
+ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=True, isSpatialTrain=False)
 try: 
     print("==================CAPUTRE======================")
     scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
@@ -113,8 +113,7 @@ try:
                 logging.error("An error occurred: %s", e)
                 logging.error(traceback.format_exc())
                 time.sleep(1)
-                continue 
-        frames = 100
+                continue         
         # frame capture
         if not useCSVGF:
             m.frameCapture.outputDir = asvgf_path

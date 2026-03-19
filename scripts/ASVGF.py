@@ -23,7 +23,7 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     
     
     g.mark_output('ToneMapper.dst')
-    g.mark_output('ASVGFPass.Debug Output image')
+    # g.mark_output('ASVGFPass.Debug Output image')
 
     g.add_edge('TAA.colorOut', 'ToneMapper.src')
     g.add_edge('ASVGFPass.Filtered image', 'TAA.colorIn')
@@ -76,17 +76,17 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     # g.mark_output('GBufferRT.mvec')
     # g.mark_output('GBufferRT.pnFwidth')
     return g
-useCSVGF = False
+useCSVGF = True
 ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=False)
 try: 
     print("==================CAPUTRE======================")
     # scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
     # scene_path = scenes_path + '/Bistro_v5_2/BistroInterior_Wine.pyscene'
-    # scene_path = scenes_path + "/SunTemple_v4/SunTemple/SunTemple.pyscene"
+    scene_path = scenes_path + "/SunTemple_v4/SunTemple/SunTemple.pyscene"
     # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Day.pyscene"
     # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Dusk.pyscene"
     # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_One.pyscene"
-    scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_Seven.pyscene"
+    # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_Seven.pyscene"
     # scene_path = "D:\\data\\bathroom\\bathroom.pyscene"
     # scene_path = "C:\\Users\\storm\\Documents\\GitHub\\Falcor\\media\\test_scenes\\cornell_box_bunny.pyscene"    
     m.loadScene(scene_path, buildFlags=SceneBuilderFlags.UseCache)
