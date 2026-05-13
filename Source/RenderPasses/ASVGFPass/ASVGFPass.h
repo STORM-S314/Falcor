@@ -111,7 +111,7 @@ private:
     int mMinHistoryCountSpatialThreshold = 1;
     int mSpatialLumBinCount = 5;
     int mLutDimSize = 4;
-    int mLutIdxSize = 3;
+    int mLutIdxSize = 6;
     int mSpatialLutDimSize = 4;
     int mSpatialLutIdxSize = 3;
 

@@ -24,7 +24,7 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     
     
     g.mark_output('ToneMapper.dst')
-    g.mark_output('ASVGFPass.Debug Output image')
+    # g.mark_output('ASVGFPass.Debug Output image')
 
     g.add_edge('TAA.colorOut', 'ToneMapper.src')
     g.add_edge('ASVGFPass.Filtered image', 'TAA.colorIn')
@@ -119,9 +119,8 @@ try:
                 logging.error("An error occurred: %s", e)
                 logging.error(traceback.format_exc())
                 time.sleep(1)
-                continue 
-        
-
+                continue         
+        # frame capture
         if not useCSVGF:
             m.frameCapture.outputDir = asvgf_path
         else:

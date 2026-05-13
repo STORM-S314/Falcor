@@ -98,7 +98,7 @@ try:
     print("==================CAPUTRE======================")
     scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
     # scene_path = scenes_path + '/Bistro_v5_2/BistroInterior_Wine.pyscene'
-    # scene_path = scenes_path + "/SunTemple_v4/SunTemple/SunTemple.pyscene"
+    scene_path = scenes_path + "/SunTemple_v4/SunTemple/SunTemple.pyscene"
     # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Day.pyscene"
     # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Dusk.pyscene"
     # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_One.pyscene"
