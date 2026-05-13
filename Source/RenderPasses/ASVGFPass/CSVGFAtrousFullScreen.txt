@@ -184,7 +184,9 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
     const float kernelWeights[3] = { 1.0, 2.0 / 3.0, 1.0 / 6.0 };
 
     const float4 illuminationCenter = gColorAndVariance[ipos].rgba;
-    const float lIlluminationCenter = luminance(illuminationCenter.rgb);    
+    const float lIlluminationCenter = luminance(illuminationCenter.rgb);
+
+    const float varDiff = computeVarianceDiffCenter(ipos);
 
     const float2 zCenter = gLinearZTexture[ipos].xy;
     if (zCenter.x < 0.0)
@@ -234,33 +236,39 @@ float4 main(FullScreenPassVsOut vsOut) : SV_TARGET0
             }
         }
     //}
-    float4 filteredIllumination = float4(sumIllumination / float4(sumWIllumination.xxx, sumWIllumination * sumWIllumination));    
+    float4 filteredIllumination = float4(sumIllumination / float4(sumWIllumination.xxx, sumWIllumination * sumWIllumination));
+
+    filteredIllumination  = filteredIllumination;
 
     if(gStepSize == 1)
     {
         #if IS_DEBUG_PASS
-        //gColorTest[ipos] = float4(filteredIllumination.a, 0.0, 0.0 , 1.0);        
+        //gColorTest[ipos] = float4(filteredIllumination.a, 0.0, 0.0 , 1.0);
+        gColorTest[ipos].r = varDiff;
         //gColorTest[ipos] = float4(((filteredIllumination.rgb) * (gAlbedoTexture[ipos].rgb + gSpecularAlbedo[ipos].rgb + gEmissionTexture[ipos].rgb)), 1.0);
         #endif
     }
     if(gStepSize == 4)
     {
         #if IS_DEBUG_PASS
-        //gColorTest[ipos].g = filteredIllumination.a;        
+        //gColorTest[ipos].g = filteredIllumination.a;
+        gColorTest[ipos].g = varDiff;
         //gColorTest[ipos] = float4(((filteredIllumination.rgb) * (gAlbedoTexture[ipos].rgb + gSpecularAlbedo[ipos].rgb + gEmissionTexture[ipos].rgb)), 1.0);
         #endif
     }
     if(gStepSize == 8)
     {
         #if IS_DEBUG_PASS
-        //gColorTest[ipos].b = filteredIllumination.a;        
+        //gColorTest[ipos].b = filteredIllumination.a;
+        gColorTest[ipos].b = varDiff;
         //gColorTest[ipos] = float4(((filteredIllumination.rgb) * (gAlbedoTexture[ipos].rgb + gSpecularAlbedo[ipos].rgb + gEmissionTexture[ipos].rgb)), 1.0);
         #endif
     }
     if(gStepSize == 16)
     {
         #if IS_DEBUG_PASS
-        //gColorTest[ipos].a = filteredIllumination.a;        
+        //gColorTest[ipos].a = filteredIllumination.a;
+        gColorTest[ipos].a = varDiff;
         //gColorTest[ipos] = float4(((filteredIllumination.rgb) * (gAlbedoTexture[ipos].rgb + gSpecularAlbedo[ipos].rgb + gEmissionTexture[ipos].rgb)), 1.0);
         #endif
     }

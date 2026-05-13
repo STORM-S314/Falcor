@@ -80,13 +80,13 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
     # g.mark_output('GBufferRT.depth')
     return g
 useCSVGF = True
-ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=True)
+ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=True, isSpatialTrain=False)
 try: 
     print("==================CAPUTRE======================")
     scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
     # scene_path = "D:\\data\\Bistro_v5_2\\BistroInterior_Wine.pyscene"
     # scene_path = "D:\\data\\SunTemple_v4\\SunTemple\\SunTemple.pyscene"
-    # scene_path = "D:\\data\\EmeraldSquare_v4_1\\EmeraldSquare_Day.pyscene"
+    # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Day.pyscene"
     # scene_path = "D:\\data\\bathroom\\bathroom.pyscene"
     # scene_path = "C:\\Users\\storm\\Documents\\GitHub\\Falcor\\media\\test_scenes\\cornell_box_bunny.pyscene"
     # scene_path = "D:\\data\\ZeroDay_v1\\ZeroDay_One.pyscene"
@@ -94,8 +94,14 @@ try:
     camera = m.scene.camera
     camera.nearPlane = 0.1     
     m.clock.pause()
-    m.clock.framerate = 60
+    m.clock.framerate = 15
     m.addGraph(ASVGF)
+    asvgf_path += '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
+    csvgf_path += '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
+    if not os.path.exists(asvgf_path):
+        os.makedirs(asvgf_path)
+    if not os.path.exists(csvgf_path):
+        os.makedirs(csvgf_path)
     frame_idx = 0
     while True:
         while True:        
@@ -114,8 +120,8 @@ try:
                 logging.error(traceback.format_exc())
                 time.sleep(1)
                 continue 
-        frames = 100
-        # frame capture
+        
+
         if not useCSVGF:
             m.frameCapture.outputDir = asvgf_path
         else:

@@ -100,13 +100,13 @@ def render_graph_PathTracerNRD():
 PathTracerNRD = render_graph_PathTracerNRD()
 try:
     print("==================CAPUTRE======================")
-    scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
+    # scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
     # scene_path = scenes_path + '/Bistro_v5_2/BistroInterior_Wine.pyscene'
     # scene_path = scenes_path + "/SunTemple_v4/SunTemple/SunTemple.pyscene"
     # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Day.pyscene"
     # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Dusk.pyscene"
     # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_One.pyscene"
-    # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_Seven.pyscene"
+    scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_Seven.pyscene"
     m.loadScene(scene_path)
     m.addGraph(PathTracerNRD)
 
@@ -114,7 +114,7 @@ try:
     camera.nearPlane = 0.1 
     
     m.clock.pause()
-    m.clock.framerate = 60
+    m.clock.framerate = 15
     frames = 100
     start_frame_idx = 100
     end_frame_idx = start_frame_idx + frames

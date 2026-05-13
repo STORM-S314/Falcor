@@ -8,14 +8,14 @@ import traceback
 frame_output_path = r'D:/data/' if os.name == 'nt' else os.path.expanduser('~/data/')
 denoised_frame_path = frame_output_path + '/Denoised'
 noise_frame_path = frame_output_path + '/Noisy'
-csvgf_path = noise_frame_path + '/CSVGF'
+csvgf_path = denoised_frame_path + '/CSVGF'
 asvgf_path = denoised_frame_path + '/ASVGF'
 scenes_path = r'D:/data' if os.name == 'nt' else os.path.expanduser('~/data/scenes')
 logging.basicConfig(filename=frame_output_path + '/error_log.txt', level=logging.ERROR, format='%(asctime)s %(message)s')
 def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain = False):
     g = RenderGraph('ASVGF')
     g.create_pass('TAA', 'TAA', {'alpha': 0.10000000149011612, 'colorBoxSigma': 1.0, 'antiFlicker': True})
-    g.create_pass('GBufferRaster', 'GBufferRaster', {'outputSize': 'Default', 'samplePattern': 'Center', 'sampleCount': 16, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back'})
+    g.create_pass('GBufferRT', 'GBufferRT', {'outputSize': 'Default', 'samplePattern': 'Center', 'sampleCount': 16, 'useAlphaTest': True, 'adjustShadingNormals': True, 'forceCullMode': False, 'cull': 'Back'})
     g.create_pass('ASVGFPass', 'ASVGFPass', {'UseCSVGF': useCSVGF,'IsTemporalTrain': isTemporalTrain, 'IsSpatialTrain': isSpatialTrain})
     if not useCSVGF:
         g.create_pass('GradForwardProjPass', 'GradForwardProjPass', {'UseCSVGF': useCSVGF})
@@ -37,15 +37,15 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
         g.add_edge('ModPathTracer.color', 'ASVGFPass.Color')
         g.add_edge('ModPathTracer.specularAlbedo', 'ASVGFPass.SpecularAlbedo')
         g.add_edge('GradForwardProjPass.OutGradVisibilityBuffer', 'ModPathTracer.vbuffer')
-        g.add_edge('GBufferRaster.mvec', 'ModPathTracer.mvec')
+        g.add_edge('GBufferRT.mvec', 'ModPathTracer.mvec')
         g.add_edge('GradForwardProjPass.OutGradWViewBuffer', 'ModPathTracer.viewW')
         g.add_edge('GradForwardProjPass.OutRandomNumberBuffer', 'ModPathTracer.randomNumbers')
         g.add_edge('GradForwardProjPass.OutGradSamplesBuffer', 'ASVGFPass.GradientSamples')
-        g.add_edge('GBufferRaster.normW', 'GradForwardProjPass.InWorldNormal')
-        g.add_edge('GBufferRaster.vbuffer', 'GradForwardProjPass.InVisibilityBuffer')
-        g.add_edge('GBufferRaster.posW', 'GradForwardProjPass.InWPos')
-        g.add_edge('GBufferRaster.viewW', 'GradForwardProjPass.InWViewBuffer')
-        g.add_edge('GBufferRaster.linearZ', 'GradForwardProjPass.InLinearZ')
+        g.add_edge('GBufferRT.normW', 'GradForwardProjPass.InWorldNormal')
+        g.add_edge('GBufferRT.vbuffer', 'GradForwardProjPass.InVisibilityBuffer')
+        g.add_edge('GBufferRT.posW', 'GradForwardProjPass.InWPos')
+        g.add_edge('GBufferRT.viewW', 'GradForwardProjPass.InWViewBuffer')
+        g.add_edge('GBufferRT.linearZ', 'GradForwardProjPass.InLinearZ')
         g.add_edge('GradForwardProjPass.OutGradVisibilityBuffer', 'ASVGFPass.GradientVisibilityBuffer')
         # g.mark_output('ModPathTracer.albedo')
         # g.mark_output('ModPathTracer.color')
@@ -61,13 +61,13 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
         g.add_edge('PathTracer.albedo', 'ASVGFPass.Albedo')
         g.add_edge('PathTracer.color', 'ASVGFPass.Color')
         g.add_edge('PathTracer.specularAlbedo', 'ASVGFPass.SpecularAlbedo')
-        g.add_edge('GBufferRaster.vbuffer', 'PathTracer.vbuffer')
-        g.add_edge('GBufferRaster.mvec', 'PathTracer.mvec')
-        g.add_edge('GBufferRaster.viewW', 'PathTracer.viewW')
-        g.add_edge('GBufferRaster.vbuffer', 'ASVGFPass.GradientVisibilityBuffer')
-        g.mark_output('PathTracer.albedo')
-        g.mark_output('PathTracer.color')
-        g.mark_output('PathTracer.specularAlbedo')
+        g.add_edge('GBufferRT.vbuffer', 'PathTracer.vbuffer')
+        g.add_edge('GBufferRT.mvec', 'PathTracer.mvec')
+        g.add_edge('GBufferRT.viewW', 'PathTracer.viewW')
+        g.add_edge('GBufferRT.vbuffer', 'ASVGFPass.GradientVisibilityBuffer')
+        # g.mark_output('PathTracer.albedo')
+        # g.mark_output('PathTracer.color')
+        # g.mark_output('PathTracer.specularAlbedo')
         # g.mark_output('PathTracer.indirectAlbedo')
         # g.mark_output('PathTracer.guideNormal')
         # g.mark_output('PathTracer.reflectionPosW')
@@ -75,106 +75,29 @@ def render_graph_ASVGF(useCSVGF = False, isTemporalTrain = False, isSpatialTrain
         # g.mark_output('PathTracer.pathLength')
         
         
-    g.add_edge('GBufferRaster.mvec', 'TAA.motionVecs')
-    g.add_edge('GBufferRaster.emissive', 'ASVGFPass.Emission')
-    g.add_edge('GBufferRaster.linearZ', 'ASVGFPass.LinearZ')
-    g.add_edge('GBufferRaster.normW', 'ASVGFPass.Normals')
-    g.add_edge('GBufferRaster.vbuffer', 'ASVGFPass.CurrentVisibilityBuffer')
-    g.add_edge('GBufferRaster.mvec', 'ASVGFPass.MotionVectors')
+    g.add_edge('GBufferRT.mvec', 'TAA.motionVecs')
+    g.add_edge('GBufferRT.emissive', 'ASVGFPass.Emission')
+    g.add_edge('GBufferRT.linearZ', 'ASVGFPass.LinearZ')
+    g.add_edge('GBufferRT.normW', 'ASVGFPass.Normals')
+    g.add_edge('GBufferRT.vbuffer', 'ASVGFPass.CurrentVisibilityBuffer')
+    g.add_edge('GBufferRT.mvec', 'ASVGFPass.MotionVectors')
     
     
     
-    g.mark_output('GBufferRaster.emissive')
-    g.mark_output('GBufferRaster.linearZ')
-    g.mark_output('GBufferRaster.normW')
-    g.mark_output('GBufferRaster.vbuffer')
-    g.mark_output('GBufferRaster.mvec')
-    g.mark_output('GBufferRaster.pnFwidth')
-    g.mark_output('GBufferRaster.posW')
+    # g.mark_output('GBufferRT.emissive')
+    # g.mark_output('GBufferRT.linearZ')
+    # g.mark_output('GBufferRT.normW')
+    # g.mark_output('GBufferRT.vbuffer')
+    # g.mark_output('GBufferRT.mvec')
+    # g.mark_output('GBufferRT.pnFwidth')
     return g
 useCSVGF = True
 ASVGF = render_graph_ASVGF(useCSVGF, isTemporalTrain=False, isSpatialTrain=False)
 try: 
-    print("==================CAPUTRE======================")
-    scene_path = scenes_path + '/Bistro_v5_2/BistroExterior.pyscene'
-    # scene_path = scenes_path + '/Bistro_v5_2/BistroInterior_Wine.pyscene'
-    # scene_path = scenes_path + "/SunTemple_v4/SunTemple/SunTemple.pyscene"
-    # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Day.pyscene"
-    # scene_path = scenes_path + "/EmeraldSquare_v4_1/EmeraldSquare_Dusk.pyscene"
-    # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_One.pyscene"
-    # scene_path = scenes_path + "/ZeroDay_v1/ZeroDay_Seven.pyscene"
-    # scene_path = "D:\\data\\bathroom\\bathroom.pyscene"
-    # scene_path = "C:\\Users\\storm\\Documents\\GitHub\\Falcor\\media\\test_scenes\\cornell_box_bunny.pyscene"    
-    m.loadScene(scene_path, buildFlags=SceneBuilderFlags.UseCache)
     m.addGraph(ASVGF)
     camera = m.scene.camera
-    camera.nearPlane = 0.1 
-    
-    m.clock.pause()
-    m.clock.framerate = 15
-    frames = 100
-    start_frame_idx = 100
-    end_frame_idx = start_frame_idx + frames
-    step = 1
-    m.profiler.enabled = True
-    m.profiler.start_capture()
-    asvgf_path += '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
-    csvgf_path += '/' + scene_path.split('/')[-1].split('.')[0] + f'/{m.clock.framerate}FPS'
-    if not os.path.exists(asvgf_path):
-        os.makedirs(asvgf_path)
-    if not os.path.exists(csvgf_path):
-        os.makedirs(csvgf_path)
-    # frame capture
-    if not useCSVGF:
-        m.frameCapture.outputDir = asvgf_path
-    else:
-        m.frameCapture.outputDir = csvgf_path
-    for i in range(end_frame_idx):
-        m.clock.frame = i
-        m.renderFrame()
-        if i>=start_frame_idx  and i% step == 0:
-            m.frameCapture.capture()
-            print(f"\rProgress: {i + 1 - start_frame_idx}/{end_frame_idx - start_frame_idx} frames captured")        
-    capture = m.profiler.end_capture()
-    m.profiler.enabled = False
-
-    frameCount = capture["frame_count"]
-    if not useCSVGF:
-        lastFrameTime_reProj = capture["events"]["/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time"]["records"][frameCount - 1]
-        meanFrameTime_reProj = 0
-    else:
-        lastFrameTime_reProj = 0
-        meanFrameTime_reProj = 0
-    lastFrameTime_denoise = capture["events"]["/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time"]["records"][frameCount - 1]
-    meanFrameTime_denoise = 0
-    print(f"Frame Count: {frameCount}")
-    print(f"Last frame gpu time:\n\t GradReproj {lastFrameTime_reProj} ms \n\tDenoise {lastFrameTime_denoise} ms")
-    
-    if not useCSVGF:
-        with open(asvgf_path + "/ASVGF.csv", "w") as f:
-            f.write("Frame ID, GradReproj Time, Denoise Time\n")
-            for i in range(frameCount):
-                if i >=start_frame_idx and i%step == 0:
-                    meanFrameTime_reProj += capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i]
-                    meanFrameTime_denoise += capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i] + capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]
-                    f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/GradForwardProjPass/gpu_time']['records'][i]}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
-    else:
-        with open(csvgf_path + "/CSVGF.csv", "w") as f:
-            f.write("Frame ID, Denoise Time\n")
-            for i in range(frameCount):
-                if i >=start_frame_idx and i%step == 0:
-                    meanFrameTime_denoise += capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]
-                    f.write(f"{i}, {capture['events']['/onFrameRender/RenderGraphExe::execute()/ASVGFPass/gpu_time']['records'][i]}\n")
-    meanFrameTime_reProj /= frames
-    meanFrameTime_denoise /= frames
-    print(f"Mean frame gpu time:\n\t GradReproj {meanFrameTime_reProj} ms \n\tDenoise {meanFrameTime_denoise} ms")                
-    exit()
-
-
-
-except NameError: None
+    camera.nearPlane = 0.1     
 except Exception as e:
     logging.error("An error occurred: %s", e)
     logging.error(traceback.format_exc())
-#C:\Users\storm\Documents\GitHub\Falcor\build\windows-vs2022\bin\Release\Mogwai.exe --headless --script="C:\Users\storm\Documents\GitHub\Falcor\scripts\ASVGF.py" -v2 --width=1280 --height=720 --gpu=0
-#.\RenderGraphEditor --editor --graph-file "C:\Users\storm\Documents\GitHub\Falcor\scripts\ASVGF.py" --graph-name ASVGF
+#C:\Users\storm\Documents\GitHub\Falcor\build\windows-vs2022\bin\Release\Mogwai.exe --headless --script="C:\Users\storm\Documents\GitHub\Falcor\scripts\Demo.py" -v0 --width=1280 --height=720 --gpu=0
